@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radar CAIS — Encontrador Inteligente de Editais Oficiais</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20261113_v9">
+</head>
+<body>
+
+  <!-- CABEÇALHO INSTITUCIONAL -->
+  <header class="header-didatico">
+    <div class="container header-flex">
+      <div class="logo-area">
+        <div class="logo-icone">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="#0284C7" stroke-width="2.5" />
+            <path d="M12 2a10 10 0 0 1 10 10" stroke="#38BDF8" stroke-width="3" stroke-linecap="round" />
+            <circle cx="12" cy="12" r="3" fill="#0284C7" />
+            <path d="M12 9v-3M15 12h3M12 15v3M9 12H6" stroke="#0B2545" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <div class="logo-titulo">Radar CAIS <span class="tag-versao">Fontes Oficiais</span></div>
+          <div class="logo-subtitulo">Inteligência de Editais & Recursos de Fomento • Instituto CAIS</div>
+        </div>
+      </div>
+
+      <div class="header-acoes">
+        <!-- Indicador de Status -->
+        <div class="badge-status-conexao" id="badgeStatus">
+          <span class="ponto-status verde" id="pontoStatus"></span>
+          <span id="textoStatus">Radar Pronto</span>
+        </div>
+
+        <!-- Botão Baixar Planilha -->
+        <button class="botao botao-secundario" id="btnExportarCsv" title="Baixar planilha para Excel">
+          📥 Baixar no Excel
+        </button>
+
+        <!-- Botão Principal de Varredura -->
+        <button class="botao botao-primario" id="btnVarreduraTopo" title="O robô visita os sites do governo agora mesmo">
+          <span class="icone-giratorio" id="iconeGirar">🔄</span>
+          <span id="labelVarredura">Buscar Editais na Web</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- BANNER EXPLICATIVO: "COMO FUNCIONA O RADAR?" (TÃO SIMPLES QUE UMA CRIANÇA ENTENDE) -->
+  <section class="banner-didatico" id="bannerDidatico">
+    <div class="container">
+      <div class="caixa-passo-a-passo">
+        <div class="titulo-passos">
+          <div class="titulo-passos-esquerda">
+            <span class="icone-guia">💡</span>
+            <strong>Como o Radar CAIS funciona? É tão fácil quanto 1, 2, 3:</strong>
+          </div>
+          <button class="btn-toggle-guia" id="btnToggleGuia" title="Ocultar ou mostrar guia">
+            <span id="textoToggleGuia">Mostrar Guia Rápido</span>
+          </button>
+        </div>
+        <div class="grid-passos" id="gridPassos" style="display:none;">
+          <div class="card-passo">
+            <div class="numero-passo">1️⃣ O Robô Procura</div>
+            <p>Vigia <strong>19 portais oficiais</strong> do governo (ETICE, FINEP, FUNCAP, CNPq, EMBRAPII, etc.) procurando chamadas abertas com verba para projetos.</p>
+          </div>
+          <div class="card-passo">
+            <div class="numero-passo">2️⃣ A IA Lê e Avalia</div>
+            <p>Nossa inteligência artificial lê todo o edital oficial, calcula o prazo final e dá uma <strong>nota de 0 a 10</strong> indicando se combina com o CAIS.</p>
+          </div>
+          <div class="card-passo">
+            <div class="numero-passo">3️⃣ O Semáforo Avisa</div>
+            <p>
+              <span class="semaforo-mini verde">🟢 GO = Vale Inscrever!</span>
+              <span class="semaforo-mini amarelo">🟡 AVALIAR = Chamar parceiro</span>
+              <span class="semaforo-mini vermelho">🔴 URGENTE = Falta pouco tempo</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="container">
+
+    <!-- CARDS DE RESUMO (KPIS) -->
+    <section class="grid-kpis">
+      <div class="card-kpi">
+        <div class="kpi-topo">
+          <span class="kpi-rotulo">Editais Ativos no Radar</span>
+          <span class="kpi-emoji">📦</span>
+        </div>
+        <div class="kpi-numero" id="kpiTotal">0</div>
+        <div class="kpi-legenda" id="kpiOrgaos">Nenhuma simulação: apenas fontes reais</div>
+      </div>
+
+      <div class="card-kpi kpi-verde">
+        <div class="kpi-topo">
+          <span class="kpi-rotulo">Recomendados (GO!)</span>
+          <span class="kpi-emoji">🟢</span>
+        </div>
+        <div class="kpi-numero cor-verde" id="kpiGo">0</div>
+        <div class="kpi-legenda">Alta chance de aprovação</div>
+      </div>
+
+      <div class="card-kpi kpi-vermelho">
+        <div class="kpi-topo">
+          <span class="kpi-rotulo">Urgentes (&le; 7 dias)</span>
+          <span class="kpi-emoji">⏰</span>
+        </div>
+        <div class="kpi-numero cor-vermelho" id="kpiUrgentes">0</div>
+        <div class="kpi-legenda">Prazos prestes a encerrar</div>
+      </div>
+
+      <div class="card-kpi">
+        <div class="kpi-topo">
+          <span class="kpi-rotulo">Nota Média</span>
+          <span class="kpi-emoji">⭐</span>
+        </div>
+        <div class="kpi-numero font-mono" id="kpiMediaScore">0.0<span class="kpi-max">/10</span></div>
+        <div class="kpi-legenda">Calculada pelo Framework CAIS</div>
+      </div>
+    </section>
+
+    <!-- ESTADO INICIAL VAZIO CONVIDATIVO (QUANDO INICIA LIMPO) -->
+    <section class="painel-inicial-limpo" id="painelInicialLimpo">
+      <div class="cartao-decolagem">
+        <div class="icone-radar-grande">🛰️</div>
+        <h2>Seu Radar CAIS está pronto para varrer a internet!</h2>
+        <p class="sub-decolagem">
+          O sistema iniciou 100% limpo, sem editais de teste ou simulações. Todas as informações exibidas virão <strong>diretamente das páginas governamentais oficiais</strong>.
+        </p>
+
+        <div class="caixa-acao-central">
+          <button class="botao botao-primario botao-gigante" id="btnIniciarVarreduraCentral">
+            <span class="icone-btn-grande">🔍</span>
+            <span>Buscar Oportunidades Reais nos Portais Oficiais</span>
+          </button>
+          <div class="texto-dica-botao">Clique para o robô navegar por 19 portais e extrair as chamadas abertas hoje.</div>
+        </div>
+
+        <div class="portais-mapeados-lista">
+          <div class="portais-titulo">Portais oficiais monitorados em tempo real:</div>
+          <div class="tags-portais">
+            <span class="tag-portal">FINEP</span>
+            <span class="tag-portal">ETICE (Ceará)</span>
+            <span class="tag-portal">FUNCAP (Ceará)</span>
+            <span class="tag-portal">CNPq</span>
+            <span class="tag-portal">EMBRAPII</span>
+            <span class="tag-portal">Programa Mover (MDIC)</span>
+            <span class="tag-portal">Sebrae (Catalisa ICT)</span>
+            <span class="tag-portal">BNDES Funtec</span>
+            <span class="tag-portal">Banco do Nordeste (FUNDECI)</span>
+            <span class="tag-portal">MCTI</span>
+            <span class="tag-portal">Horizon Europe</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAINEL DE FILTROS (EXIBIDO QUANDO HÁ EDITAIS CARREGADOS) -->
+    <section class="painel-filtros" id="painelFiltros" style="display:none;">
+      <div class="busca-amigavel">
+        <span class="icone-lupa">🔍</span>
+        <input type="text" id="campoBusca" placeholder="Pesquise por palavra-chave (Ex: Inteligência Artificial, Semicondutores, Nuvem, Bolsas, Ceará)...">
+        <button id="btnLimparBusca" class="btn-limpar" style="display:none;">&times; Limpar</button>
+      </div>
+
+      <!-- CHIPS DE FILTRO RÁPIDO (DIDÁTICOS EM 1 CLIQUE) -->
+      <div class="barra-chips-atalhos">
+        <span class="label-chips">Atalhos:</span>
+        <div class="chips-container" id="chipsContainer">
+          <button class="chip-filtro ativo" data-tipo="todos">✨ Todos</button>
+          <button class="chip-filtro chip-go" data-tipo="go">🟢 Só GO! (Recomendados)</button>
+          <button class="chip-filtro chip-urgente" data-tipo="urgente">⏰ Urgentes (&le; 7 dias)</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="ETICE">🏛️ ETICE (Ceará)</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="FINEP">🏛️ FINEP</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="FUNCAP">🏛️ FUNCAP</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="CNPq">🏛️ CNPq</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="EMBRAPII">🏛️ EMBRAPII</button>
+        </div>
+      </div>
+
+      <div class="linha-filtros">
+        <!-- Filtro de Semáforo -->
+        <div class="item-filtro">
+          <label>O que fazer? (Decisão):</label>
+          <select id="filtroDecisao">
+            <option value="">Todas as Recomendações</option>
+            <option value="GO">🟢 GO — Vale a pena submeter proposta</option>
+            <option value="AVALIAR">🟡 AVALIAR — Estudar com parceiros (UECE, etc)</option>
+            <option value="NO-GO">⚪ NO-GO — Não recomendado agora</option>
+          </select>
+        </div>
+
+        <!-- Filtro de Órgão -->
+        <div class="item-filtro">
+          <label>Quem financia? (Órgão):</label>
+          <select id="filtroOrgao">
+            <option value="">Todos os Órgãos</option>
+          </select>
+        </div>
+
+        <!-- Filtro de Urgência de Prazo -->
+        <div class="item-filtro">
+          <label>Prazo limite:</label>
+          <select id="filtroPrazo">
+            <option value="">Qualquer data</option>
+            <option value="urgente">🚨 Menos de 7 dias (Urgente!)</option>
+            <option value="quinzena">⏳ Menos de 15 dias</option>
+            <option value="mes">📅 Menos de 30 dias</option>
+          </select>
+        </div>
+
+        <!-- Alternar Cards vs Tabela -->
+        <div class="modo-visualizacao">
+          <button class="btn-modo ativo" id="btnModoCards">
+            <span>🃏</span> Cartões
+          </button>
+          <button class="btn-modo" id="btnModoTabela">
+            <span>📋</span> Planilha
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- LISTA DE OPORTUNIDADES (QUANDO HÁ EDITAIS) -->
+    <section class="area-resultados" id="areaResultados" style="display:none;">
+      <div class="cabecalho-resultados">
+        <div class="contador-editais" id="contadorResultados">Exibindo oportunidades...</div>
+        <div class="ordenador-simples">
+          <label>Organizar por:</label>
+          <select id="selectOrdenacao">
+            <option value="score_desc">⭐ Maiores Notas Primeiro</option>
+            <option value="prazo_asc">⏰ Prazos Mais Próximos de Vencer</option>
+            <option value="orgao_asc">🏢 Ordem Alfabética do Órgão</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- MODO CARTÕES -->
+      <div class="grid-cartoes" id="gridCartoes"></div>
+
+      <!-- MODO TABELA -->
+      <div class="wrapper-tabela" id="wrapperTabela" style="display:none;">
+        <table class="tabela-didatica">
+          <thead>
+            <tr>
+              <th>Semáforo</th>
+              <th>Quem Paga</th>
+              <th>Qual é a Oportunidade?</th>
+              <th>Até Quando?</th>
+              <th>Quanto Dinheiro?</th>
+              <th>Nota</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabela"></tbody>
+        </table>
+      </div>
+
+      <!-- ESTADO DE BUSCA VAZIA -->
+      <div class="estado-vazio" id="estadoVazio" style="display:none;">
+        <div class="emoji-vazio">🔎</div>
+        <h3>Nenhum edital encontrado com essas palavras</h3>
+        <p>Tente limpar os filtros para ver todas as oportunidades oficiais coletadas.</p>
+        <button class="botao botao-primario" id="btnResetarFiltros">Mostrar Todos os Editais</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MASTER MODAL: DETALHES COMPLETOS, ESTRATÉGIA CAIS & NOTAS -->
+  <div class="fundo-modal" id="fundoModal">
+    <div class="painel-modal" id="painelModal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
+      
+      <!-- TOPO FIXO E COMPACTO DO MODAL -->
+      <div class="topo-modal">
+        <div class="topo-modal-textos">
+          <div class="tags-modal" id="tagsModal"></div>
+          <h2 class="titulo-modal" id="modalTitulo">Título do Edital</h2>
+          <div class="meta-modal" id="modalSubtitulo">Órgão Oficial • Identificador CAIS</div>
+        </div>
+        <button class="btn-fechar-modal" id="btnFecharModal" type="button" title="Fechar janela (ESC)">&times;</button>
+      </div>
+
+      <!-- SELETOR DE ABAS FIXO -->
+      <div class="abas-navegacao-modal">
+        <button class="aba-item ativa" id="abaBtnEstrategia" type="button">
+          💡 Plano de Ação CAIS & Detalhes
+        </button>
+        <button class="aba-item" id="abaBtnNotas" type="button">
+          📊 Termômetro de Notas (5 Etapas)
+        </button>
+      </div>
+
+      <!-- CORPO DO MODAL ROLÁVEL E 100% RESPONSIVO -->
+      <div class="corpo-modal" id="corpoModal">
+        
+        <!-- ABA 1: PLANO DE AÇÃO CAIS & DETALHES -->
+        <div class="painel-aba ativo" id="painelAbaEstrategia">
+          
+          <!-- FAIXA DE 3 MÉTRICAS-CHAVE (DENTRO DA ÁREA ROLÁVEL PARA NUNCA ESMAGAR O CONTEÚDO) -->
+          <div class="faixa-metricas-modal">
+            <div class="metrica-modal-card">
+              <span class="metrica-modal-label">💰 Quanto Dinheiro?</span>
+              <span class="metrica-modal-valor valor-grana font-mono" id="modalValor">—</span>
+            </div>
+            <div class="metrica-modal-card">
+              <span class="metrica-modal-label">⏰ Prazo Fatal de Submissão</span>
+              <span class="metrica-modal-valor font-mono" id="modalPrazo">—</span>
+            </div>
+            <div class="metrica-modal-card">
+              <span class="metrica-modal-label">🤝 Exige Contrapartida?</span>
+              <span class="metrica-modal-valor" id="modalContrapartida">—</span>
+            </div>
+          </div>
+
+          <!-- PASSO 1 DO PLANO DE AÇÃO: ELEGIBILIDADE -->
+          <div class="balao-elegibilidade">
+            <div class="balao-cabecalho">
+              <span class="passo-badge-modal azul">1. ELEGIBILIDADE</span>
+              <span class="balao-titulo">👥 Quem Pode Concorrer e Como o CAIS Entra?</span>
+            </div>
+            <p class="balao-texto" id="modalPublicoDetalhado">—</p>
+          </div>
+
+          <!-- PASSO 2 DO PLANO DE AÇÃO: IDEIA DE PROJETO CAIS -->
+          <div class="balao-ideia">
+            <div class="balao-cabecalho">
+              <span class="passo-badge-modal verde">2. PLANO DE AÇÃO</span>
+              <span class="balao-titulo">💡 O que o Instituto CAIS pode fazer aqui? (Proposta Técnica)</span>
+            </div>
+            <p class="balao-texto" id="modalIdeiaProjeto">—</p>
+          </div>
+
+          <!-- PASSO 3 DO PLANO DE AÇÃO: CONSÓRCIO E PARCERIAS -->
+          <div class="balao-parceiros">
+            <div class="balao-cabecalho">
+              <span class="passo-badge-modal ambar">3. CONSÓRCIO SUGERIDO</span>
+              <span class="balao-titulo">🤝 Parceiros Estratégicos Recomendados</span>
+            </div>
+            <p class="balao-texto" id="modalParceiros">—</p>
+          </div>
+
+          <!-- GRADE DUPLA RESPONSIVA: RESUMO + JUSTIFICATIVA -->
+          <div class="grid-resumo-justificativa">
+            <div class="bloco-info-didatico">
+              <span class="bloco-label">📄 Resumo do Edital:</span>
+              <p id="modalResumo">—</p>
+            </div>
+
+            <div class="bloco-info-didatico">
+              <span class="bloco-label">🎯 Por que vale a pena para o CAIS?</span>
+              <p id="modalJustificativa">—</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ABA 2: TERMÔMETRO DE NOTAS & SCORECARD -->
+        <div class="painel-aba" id="painelAbaNotas">
+          <div class="barras-notas">
+            <div class="linha-nota">
+              <div class="info-nota">
+                <span>🎯 Combina com as linhas do CAIS? (Aderência Temática • Peso 40%)</span>
+                <strong class="font-mono" id="notaAderencia">0/10</strong>
+              </div>
+              <div class="trilho-barra"><div class="preenchimento-barra" id="barraAderencia" style="width:0%"></div></div>
+            </div>
+
+            <div class="linha-nota">
+              <div class="info-nota">
+                <span>🏆 Temos chance de aprovação? (Competitividade • Peso 25%)</span>
+                <strong class="font-mono" id="notaChance">0/10</strong>
+              </div>
+              <div class="trilho-barra"><div class="preenchimento-barra" id="barraChance" style="width:0%"></div></div>
+            </div>
+
+            <div class="linha-nota">
+              <div class="info-nota">
+                <span>💵 O valor compensa o esforço? (Atratividade Financeira • Peso 20%)</span>
+                <strong class="font-mono" id="notaFinanceira">0/10</strong>
+              </div>
+              <div class="trilho-barra"><div class="preenchimento-barra" id="barraFinanceira" style="width:0%"></div></div>
+            </div>
+
+            <div class="linha-nota">
+              <div class="info-nota">
+                <span>🧗 É fácil ou burocrático? (Viabilidade Operacional • Peso 15%)</span>
+                <strong class="font-mono" id="notaViabilidade">0/10</strong>
+              </div>
+              <div class="trilho-barra"><div class="preenchimento-barra" id="barraViabilidade" style="width:0%"></div></div>
+            </div>
+          </div>
+
+          <div class="caixa-veredito-final">
+            <div>
+              <div class="veredito-sub">Nota Final Ponderada (Framework CAIS):</div>
+              <div class="veredito-nota font-mono" id="modalScoreFinal">0.0 <span class="max-nota">/ 10</span></div>
+            </div>
+            <div class="veredito-badge-grande" id="modalDecisaoFinal">AVALIAR COM PARCEIRO</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RODAPÉ FIXO DO MODAL -->
+      <div class="rodape-modal">
+        <button class="botao botao-primario botao-grande" id="btnCopiarResumo" type="button">
+          📋 Copiar Resumo para WhatsApp
+        </button>
+        <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-secundario botao-grande" id="btnLinkOficial">
+          🌐 Abrir Edital Oficial no Site do Governo
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TOAST DE NOTIFICAÇÃO -->
+  <div class="container-toasts" id="containerToasts"></div>
+
+  <!-- RODAPÉ -->
+  <footer class="rodape-didatico">
+    <div class="container rodape-flex">
+      <div>
+        <strong>Radar CAIS</strong> — Instituto CAIS (Centro Ágil de Inovação e Saber)
+        <p class="rodape-sub">Sistema de Inteligência de Editais e Captação de Recursos Oficiais de PD&I.</p>
+      </div>
+      <div class="rodape-links">
+        <span>FINEP • FUNCAP Ceará • CNPq • EMBRAPII • Mover • BNDES • Horizon Europe</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js?v=20261113_v9"></script>
+</body>
+</html>
