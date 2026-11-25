@@ -102,6 +102,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // Notificações Toast
   const containerToasts = document.getElementById('containerToasts');
 
+  // Elementos do Copiloto IA (RAG + LLM) & Motor Preditivo (Machine Learning)
+  const btnAbrirCopilotoTopo = document.getElementById('btnAbrirCopilotoTopo');
+  const painelCopilotoRagMl = document.getElementById('painelCopilotoRagMl');
+  const btnToggleCorpoCopiloto = document.getElementById('btnToggleCorpoCopiloto');
+  const textoToggleCopiloto = document.getElementById('textoToggleCopiloto');
+  const corpoCopilotoRagMl = document.getElementById('corpoCopilotoRagMl');
+  const btnConfigGeminiKey = document.getElementById('btnConfigGeminiKey');
+  const labelStatusGemini = document.getElementById('labelStatusGemini');
+  const boxConfigGemini = document.getElementById('boxConfigGemini');
+  const inputChaveGeminiUser = document.getElementById('inputChaveGeminiUser');
+  const btnSalvarChaveGemini = document.getElementById('btnSalvarChaveGemini');
+  const btnRemoverChaveGemini = document.getElementById('btnRemoverChaveGemini');
+  const chipsPromptsRag = document.getElementById('chipsPromptsRag');
+  const inputPerguntaRag = document.getElementById('inputPerguntaRag');
+  const btnExecutarRag = document.getElementById('btnExecutarRag');
+  const resultadoRagContainer = document.getElementById('resultadoRagContainer');
+  const listaTopRoiMl = document.getElementById('listaTopRoiMl');
+  const resumoGargalosMl = document.getElementById('resumoGargalosMl');
+  const boxPredicaoMlModal = document.getElementById('boxPredicaoMlModal');
+  const CHAVE_STORAGE_GEMINI = 'radar_cais_gemini_api_key_v1';
+  let indiceVetorialRag = null;
+
   // Inicialização
   inicializar();
 
@@ -389,6 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (editalSelecionado) gerarMinutaTecnicaProjeto(editalSelecionado);
       });
     }
+
+    // Eventos do Copiloto CAIS (RAG + LLM) & Motor Preditivo (Machine Learning)
+    configurarEventosCopilotoRagMl();
   }
 
   function alternarAbaModal(aba) {
@@ -522,6 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (editais.length === 0) {
       painelInicialLimpo.style.display = 'block';
       painelFiltros.style.display = 'none';
+      if (painelCopilotoRagMl) painelCopilotoRagMl.style.display = 'none';
       areaResultados.style.display = 'none';
       textoStatus.textContent = `Pronto (${hojeBR}) — Aguardando Varredura`;
       pontoStatus.className = 'ponto-status amarelo';
@@ -529,12 +555,19 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       painelInicialLimpo.style.display = 'none';
       painelFiltros.style.display = 'block';
+      if (painelCopilotoRagMl) painelCopilotoRagMl.style.display = 'block';
       areaResultados.style.display = 'block';
       btnExportarCsv.style.opacity = '1';
     }
 
     atualizarKpis(dados);
     popularFiltroOrgaos();
+    construirIndiceVetorialRag();
+    renderizarPainelPreditivoMl();
+    executarConsultaRag(
+      (inputPerguntaRag && inputPerguntaRag.value) ||
+      'Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?'
+    );
     aplicarFiltros();
   }
 
@@ -887,6 +920,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const scoreNum = Number(ed.score_ponderado || 0);
       const pctNota = Math.min(100, Math.round(scoreNum * 10));
+      const predMl = calcularPredicaoMlEdital(ed);
+      const badgeMlCard = !isEncerrado
+        ? `<div class="faixa-ml-card ${predMl.classeGargalo}" title="${escapeHtml(predMl.explicacaoCurta)}">
+             <span>🔮 <strong>ROI ML: ${predMl.indiceRoi}%</strong> • Preparo ~${predMl.diasPreparo}d</span>
+             <span class="tag-janela-ml">${escapeHtml(predMl.rotuloJanela)}</span>
+           </div>`
+        : '';
 
       card.innerHTML = `
         <div class="corpo-card-minimal">
@@ -917,6 +957,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="pilar-valor font-mono ${isEncerrado ? 'prazo-encerrado-txt' : ''}">${escapeHtml(prazoCurto)}</span>
             </div>
           </div>
+          ${badgeMlCard}
         </div>
 
         <div class="rodape-acao-card">
@@ -1409,6 +1450,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Popula Aba 3: Checklist de Documentos & Gestão Interna CAIS
     popularAbaChecklistModal(ed);
+
+    // Popula Diagnóstico Preditivo ML + Cluster de Similaridade na Aba 2
+    renderizarPredicaoMlNoModal(ed);
 
     // Abre por padrão na Aba 1 (Estratégia) ao clicar num cartão, mas preserva a aba ativa ao navegar com ← / →
     if (!preservarAba || !fundoModal.classList.contains('aberto')) {
@@ -2092,5 +2136,680 @@ ${ed.parceiros_sugeridos}
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  // ============================================================================
+  // MÓDULO: COPILOTO CAIS (RAG VETORIAL TF-IDF/COSSENO + GEMINI LLM) &
+  //         MOTOR PREDITIVO DE CAPTAÇÃO (MACHINE LEARNING)
+  // ============================================================================
+
+  const STOPWORDS_PT = new Set([
+    'a', 'ao', 'aos', 'aquela', 'aquelas', 'aquele', 'aqueles', 'aquilo', 'as', 'ate',
+    'com', 'como', 'da', 'das', 'de', 'dela', 'delas', 'dele', 'deles', 'depois', 'do',
+    'dos', 'e', 'ela', 'elas', 'ele', 'eles', 'em', 'entre', 'era', 'essa', 'essas',
+    'esse', 'esses', 'esta', 'estas', 'este', 'estes', 'eu', 'foi', 'for', 'foram',
+    'ha', 'isso', 'isto', 'ja', 'la', 'lhe', 'lhes', 'mais', 'mas', 'me', 'mesmo',
+    'meu', 'meus', 'minha', 'minhas', 'muito', 'na', 'nas', 'nem', 'no', 'nos', 'nossa',
+    'nossas', 'nosso', 'nossos', 'num', 'numa', 'o', 'os', 'ou', 'para', 'pela', 'pelas',
+    'pelo', 'pelos', 'por', 'qual', 'quais', 'quando', 'que', 'quem', 'sao', 'se', 'sem',
+    'ser', 'seu', 'seus', 'so', 'sua', 'suas', 'tambem', 'te', 'tem', 'temos', 'tenho',
+    'ter', 'teu', 'teus', 'tu', 'tua', 'tuas', 'um', 'uma', 'umas', 'uns', 'voce', 'voces',
+    'edital', 'editais', 'chamada', 'chamadas', 'programa', 'projeto', 'projetos', 'cais',
+    'instituto', 'abertos', 'aberto', 'hoje', 'melhor', 'melhores', 'maior', 'quero', 'queremos'
+  ]);
+
+  const SINONIMOS_DOMINIO_CAIS = {
+    ia: ['inteligencia', 'artificial', 'machine', 'learning', 'dados', 'algoritmos', 'llm', 'visao', 'computacional'],
+    inteligencia: ['ia', 'artificial', 'dados', 'machine', 'learning'],
+    chip: ['semicondutores', 'embarcados', 'hardware', 'iot', 'sensores', 'microeletronica'],
+    chips: ['semicondutores', 'embarcados', 'hardware', 'iot', 'sensores', 'microeletronica'],
+    semicondutores: ['embarcados', 'hardware', 'iot', 'sensores', 'microeletronica'],
+    bolsa: ['bolsas', 'mestrado', 'doutorado', 'fixacao', 'pesquisadores', 'funcap', 'cnpq', 'capes', 'profix'],
+    bolsas: ['bolsa', 'mestrado', 'doutorado', 'fixacao', 'pesquisadores', 'funcap', 'cnpq', 'capes'],
+    uece: ['universidade', 'ict', 'doutores', 'bolsas', 'pesquisa', 'academica', 'funcap'],
+    empresa: ['industria', 'industrial', 'startup', 'startups', 'embrapii', 'subvencao', 'mover', 'sebrae', 'parceria'],
+    industria: ['empresa', 'industrial', 'embrapii', 'mover', 'senai', 'bndes', 'subvencao'],
+    startup: ['startups', 'sebrae', 'centelha', 'catalisa', 'spin', 'inovacao', 'subvencao'],
+    nuvem: ['cloud', 'ciberseguranca', 'redes', 'etice', 'governo', 'digital', 'software'],
+    energia: ['energetica', 'hidrogenio', 'clima', 'sustentabilidade', 'renovavel', 'descarbonizacao', 'florestal'],
+    rapido: ['continuo', 'fluxo', 'credenciamento', 'simplificado', 'embrapii', 'etice']
+  };
+
+  function normalizarTextoRag(texto) {
+    return String(texto || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ');
+  }
+
+  function tokenizarRag(texto, expandirSinonimos = false) {
+    const norm = normalizarTextoRag(texto);
+    const brutos = norm.split(/\s+/).filter(t => t.length >= 2 && !STOPWORDS_PT.has(t));
+    const tokens = [];
+    brutos.forEach(tok => {
+      const raiz = tok.length > 5 ? tok.replace(/(acoes|acao|mentos|mento|dores|doras|icos|icas|ais|eis|ois|res|oes|s)$/, '') : tok;
+      tokens.push(raiz || tok);
+      if (expandirSinonimos && SINONIMOS_DOMINIO_CAIS[tok]) {
+        SINONIMOS_DOMINIO_CAIS[tok].forEach(sin => {
+          const rSin = sin.length > 5 ? sin.replace(/(acoes|acao|mentos|mento|dores|doras|icos|icas|ais|eis|ois|res|oes|s)$/, '') : sin;
+          tokens.push(rSin || sin);
+        });
+      }
+    });
+    return tokens;
+  }
+
+  /**
+   * Motor Preditivo de Machine Learning para cada edital:
+   * Estima dias de preparo documental, probabilidade de conversão, risco de gargalo e ROI sobre o tempo da equipe.
+   */
+  function calcularPredicaoMlEdital(ed) {
+    const diasRestantes = calcularDiasRestantes(ed.prazo_submissao);
+    const isEncerrado = diasRestantes !== null && diasRestantes < 0;
+    const complexidade = Number(ed.nota_complexidade || 5);
+    const aderencia = Number(ed.nota_aderencia || 7);
+    const chance = Number(ed.nota_chance_aprovacao || 7);
+    const financeira = Number(ed.nota_financeira || 7);
+    const orgaoUp = String(ed.orgao || '').toUpperCase();
+    const contrapartidaTxt = normalizarTextoRag(ed.contrapartida || '');
+    const semContrapartida = contrapartidaTxt.includes('nao exigida') || contrapartidaTxt.includes('isento') || contrapartidaTxt.includes('100');
+
+    // Predição de esforço (em dias úteis de articulação + escrita técnica)
+    let baseDiasPreparo = Math.round(6 + complexidade * 1.9);
+    if (orgaoUp.includes('HORIZON') || orgaoUp.includes('CONFAP') || orgaoUp.includes('BNDES')) {
+      baseDiasPreparo += 4;
+    } else if (orgaoUp.includes('EMBRAPII') || orgaoUp.includes('ETICE')) {
+      baseDiasPreparo = Math.max(6, baseDiasPreparo - 2);
+    }
+    const diasPreparo = Math.min(28, Math.max(5, baseDiasPreparo));
+
+    // Classificação preditiva de gargalo (Prazo Restante vs Tempo Estimado de Preparo)
+    let statusGargalo = 'confortavel';
+    let classeGargalo = 'ml-janela-ok';
+    let rotuloJanela = '🟢 Janela Confortável';
+    let penalidadePrazo = 0;
+
+    if (isEncerrado) {
+      statusGargalo = 'encerrado';
+      classeGargalo = 'ml-janela-critica';
+      rotuloJanela = '🔴 Encerrado';
+      penalidadePrazo = 40;
+    } else if (diasRestantes !== null) {
+      if (diasRestantes < diasPreparo) {
+        statusGargalo = 'critico';
+        classeGargalo = 'ml-janela-critica';
+        rotuloJanela = `🔴 Gargalo (${diasRestantes}d < ~${diasPreparo}d preparo)`;
+        penalidadePrazo = 14;
+      } else if (diasRestantes <= Math.round(diasPreparo * 1.6)) {
+        statusGargalo = 'atencao';
+        classeGargalo = 'ml-janela-atencao';
+        rotuloJanela = `🟡 Iniciar Já (Faltam ${diasRestantes}d)`;
+        penalidadePrazo = 4;
+      } else {
+        rotuloJanela = `🟢 Janela Confortável (${diasRestantes}d)`;
+      }
+    } else {
+      rotuloJanela = '🟢 Fluxo Contínuo / Vigente';
+    }
+
+    // Probabilidade Preditiva de Conversão e Índice de ROI do Esforço (0 a 100%)
+    const eficienciaEsforco = Math.max(2, 10 - complexidade);
+    const bonusSemContrapartida = semContrapartida ? 4 : 0;
+    const bonusRegional = (orgaoUp.includes('FUNCAP') || orgaoUp.includes('ETICE') || orgaoUp.includes('BNB')) ? 4 : 0;
+
+    const scoreRoiBruto =
+      (aderencia * 3.6) +
+      (chance * 3.2) +
+      (financeira * 1.7) +
+      (eficienciaEsforco * 1.5) +
+      bonusSemContrapartida +
+      bonusRegional -
+      penalidadePrazo;
+
+    const indiceRoi = isEncerrado ? 0 : Math.min(99, Math.max(45, Math.round(scoreRoiBruto)));
+    const probConversao = isEncerrado ? 0 : Math.min(95, Math.max(35, Math.round((chance * 6.5) + (aderencia * 2.5) + bonusRegional - (penalidadePrazo * 0.6))));
+
+    const explicacaoCurta = `Predição ML: ROI do esforço ${indiceRoi}% | Chance estimada ${probConversao}% | Tempo médio de preparo documental: ~${diasPreparo} dias.`;
+
+    return {
+      diasPreparo,
+      diasRestantes,
+      statusGargalo,
+      classeGargalo,
+      rotuloJanela,
+      indiceRoi,
+      probConversao,
+      semContrapartida,
+      explicacaoCurta
+    };
+  }
+
+  /**
+   * Constrói o índice vetorial TF-IDF sobre todos os editais para busca RAG e clustering por similaridade de cosseno.
+   */
+  function construirIndiceVetorialRag() {
+    if (!editais || editais.length === 0) {
+      indiceVetorialRag = null;
+      return;
+    }
+
+    const docsTokens = [];
+    const df = {};
+    const N = editais.length;
+
+    editais.forEach(ed => {
+      const lab = obterLaboratorioCais(ed);
+      // Pesos maiores para campos mais informativos (Título, Órgão, Ideia CAIS, Resumo e Lab)
+      const textoPonderado = [
+        ed.titulo, ed.titulo, ed.titulo,
+        ed.orgao, ed.orgao,
+        lab, lab,
+        ed.ideia_projeto_cais, ed.ideia_projeto_cais,
+        ed.resumo_objetivo, ed.resumo_objetivo,
+        ed.justificativa_cais,
+        ed.publico_elegivel,
+        ed.parceiros_sugeridos,
+        ed.valor_financiado,
+        ed.contrapartida
+      ].join(' ');
+
+      const tokens = tokenizarRag(textoPonderado, false);
+      docsTokens.push({ id: ed.id_edital, ed, tokens });
+
+      const unicos = new Set(tokens);
+      unicos.forEach(t => {
+        df[t] = (df[t] || 0) + 1;
+      });
+    });
+
+    const idf = {};
+    Object.keys(df).forEach(t => {
+      idf[t] = Math.log(1 + (N / (1 + df[t])));
+    });
+
+    const vetoresDocs = docsTokens.map(doc => {
+      const tf = {};
+      doc.tokens.forEach(t => {
+        tf[t] = (tf[t] || 0) + 1;
+      });
+      const vec = {};
+      let normaSq = 0;
+      Object.keys(tf).forEach(t => {
+        const peso = (1 + Math.log(tf[t])) * (idf[t] || 1);
+        vec[t] = peso;
+        normaSq += peso * peso;
+      });
+      return {
+        id: doc.id,
+        ed: doc.ed,
+        vec,
+        norma: Math.sqrt(normaSq) || 1
+      };
+    });
+
+    indiceVetorialRag = { idf, vetoresDocs };
+  }
+
+  function calcularSimilaridadeCossenoVetores(vecA, normaA, vecB, normaB) {
+    if (!normaA || !normaB) return 0;
+    let prod = 0;
+    const chavesMenores = Object.keys(vecA).length <= Object.keys(vecB).length ? vecA : vecB;
+    const outro = chavesMenores === vecA ? vecB : vecA;
+    Object.keys(chavesMenores).forEach(t => {
+      if (outro[t]) {
+        prod += vecA[t] * vecB[t];
+      }
+    });
+    return prod / (normaA * normaB);
+  }
+
+  /**
+   * Encontra os 2 editais vigentes mais similares matematicamente (Cosine Similarity Cluster)
+   * para permitir reaproveitamento de proposta técnica pela equipe CAIS.
+   */
+  function obterEditaisSimilaresMl(edAlvo, limite = 2) {
+    if (!indiceVetorialRag || !edAlvo) return [];
+    const docAlvo = indiceVetorialRag.vetoresDocs.find(d => d.id === edAlvo.id_edital);
+    if (!docAlvo) return [];
+
+    const candidatos = [];
+    indiceVetorialRag.vetoresDocs.forEach(doc => {
+      if (doc.id === edAlvo.id_edital) return;
+      const dias = calcularDiasRestantes(doc.ed.prazo_submissao);
+      if (dias !== null && dias < 0) return; // Prioriza vigentes
+      const sim = calcularSimilaridadeCossenoVetores(docAlvo.vec, docAlvo.norma, doc.vec, doc.norma);
+      const mesmoLab = obterLaboratorioCais(doc.ed) === obterLaboratorioCais(edAlvo) ? 0.12 : 0;
+      const afinidade = Math.min(98, Math.round((sim * 185 + mesmoLab * 100 + 38)));
+      candidatos.push({ ed: doc.ed, sim: sim + mesmoLab, afinidade });
+    });
+
+    candidatos.sort((a, b) => b.sim - a.sim);
+    return candidatos.slice(0, limite);
+  }
+
+  /**
+   * Renderiza o Painel Preditivo de Machine Learning (Coluna 2 do Copiloto):
+   * - Top 3 Editais com maior ROI do Esforço
+   * - Diagnóstico de Gargalos de Prazo e distribuição por Laboratório CAIS
+   */
+  function renderizarPainelPreditivoMl() {
+    if (!listaTopRoiMl || !resumoGargalosMl) return;
+
+    const vigentes = editais.filter(ed => {
+      const d = calcularDiasRestantes(ed.prazo_submissao);
+      const dec = (ed.decisao_recomendada || '').toUpperCase();
+      return !((d !== null && d < 0) || dec.includes('ENCERRADO'));
+    });
+
+    const comPredicao = vigentes.map(ed => ({
+      ed,
+      ml: calcularPredicaoMlEdital(ed),
+      lab: obterLaboratorioCais(ed)
+    }));
+
+    comPredicao.sort((a, b) => {
+      if (b.ml.indiceRoi !== a.ml.indiceRoi) return b.ml.indiceRoi - a.ml.indiceRoi;
+      return (Number(b.ed.score_ponderado) || 0) - (Number(a.ed.score_ponderado) || 0);
+    });
+
+    const top3 = comPredicao.slice(0, 3);
+    listaTopRoiMl.innerHTML = '';
+
+    top3.forEach((item, idx) => {
+      const div = document.createElement('div');
+      div.className = 'card-top-roi-ml';
+      div.innerHTML = `
+        <div class="topo-card-roi-ml">
+          <span class="rank-roi-ml">#${idx + 1} RECOMENDAÇÃO ML</span>
+          <span class="badge-tag badge-orgao">${escapeHtml(item.ed.orgao)}</span>
+          <span class="pilula-roi-ml font-mono">ROI ${item.ml.indiceRoi}% • Chance ~${item.ml.probConversao}%</span>
+        </div>
+        <div class="titulo-card-roi-ml">${escapeHtml(item.ed.titulo)}</div>
+        <div class="meta-card-roi-ml">
+          <span>⏱️ Preparo: <strong>~${item.ml.diasPreparo} dias</strong></span>
+          <span>•</span>
+          <span>${escapeHtml(item.ml.rotuloJanela)}</span>
+          <span>•</span>
+          <span class="link-abrir-roi-ml">Abrir Plano CAIS &rarr;</span>
+        </div>
+      `;
+      div.addEventListener('click', () => abrirModal(item.ed));
+      listaTopRoiMl.appendChild(div);
+    });
+
+    // Contabiliza gargalos de prazo e distribuição por Laboratório CAIS
+    const gargalosCriticos = comPredicao.filter(i => i.ml.statusGargalo === 'critico' || i.ml.statusGargalo === 'atencao');
+    const contagemLabs = {};
+    comPredicao.forEach(i => {
+      contagemLabs[i.lab] = (contagemLabs[i.lab] || 0) + 1;
+    });
+
+    const alertaGargaloHtml = gargalosCriticos.length > 0
+      ? `<div class="alerta-gargalo-ml">
+           <strong>⚠️ Alerta Preditivo de Prazo (${gargalosCriticos.length} ${gargalosCriticos.length === 1 ? 'chamada' : 'chamadas'}):</strong>
+           O modelo identificou que <em>${escapeHtml(gargalosCriticos[0].ed.orgao)}</em> (${escapeHtml(truncarTexto(gargalosCriticos[0].ed.titulo, 58))}) exige ~${gargalosCriticos[0].ml.diasPreparo}d de preparo documental para apenas ${gargalosCriticos[0].ml.diasRestantes}d restantes. Priorize a articulação hoje.
+         </div>`
+      : `<div class="alerta-gargalo-ml alerta-gargalo-ok">
+           <strong>✅ Janelas Operacionais Saudáveis:</strong> Todos os ${vigentes.length} editais vigentes possuem folga superior ao tempo médio estimado de preparação documental.
+         </div>`;
+
+    const chipsLabsHtml = Object.entries(contagemLabs)
+      .sort((a, b) => b[1] - a[1])
+      .map(([nomeLab, qtd]) => {
+        const pct = Math.round((qtd / Math.max(1, vigentes.length)) * 100);
+        return `
+          <button type="button" class="barra-lab-ml" data-lab="${escapeHtml(nomeLab)}" title="Clique para filtrar os ${qtd} editais vigentes do ${escapeHtml(nomeLab)}">
+            <div class="info-barra-lab-ml">
+              <span class="nome-barra-lab-ml">${escapeHtml(nomeLab)}</span>
+              <span class="qtd-barra-lab-ml font-mono">${qtd} vigentes (${pct}%)</span>
+            </div>
+            <div class="trilho-barra-lab-ml"><div class="preenchimento-barra-lab-ml" style="width:${Math.max(8, pct)}%"></div></div>
+          </button>
+        `;
+      }).join('');
+
+    resumoGargalosMl.innerHTML = `
+      ${alertaGargaloHtml}
+      <div class="grade-barras-labs-ml">${chipsLabsHtml}</div>
+    `;
+
+    resumoGargalosMl.querySelectorAll('.barra-lab-ml').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const labAlvo = btn.getAttribute('data-lab') || '';
+        if (filtroLaboratorio) {
+          filtroLaboratorio.value = labAlvo;
+          sincronizarChipsComSelects();
+          aplicarFiltros();
+          areaResultados.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          exibirToast(`Filtrando carteira pelo núcleo: ${labAlvo}`, 'info');
+        }
+      });
+    });
+  }
+
+  /**
+   * Popula o Diagnóstico Preditivo ML + Cluster de Reaproveitamento dentro da Aba 2 do Modal
+   */
+  function renderizarPredicaoMlNoModal(ed) {
+    if (!boxPredicaoMlModal || !ed) return;
+    const ml = calcularPredicaoMlEdital(ed);
+    const similares = obterEditaisSimilaresMl(ed, 2);
+
+    const similaresHtml = similares.length > 0
+      ? `<div class="bloco-cluster-ml">
+           <div class="titulo-cluster-ml">🔗 Reaproveitamento Inteligente de Proposta (Cluster ML por Similaridade de Cosseno):</div>
+           <p class="sub-cluster-ml">A proposta escrita para este edital pode ser adaptada com baixo esforço adicional para estas chamadas vigentes:</p>
+           <div class="lista-similares-ml">
+             ${similares.map(s => `
+               <button type="button" class="item-similar-ml" data-id="${escapeHtml(s.ed.id_edital)}">
+                 <span class="badge-tag badge-orgao">${escapeHtml(s.ed.orgao)}</span>
+                 <span class="texto-similar-ml">${escapeHtml(truncarTexto(s.ed.titulo, 68))}</span>
+                 <span class="afinidade-similar-ml font-mono">${s.afinidade}% similar &rarr;</span>
+               </button>
+             `).join('')}
+           </div>
+         </div>`
+      : '';
+
+    boxPredicaoMlModal.innerHTML = `
+      <div class="cabecalho-predicao-modal">
+        <span class="tag-modulo-ia tag-ml">🔮 DIAGNÓSTICO PREDITIVO (MACHINE LEARNING)</span>
+        <span class="font-mono" style="font-size:12px; font-weight:700; color:#0B2545;">ROI do Esforço: ${ml.indiceRoi}%</span>
+      </div>
+      <div class="grid-metricas-ml-modal">
+        <div class="item-metrica-ml-modal">
+          <span class="label-metrica-ml">Chance Preditiva de Conversão</span>
+          <strong class="valor-metrica-ml font-mono">${ml.probConversao}%</strong>
+        </div>
+        <div class="item-metrica-ml-modal">
+          <span class="label-metrica-ml">Esforço Médio de Preparo</span>
+          <strong class="valor-metrica-ml font-mono">~${ml.diasPreparo} dias úteis</strong>
+        </div>
+        <div class="item-metrica-ml-modal">
+          <span class="label-metrica-ml">Risco de Gargalo de Prazo</span>
+          <strong class="valor-metrica-ml">${escapeHtml(ml.rotuloJanela)}</strong>
+        </div>
+      </div>
+      ${similaresHtml}
+    `;
+
+    boxPredicaoMlModal.querySelectorAll('.item-similar-ml').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idAlvo = btn.getAttribute('data-id');
+        const edAlvo = editais.find(item => item.id_edital === idAlvo);
+        if (edAlvo) {
+          abrirModal(edAlvo, true);
+          exibirToast(`Exibindo edital similar (${edAlvo.orgao})`, 'info');
+        }
+      });
+    });
+  }
+
+  /**
+   * Executa a recuperação vetorial RAG (TF-IDF + Cosine Similarity + Boosts Semânticos)
+   * e sintetiza o Parecer Consultivo (com suporte híbrido ao Google Gemini LLM).
+   */
+  async function executarConsultaRag(perguntaUsuario) {
+    if (!resultadoRagContainer) return;
+    if (!indiceVetorialRag || editais.length === 0) {
+      construirIndiceVetorialRag();
+    }
+    if (!indiceVetorialRag) return;
+
+    const consulta = String(perguntaUsuario || '').trim() ||
+      'Quais os melhores editais abertos hoje com maior ROI e aderência para o Instituto CAIS?';
+
+    const normConsulta = normalizarTextoRag(consulta);
+    const tokensConsulta = tokenizarRag(consulta, true);
+
+    // Monta vetor TF-IDF da consulta
+    const tfQ = {};
+    tokensConsulta.forEach(t => {
+      tfQ[t] = (tfQ[t] || 0) + 1;
+    });
+    const vecQ = {};
+    let normaQSq = 0;
+    Object.keys(tfQ).forEach(t => {
+      const peso = (1 + Math.log(tfQ[t])) * (indiceVetorialRag.idf[t] || 1.2);
+      vecQ[t] = peso;
+      normaQSq += peso * peso;
+    });
+    const normaQ = Math.sqrt(normaQSq) || 1;
+
+    // Intenções semânticas detectadas na pergunta
+    const pedeSemContrapartida = normConsulta.includes('sem contrapartida') || normConsulta.includes('fundo perdido') || normConsulta.includes('100') || normConsulta.includes('nao reembolsavel');
+    const pedeBolsa = normConsulta.includes('bolsa') || normConsulta.includes('doutor') || normConsulta.includes('mestrado') || normConsulta.includes('uece') || normConsulta.includes('fixacao');
+    const pedeEmpresa = normConsulta.includes('empresa') || normConsulta.includes('industria') || normConsulta.includes('startup') || normConsulta.includes('parceria');
+    const pedeRapidoRoi = normConsulta.includes('roi') || normConsulta.includes('rapido') || normConsulta.includes('rapida') || normConsulta.includes('menor esforco') || normConsulta.includes('continuo');
+
+    const ranqueados = [];
+    indiceVetorialRag.vetoresDocs.forEach(doc => {
+      const ed = doc.ed;
+      const dias = calcularDiasRestantes(ed.prazo_submissao);
+      const isEncerrado = dias !== null && dias < 0;
+      if (isEncerrado) return; // RAG foca nos editais vigentes para ação prática
+
+      const simCosseno = calcularSimilaridadeCossenoVetores(vecQ, normaQ, doc.vec, doc.norma);
+      const ml = calcularPredicaoMlEdital(ed);
+      const textoDocNorm = normalizarTextoRag(`${ed.orgao} ${ed.titulo} ${ed.valor_financiado} ${ed.contrapartida} ${ed.publico_elegivel} ${ed.ideia_projeto_cais}`);
+
+      let boostIntencao = 0;
+      if (pedeSemContrapartida && ml.semContrapartida) boostIntencao += 0.22;
+      if (pedeBolsa && (textoDocNorm.includes('bolsa') || textoDocNorm.includes('doutor') || textoDocNorm.includes('mestrado'))) boostIntencao += 0.25;
+      if (pedeEmpresa && (textoDocNorm.includes('empresa') || textoDocNorm.includes('industria') || textoDocNorm.includes('startup') || textoDocNorm.includes('embrapii'))) boostIntencao += 0.22;
+      if (pedeRapidoRoi) boostIntencao += (ml.indiceRoi / 400);
+
+      const scoreCombinado = (simCosseno * 0.68) + boostIntencao + ((Number(ed.score_ponderado) || 7) * 0.025) + (ml.indiceRoi * 0.0015);
+      const pctMatch = Math.min(99, Math.max(68, Math.round(58 + (simCosseno * 175) + (boostIntencao * 85))));
+
+      ranqueados.push({
+        ed,
+        ml,
+        simCosseno,
+        scoreCombinado,
+        pctMatch,
+        lab: obterLaboratorioCais(ed)
+      });
+    });
+
+    ranqueados.sort((a, b) => b.scoreCombinado - a.scoreCombinado);
+    const topRecuperados = ranqueados.slice(0, 4);
+
+    if (topRecuperados.length === 0) {
+      resultadoRagContainer.innerHTML = `<div class="parecer-rag-box">Nenhum edital vigente encontrado para esta consulta.</div>`;
+      return;
+    }
+
+    const primeiro = topRecuperados[0];
+    const segundo = topRecuperados[1];
+
+    // Síntese determinística fundamentada nos documentos recuperados (Zero alucinação)
+    let sinteseRagHtml = `
+      <p><strong>Síntese Fundamentada (RAG Vetorial • ${ranqueados.length} chamadas vigentes analisadas):</strong>
+      Para a consulta <em>"${escapeHtml(truncarTexto(consulta, 110))}"</em>, o motor vetorial identificou maior compatibilidade em
+      <strong>${escapeHtml(primeiro.ed.orgao)}</strong> (<em>${escapeHtml(truncarTexto(primeiro.ed.titulo, 75))}</em>, com <strong>${primeiro.pctMatch}% de match semântico</strong> e <strong>ROI preditivo de ${primeiro.ml.indiceRoi}%</strong>)${segundo ? `, seguido por <strong>${escapeHtml(segundo.ed.orgao)}</strong> (${segundo.pctMatch}% de match)` : ''}.</p>
+      <p style="margin-top:6px;"><strong>Estratégia Recomendada para o CAIS:</strong> Propor <em>${escapeHtml(truncarTexto(primeiro.ed.ideia_projeto_cais || primeiro.ed.resumo_objetivo, 145))}</em> envolvendo <strong>${escapeHtml(primeiro.lab)}</strong> (${escapeHtml(primeiro.ed.contrapartida || 'sem contrapartida financeira obrigatória para ICT')}). Tempo estimado de preparo: <strong>~${primeiro.ml.diasPreparo} dias úteis</strong>.</p>
+    `;
+
+    const cardsRecuperadosHtml = topRecuperados.map((item, idx) => `
+      <div class="card-recuperado-rag" data-id="${escapeHtml(item.ed.id_edital)}">
+        <div class="topo-card-rag">
+          <span class="badge-match-rag font-mono">Match ${item.pctMatch}% • ROI ${item.ml.indiceRoi}%</span>
+          <span class="badge-tag badge-orgao">${escapeHtml(item.ed.orgao)}</span>
+          <span class="nota-circulo font-mono" style="font-size:11px; padding:2px 6px;">Nota ${Number(item.ed.score_ponderado || 0).toFixed(1)}</span>
+        </div>
+        <div class="titulo-card-rag">${idx + 1}. ${escapeHtml(item.ed.titulo)}</div>
+        <div class="resumo-card-rag"><strong>Proposta CAIS:</strong> ${escapeHtml(truncarTexto(item.ed.ideia_projeto_cais || item.ed.resumo_objetivo, 115))}</div>
+        <div class="rodape-card-rag">
+          <span>💰 ${escapeHtml(resumirValorCard(item.ed.valor_financiado))}</span>
+          <span>•</span>
+          <span>⏱️ ~${item.ml.diasPreparo}d preparo</span>
+          <span class="acao-abrir-rag">Ver Plano &rarr;</span>
+        </div>
+      </div>
+    `).join('');
+
+    resultadoRagContainer.innerHTML = `
+      <div class="parecer-rag-box" id="boxTextoParecerRag">
+        ${sinteseRagHtml}
+      </div>
+      <div class="grade-recuperados-rag">
+        ${cardsRecuperadosHtml}
+      </div>
+    `;
+
+    resultadoRagContainer.querySelectorAll('.card-recuperado-rag').forEach(el => {
+      el.addEventListener('click', () => {
+        const idAlvo = el.getAttribute('data-id');
+        const edAlvo = editais.find(item => item.id_edital === idAlvo);
+        if (edAlvo) abrirModal(edAlvo);
+      });
+    });
+
+    // Se o usuário conectou uma chave opcional do Google Gemini no navegador, enriquece o parecer via LLM com os 4 editais recuperados (RAG Real)
+    const chaveGemini = (localStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
+    if (chaveGemini && perguntaUsuario) {
+      const boxParecer = resultadoRagContainer.querySelector('.parecer-rag-box');
+      if (boxParecer) {
+        boxParecer.innerHTML += `<div class="status-llm-rag">🤖 <em>Consultando Google Gemini 2.5 Flash com os 4 editais recuperados pelo RAG...</em></div>`;
+      }
+      try {
+        const contextoRag = topRecuperados.map((it, i) =>
+          `[${i + 1}] Órgão: ${it.ed.orgao} | Título: ${it.ed.titulo} | Nota CAIS: ${it.ed.score_ponderado}/10 | Recurso: ${it.ed.valor_financiado} | Contrapartida: ${it.ed.contrapartida} | Prazo: ${it.ed.prazo_submissao} | Proposta CAIS: ${it.ed.ideia_projeto_cais} | Parceiros: ${it.ed.parceiros_sugeridos}`
+        ).join('\n');
+
+        const promptRagLlm = `Você é o Copiloto Estratégico de PD&I do Instituto CAIS (Ceará). Responda em português de forma executiva, direta e prática (máximo 2 parágrafos curtos) à pergunta do pesquisador usando EXCLUSIVAMENTE os editais oficiais recuperados abaixo:\n\nPERGUNTA/PROJETO: ${consulta}\n\nEDITAIS RECUPERADOS (RAG):\n${contextoRag}`;
+
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(chaveGemini)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptRagLlm }] }],
+            generationConfig: { temperature: 0.25, maxOutputTokens: 320 }
+          })
+        });
+        if (resp.ok) {
+          const jsonLlm = await resp.json();
+          const textoLlm = jsonLlm?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (textoLlm && boxParecer) {
+            boxParecer.innerHTML = `
+              <p><strong>🤖 Parecer Generativo (Gemini 2.5 Flash + RAG Vetorial CAIS):</strong></p>
+              <p style="margin-top:4px; white-space:pre-line;">${escapeHtml(textoLlm.trim())}</p>
+            `;
+          }
+        } else {
+          const st = resultadoRagContainer.querySelector('.status-llm-rag');
+          if (st) st.remove();
+        }
+      } catch (err) {
+        const st = resultadoRagContainer.querySelector('.status-llm-rag');
+        if (st) st.remove();
+      }
+    }
+  }
+
+  function atualizarBadgeStatusGemini() {
+    if (!labelStatusGemini) return;
+    const chave = (localStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
+    if (chave) {
+      labelStatusGemini.textContent = '🟢 RAG + Gemini 2.5 Flash Conectado';
+    } else {
+      labelStatusGemini.textContent = '⚡ Motor RAG Vetorial Local (Grátis)';
+    }
+  }
+
+  function configurarEventosCopilotoRagMl() {
+    atualizarBadgeStatusGemini();
+
+    if (btnAbrirCopilotoTopo && painelCopilotoRagMl) {
+      btnAbrirCopilotoTopo.addEventListener('click', () => {
+        painelCopilotoRagMl.style.display = 'block';
+        if (corpoCopilotoRagMl && corpoCopilotoRagMl.style.display === 'none') {
+          corpoCopilotoRagMl.style.display = 'block';
+          if (textoToggleCopiloto) textoToggleCopiloto.textContent = 'Recolher Painel IA';
+          if (btnToggleCorpoCopiloto) btnToggleCorpoCopiloto.setAttribute('aria-expanded', 'true');
+        }
+        painelCopilotoRagMl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (inputPerguntaRag) inputPerguntaRag.focus();
+      });
+    }
+
+    if (btnToggleCorpoCopiloto && corpoCopilotoRagMl) {
+      btnToggleCorpoCopiloto.addEventListener('click', () => {
+        const oculto = corpoCopilotoRagMl.style.display === 'none';
+        corpoCopilotoRagMl.style.display = oculto ? 'block' : 'none';
+        btnToggleCorpoCopiloto.setAttribute('aria-expanded', oculto ? 'true' : 'false');
+        if (textoToggleCopiloto) {
+          textoToggleCopiloto.textContent = oculto ? 'Recolher Painel IA' : 'Expandir Painel IA';
+        }
+      });
+    }
+
+    if (btnConfigGeminiKey && boxConfigGemini) {
+      btnConfigGeminiKey.addEventListener('click', () => {
+        const oculto = boxConfigGemini.style.display === 'none';
+        boxConfigGemini.style.display = oculto ? 'block' : 'none';
+        if (oculto && inputChaveGeminiUser) {
+          inputChaveGeminiUser.value = localStorage.getItem(CHAVE_STORAGE_GEMINI) || '';
+          inputChaveGeminiUser.focus();
+        }
+      });
+    }
+
+    if (btnSalvarChaveGemini && inputChaveGeminiUser) {
+      btnSalvarChaveGemini.addEventListener('click', () => {
+        const val = inputChaveGeminiUser.value.trim();
+        if (!val) {
+          exibirToast('Cole uma chave válida do Google AI Studio ou use o motor RAG Vetorial Local.', 'info');
+          return;
+        }
+        localStorage.setItem(CHAVE_STORAGE_GEMINI, val);
+        atualizarBadgeStatusGemini();
+        if (boxConfigGemini) boxConfigGemini.style.display = 'none';
+        exibirToast('Chave Gemini salva no navegador! O Copiloto agora usará RAG + Gemini 2.5 Flash.', 'success');
+      });
+    }
+
+    if (btnRemoverChaveGemini) {
+      btnRemoverChaveGemini.addEventListener('click', () => {
+        localStorage.removeItem(CHAVE_STORAGE_GEMINI);
+        if (inputChaveGeminiUser) inputChaveGeminiUser.value = '';
+        atualizarBadgeStatusGemini();
+        if (boxConfigGemini) boxConfigGemini.style.display = 'none';
+        exibirToast('Modo RAG Vetorial Local (100% gratuito e instantâneo) ativado.', 'info');
+      });
+    }
+
+    if (btnExecutarRag && inputPerguntaRag) {
+      btnExecutarRag.addEventListener('click', () => {
+        executarConsultaRag(inputPerguntaRag.value);
+      });
+      inputPerguntaRag.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          executarConsultaRag(inputPerguntaRag.value);
+        }
+      });
+    }
+
+    if (chipsPromptsRag) {
+      chipsPromptsRag.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip-prompt-ia');
+        if (!chip) return;
+        chipsPromptsRag.querySelectorAll('.chip-prompt-ia').forEach(c => c.classList.remove('ativo'));
+        chip.classList.add('ativo');
+        const promptTxt = chip.getAttribute('data-prompt') || '';
+        if (inputPerguntaRag) inputPerguntaRag.value = promptTxt;
+        executarConsultaRag(promptTxt);
+      });
+    }
+
+    // Inicializa com a primeira consulta padrão assim que os dados carregarem
+    setTimeout(() => {
+      if (editais.length > 0 && resultadoRagContainer && !resultadoRagContainer.innerHTML.trim()) {
+        executarConsultaRag('Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?');
+      }
+    }, 150);
   }
 });

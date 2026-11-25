@@ -110,6 +110,9 @@ class TestRadarCais(unittest.TestCase):
         self.assertIn("@media (max-width: 768px)", css_txt, "Media query mobile ausente no style.css")
         self.assertIn("overflow-x: clip", css_txt, "Proteção de overflow horizontal mobile ausente no style.css")
         self.assertIn("100dvh", css_txt, "Altura dinâmica mobile (100dvh) ausente no modal")
+        self.assertIn("construirIndiceVetorialRag", js_txt, "Motor RAG Vetorial TF-IDF ausente no app.js")
+        self.assertIn("calcularPredicaoMlEdital", js_txt, "Motor Preditivo de Machine Learning ausente no app.js")
+        self.assertIn("painelCopilotoRagMl", html_txt, "Painel do Copiloto RAG + ML ausente no index.html")
 
     def test_06_workflow_github_actions(self):
         """Verifica se o workflow diário executa os testes antes de publicar e não bloqueia o build do GitHub Pages."""
