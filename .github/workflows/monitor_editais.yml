@@ -46,6 +46,10 @@ jobs:
           CICLO="${{ github.event.inputs.ciclo || 'auto' }}"
           python agente_editais_cais.py --ciclo "$CICLO"
 
+      - name: Executar Testes Automatizados (Quality Gate)
+        run: |
+          python -m unittest discover -s tests -v
+
       - name: Persistir Base de Conhecimento e Atualizar GitHub Pages
         run: |
           git config user.name "Radar CAIS Bot"
@@ -53,9 +57,13 @@ jobs:
           git add historico_editais.json frontend/historico_editais.json banco_editais_cais.db pipeline_oportunidades_cais.csv relatorio_ultimo_ciclo.md relatorio_ultimo_ciclo.html
           git diff --staged --quiet || git commit -m "chore(radar): atualização automática de editais [skip ci]"
           git push origin main
-          git checkout -B gh-pages
-          cp -f frontend/index.html frontend/style.css frontend/app.js frontend/historico_editais.json pipeline_oportunidades_cais.csv .
+          TMP_DIR=$(mktemp -d)
+          cp -f frontend/index.html frontend/style.css frontend/app.js frontend/historico_editais.json pipeline_oportunidades_cais.csv "$TMP_DIR/"
+          git checkout --orphan gh-pages-clean
+          git rm -rf .
+          cp -f "$TMP_DIR/"* .
           touch .nojekyll
           git add index.html style.css app.js historico_editais.json pipeline_oportunidades_cais.csv .nojekyll
-          git diff --staged --quiet || git commit -m "chore(pages): sincronização diária de editais [skip ci]"
+          git commit -m "chore(pages): sincronização diária de editais"
+          git branch -M gh-pages
           git push -f origin gh-pages
