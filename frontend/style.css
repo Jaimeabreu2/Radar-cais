@@ -79,6 +79,11 @@
   padding: 0;
 }
 
+html, body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
 body {
   font-family: var(--font-principal);
   background-color: var(--cais-page-bg);
@@ -2224,40 +2229,6 @@ body {
   .rodape-modal { padding: 10px 18px; }
 }
 
-@media (max-width: 768px) {
-  .container { padding: 0 16px; }
-  .grid-cartoes { grid-template-columns: 1fr; }
-  .fundo-modal { padding: 8px; }
-  .painel-modal { max-height: 96vh; }
-  .topo-modal { padding: 14px 16px; }
-  .abas-navegacao-modal { padding: 0 12px; }
-  .aba-item { padding: 10px 12px; font-size: 12px; }
-  .corpo-modal { padding: 14px 16px; }
-  .faixa-metricas-modal { grid-template-columns: 1fr; }
-  .grid-resumo-justificativa { grid-template-columns: 1fr; }
-  .rodape-modal {
-    padding: 12px 16px;
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .rodape-modal .botao {
-    width: 100%;
-    justify-content: center;
-  }
-  .linha-filtros {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .modo-visualizacao { margin-left: 0; }
-  .linha-crono {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-  .wrapper-pipeline {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* ==============================================================================
    BOAS PRÁTICAS DE ACESSIBILIDADE (:FOCUS-VISIBLE) & BARRAS DE ROLAGEM REFINADAS
    ============================================================================== */
@@ -2567,4 +2538,570 @@ mark.grifo-busca {
   background: rgba(245, 158, 11, 0.24);
   border-color: #F59E0B;
   color: #FDE047;
+}
+
+/* ==============================================================================
+   RESPONSIVIDADE MOBILE (<= 768px) — SEM ALTERAR O LAYOUT DESKTOP
+   ============================================================================== */
+@media (max-width: 768px) {
+  body {
+    background-attachment: scroll;
+  }
+
+  .container {
+    padding: 0 12px;
+  }
+
+  /* Cabeçalho: libera espaço vertical ao rolar e organiza ações em grade limpa */
+  .header-didatico {
+    position: relative;
+    padding: 12px 0;
+  }
+
+  .header-flex {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .logo-area {
+    gap: 10px;
+  }
+
+  .logo-icone {
+    padding: 6px;
+    flex-shrink: 0;
+  }
+
+  .logo-titulo {
+    font-size: 17px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .logo-subtitulo {
+    font-size: 11.5px;
+    line-height: 1.35;
+  }
+
+  .header-acoes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .badge-status-conexao {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+    font-size: 11.5px;
+    padding: 5px 10px;
+  }
+
+  #btnVarreduraTopo {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .header-acoes .botao {
+    justify-content: center;
+    padding: 9px 10px;
+    font-size: 12.5px;
+  }
+
+  /* Banner metodológico compacto */
+  .banner-didatico {
+    padding: 12px 0 10px 0;
+  }
+
+  .caixa-passo-a-passo {
+    padding: 12px 14px;
+  }
+
+  .titulo-passos {
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .grid-passos {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* KPIs em grade 2x2 executiva */
+  .grid-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .card-kpi {
+    padding: 12px 13px;
+  }
+
+  .kpi-topo {
+    margin-bottom: 6px;
+  }
+
+  .kpi-rotulo {
+    font-size: 10px;
+    letter-spacing: 0.03em;
+  }
+
+  .kpi-numero {
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+
+  .kpi-legenda {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  /* Painel de filtros: zero overflow horizontal + 16px para evitar zoom no iOS */
+  .painel-filtros {
+    padding: 14px;
+    gap: 12px;
+    margin-bottom: 14px;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .atalho-teclado {
+    display: none;
+  }
+
+  .busca-amigavel input {
+    font-size: 16px;
+    padding: 10px 72px 10px 38px;
+  }
+
+  .barra-chips-atalhos {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .chips-container {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .chips-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip-filtro {
+    flex-shrink: 0;
+    padding: 7px 11px;
+    font-size: 12px;
+  }
+
+  .linha-filtros {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding-top: 8px;
+  }
+
+  .item-filtro {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .item-filtro select,
+  .ordenador-simples select,
+  .input-gestao,
+  .select-rapido-pipeline {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    font-size: 16px;
+    padding: 9px 10px;
+  }
+
+  .btn-limpar-filtros-inline {
+    width: 100%;
+    padding: 9px 12px;
+  }
+
+  .bloco-modo-visualizacao {
+    margin-left: 0;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .modo-visualizacao {
+    margin-left: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .btn-modo {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    font-size: 11px;
+    text-align: center;
+    min-width: 0;
+  }
+
+  .btn-modo span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  /* Cabeçalho de resultados empilhado sem vazamento */
+  .cabecalho-resultados {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .contador-editais {
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+
+  .controles-resultados-direita {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .toggle-ocultar-encerrados {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 8px 12px;
+  }
+
+  .ordenador-simples {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  /* Cartões de editais */
+  .grid-cartoes {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .cartao-edital {
+    padding: 15px 14px;
+  }
+
+  .topo-cartao {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .grupo-badges {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .badge-tag {
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .titulo-edital {
+    font-size: 15px;
+    min-height: 0;
+    -webkit-line-clamp: 3;
+  }
+
+  .resumo-curto-card {
+    min-height: 0;
+    margin-bottom: 12px;
+  }
+
+  .rodape-acao-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  .rodape-acao-card .badge-lab-cais {
+    align-self: flex-start;
+    max-width: 100%;
+  }
+
+  .rodape-acao-card > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .btn-link-direto-card {
+    width: 36px;
+    height: 36px;
+  }
+
+  .btn-resumo-rapido-card {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .btn-ver-detalhes-card {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+
+  /* Tabela com rolagem horizontal suave */
+  .wrapper-tabela {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tabela-didatica {
+    min-width: 660px;
+    font-size: 12px;
+  }
+
+  .tabela-didatica th,
+  .tabela-didatica td {
+    padding: 10px 10px;
+  }
+
+  /* Cronograma */
+  .cabecalho-grupo-crono {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .linha-crono {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .titulo-linha-crono {
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .coluna-acoes-crono {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .coluna-acoes-crono button {
+    justify-content: center;
+    padding: 8px 10px;
+  }
+
+  /* Pipeline sem scroll interno preso */
+  .wrapper-pipeline {
+    grid-template-columns: 1fr;
+    overflow-x: visible;
+  }
+
+  .coluna-pipeline {
+    max-height: none;
+  }
+
+  .card-pipeline-meta {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Modal executivo adaptado para celular */
+  .fundo-modal {
+    padding: 8px;
+    height: 100dvh;
+  }
+
+  .painel-modal {
+    max-height: 94dvh;
+    max-width: 100%;
+    border-radius: 12px;
+  }
+
+  .topo-modal {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .topo-modal-acoes {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  .topo-modal-textos {
+    width: 100%;
+  }
+
+  .tags-modal {
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .tags-modal .badge-tag,
+  .tags-modal .badge-lab-cais,
+  .tags-modal .nota-circulo {
+    font-size: 10px;
+    padding: 2px 7px;
+  }
+
+  .titulo-modal {
+    font-size: 15px;
+    line-height: 1.32;
+  }
+
+  .meta-modal {
+    font-size: 10.5px;
+    line-height: 1.35;
+    margin-top: 4px;
+  }
+
+  .abas-navegacao-modal {
+    padding: 6px 10px 0 10px;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .abas-navegacao-modal::-webkit-scrollbar {
+    display: none;
+  }
+
+  .aba-item {
+    padding: 8px 11px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .corpo-modal {
+    padding: 12px 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .faixa-metricas-modal,
+  .grid-resumo-justificativa,
+  .grid-campos-gestao {
+    grid-template-columns: 1fr;
+  }
+
+  .box-gestao-topo {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-agenda-modal {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .linha-notas-salvar {
+    flex-direction: column;
+  }
+
+  .info-nota {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+
+  .caixa-veredito-final {
+    padding: 14px;
+  }
+
+  .veredito-badge-grande {
+    width: 100%;
+    text-align: center;
+  }
+
+  .rodape-modal {
+    padding: 10px 14px;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rodape-modal-esquerda {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .rodape-modal .botao {
+    width: 100%;
+    justify-content: center;
+    padding: 9px 10px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  /* Toasts e rodapé */
+  .container-toasts {
+    left: 12px;
+    right: 12px;
+    bottom: 14px;
+  }
+
+  .toast {
+    width: 100%;
+    font-size: 12.5px;
+  }
+
+  .rodape-flex {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .rodape-links {
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 480px) {
+  .pilares-card {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 11px;
+  }
+
+  .pilar-valor {
+    white-space: normal;
+    line-height: 1.35;
+  }
+}
+
+@media (max-width: 340px) {
+  .modo-visualizacao {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
