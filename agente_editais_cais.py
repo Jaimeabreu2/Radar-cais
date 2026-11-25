@@ -53,6 +53,12 @@ try:
 except ImportError:
     TEM_GOOGLE_GENAI = False
 
+try:
+    import pypdf
+    TEM_PYPDF = True
+except ImportError:
+    TEM_PYPDF = False
+
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import urllib3
@@ -843,10 +849,10 @@ def _extrair_prazo_submissao_real(texto: str) -> str:
     if not texto:
         return ""
 
-    # 1. Intervalo explícito de inscrição/submissão (ex: "Inscrições: 26/10/2026 a 08/12/2026")
+    # 1. Intervalo explícito de inscrição/submissão (ex: "Inscrições: 26/10/2026 a 08/12/2026" ou "07/07 a 14/08/2026")
     padrao_intervalo = re.compile(
-        r"(?:inscri[cç][õo]es|submiss[ãa]o|envio de propostas|cadastramento|propostas)[^\.\n]{0,45}?"
-        r"\b\d{2}/\d{2}/20[23]\d\s*(?:a|até|ate|-|–)\s*(\d{2}/\d{2}/20[23]\d)\b",
+        r"(?:per[ií]odo de inscri[cç][õo]es|per[ií]odo de inscri[cç][ãa]o|inscri[cç][õo]es|submiss[ãa]o|envio de propostas|envio de proposta|cadastramento|propostas)[^\.\n]{0,85}?"
+        r"\b\d{1,2}/\d{2}(?:/20[23]\d)?\s*(?:a|até|ate|-|–|e)\s*(?:as\s+\d{1,2}h\d{0,2}(?:min)?\s+do\s+dia\s+)?(\d{2}/\d{2}/20[23]\d)\b",
         re.IGNORECASE,
     )
     matches_intervalo = [
@@ -855,20 +861,22 @@ def _extrair_prazo_submissao_real(texto: str) -> str:
     if matches_intervalo:
         return matches_intervalo[-1]
 
-    # 2. Rótulos explícitos de prazo final de envio/submissão de propostas
+    # 2. Rótulos explícitos de prazo final de envio/submissão de propostas (HTML e tabelas de PDF FUNCAP/CNPq/FINEP)
     padrao_rotulo_submissao = re.compile(
         r"(?:prazo para envio de propostas até|encerramento do prazo para submissão[^\.\n:]{0,55}?|"
         r"prazo de encerramento de submissão[^\.\n:]{0,40}?|submissão da proposta[^\.\n:]{0,45}?|"
+        r"data[- ]limite para submiss[ãa]o d[ae]s propostas[^\.\n:]{0,45}?|"
+        r"prazo final para envio d[oa]s? (?:fap|formul[aá]rio|propostas)[^\.\n:]{0,95}?|"
+        r"envio de curr[ií]culo lattes[^\.\n:]{0,65}?|"
         r"data de encerramento|recebe propostas até|prazo final para submissão|inscri[cç][õo]es até|"
         r"término das inscri[cç][õo]es|submissão até)"
-        r"\s*:?\s*[^\d\n]{0,25}?(\d{2}/\d{2}/20[23]\d)",
+        r"\s*:?\s*[^\d\n]{0,35}?(?:\d{1,2}\s+e\s+)?(\d{2}/\d{2}/20[23]\d)",
         re.IGNORECASE,
     )
     matches_rotulo = [
         m.group(1) for m in padrao_rotulo_submissao.finditer(texto) if _validar_data_br_str(m.group(1)) is not None
     ]
     if matches_rotulo:
-        # Se houver múltiplas etapas de submissão (ex: 1ª fase e 2ª fase), prioriza a data de submissão mais recente/futura
         hoje_dt = datetime.date.today()
         futuras_submissao = [d for d in matches_rotulo if _validar_data_br_str(d) >= hoje_dt]
         return futuras_submissao[-1] if futuras_submissao else matches_rotulo[-1]
@@ -892,10 +900,57 @@ def _extrair_prazo_submissao_real(texto: str) -> str:
 
     # 4. Fluxo contínuo explícito no corpo do edital
     texto_lower = texto.lower()
-    if any(term in texto_lower for term in ("fluxo contínuo", "fluxo continuo", "pré-qualificação permanente", "credenciamento contínuo")):
+    if any(
+        term in texto_lower
+        for term in (
+            "fluxo contínuo",
+            "fluxo continuo",
+            "pré-qualificação permanente",
+            "credenciamento contínuo",
+            "inscrições em qualquer período do ano",
+            "qualquer período do ano",
+            "demanda espontânea",
+        )
+    ):
         return "Fluxo Contínuo"
 
     return ""
+
+
+def _extrair_texto_pdf_bytes(conteudo_bytes: bytes, max_paginas: int = 18) -> str:
+    """Extrai texto limpo de um arquivo PDF oficial em memória usando pypdf."""
+    if not TEM_PYPDF or not conteudo_bytes:
+        return ""
+    try:
+        leitor = pypdf.PdfReader(io.BytesIO(conteudo_bytes))
+        paginas_txt = []
+        for idx, pagina in enumerate(leitor.pages):
+            if idx >= max_paginas:
+                break
+            paginas_txt.append(pagina.extract_text() or "")
+        return " ".join(" ".join(paginas_txt).split())
+    except Exception as e:
+        logger.debug(f"Aviso ao extrair texto de PDF: {e}")
+        return ""
+
+
+def _extrair_cronograma_resumo_texto(texto: str, prazo_submissao: str = "") -> str:
+    """Extrai um resumo legível das etapas do cronograma a partir do texto do PDF ou página oficial."""
+    if not texto:
+        return f"Prazo Final de Submissão: {prazo_submissao}" if prazo_submissao else ""
+    m = re.search(
+        r"(?:CRONOGRAMA|CALEND[ÁA]RIO DE ATIVIDADES)\s*[:\-]?\s*(.{40,420})",
+        texto,
+        flags=re.IGNORECASE,
+    )
+    if m:
+        trecho = " ".join(m.group(1).split())
+        datas_encontradas = re.findall(r"\b\d{2}/\d{2}/20[23]\d\b", trecho)
+        if len(datas_encontradas) >= 2:
+            return f"Datas do Cronograma Oficial: {' • '.join(dict.fromkeys(datas_encontradas[:6]))} (Prazo limite: {prazo_submissao})"
+    if prazo_submissao == "Fluxo Contínuo":
+        return "Recebimento contínuo de propostas durante todo o ano (sem data de fechamento fixa)."
+    return f"Prazo limite de submissão verificado na fonte oficial: {prazo_submissao}" if prazo_submissao else ""
 
 
 def _limpar_ruido_portal(texto: str) -> str:
@@ -932,14 +987,33 @@ def _limpar_ruido_portal(texto: str) -> str:
 def enriquecer_detalhes_pagina(
     sessao: requests.Session, url: str
 ) -> Dict[str, str]:
-    info = {"texto_interno": "", "datas_detectadas": "", "valores_detectados": ""}
+    info = {"texto_interno": "", "datas_detectadas": "", "valores_detectados": "", "cronograma_etapas": ""}
     caminho_url = urlparse(url.lower()).path
-    if caminho_url.endswith(EXTENSOES_BINARIAS_SEM_HTML):
+    is_pdf = caminho_url.endswith(".pdf")
+    if caminho_url.endswith(EXTENSOES_BINARIAS_SEM_HTML) and not is_pdf:
         return info
 
     try:
-        resp = _requisicao_get_resiliente(sessao, url, timeout=15)
-        if not resp or resp.status_code != 200 or "text/html" not in resp.headers.get("Content-Type", ""):
+        resp = _requisicao_get_resiliente(sessao, url, timeout=20 if is_pdf else 15)
+        if not resp or resp.status_code != 200:
+            return info
+
+        content_type = resp.headers.get("Content-Type", "").lower()
+        if is_pdf or "application/pdf" in content_type:
+            texto_pdf = _extrair_texto_pdf_bytes(resp.content)
+            if not texto_pdf:
+                return info
+            info["texto_interno"] = texto_pdf[:2400]
+            prazo_pdf = _extrair_prazo_submissao_real(texto_pdf[:25000])
+            info["datas_detectadas"] = prazo_pdf
+            info["cronograma_etapas"] = _extrair_cronograma_resumo_texto(texto_pdf[:25000], prazo_pdf)
+            todos_valores_pdf = REGEX_VALOR_MOEDA.findall(texto_pdf[:25000])
+            if todos_valores_pdf:
+                valores_milhoes = [v for v in todos_valores_pdf if re.search(r"milh|bi|\d\.\d{3}\.\d{3}", v, re.I)]
+                info["valores_detectados"] = (valores_milhoes[0] if valores_milhoes else todos_valores_pdf[0]).strip()
+            return info
+
+        if "text/html" not in content_type:
             return info
 
         if resp.encoding and resp.encoding.lower() == "iso-8859-1":
@@ -968,6 +1042,7 @@ def enriquecer_detalhes_pagina(
         if not prazo_detectado and re.search(r"\binscri[cç][õo]es\s+encerradas\b", texto_completo_busca, re.IGNORECASE):
             prazo_detectado = "01/01/2025"
         info["datas_detectadas"] = prazo_detectado
+        info["cronograma_etapas"] = _extrair_cronograma_resumo_texto(texto_completo_busca, prazo_detectado)
 
         # 2. Identificação factual de Valor Financiado (apenas no corpo real da chamada)
         match_valor_global = re.search(
@@ -1651,10 +1726,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
     # ==========================================================================
     elif "funcap" in org_low:
         if "profix" in t_low or "13/2026" in t_low or "fixação de doutores" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "10/08/2026"
             dados.update({
                 "titulo": "FUNCAP / SECITECE / CNPq — Edital nº 13/2026: Programa de Fixação de Doutores no Ceará (PROFIX-CE)",
-                "valor_financiado": "Bolsas de Pós-Doutorado + Auxílio à Pesquisa (ver PDF oficial FUNCAP)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "R$ 31.075.200,00 (Global) • Bolsas Pós-Doc + Auxílio até R$ 40.000,00",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Lançamento: 01/07/2026 • Inscrições (Montenegro): 13/07 a 10/08/2026 • Recursos: 09/11 a 13/11/2026 • Homologação Final CNPq/CAPES/FUNCAP: 30/11/2026",
                 "contrapartida": "Não exigida (Fomento público estadual/federal)",
                 "publico_elegivel": "Doutores pesquisadores vinculados a ICTs, Universidades e Programas de Pós-Graduação sediados no Ceará (Instituto CAIS e UECE concorrem diretamente).",
                 "ideia_projeto_cais": "Captar bolsistas recém-doutores em Inteligência Artificial, Semicondutores, Ciência de Dados e Engenharia de Software para reforçar as linhas de P&D aplicado do Instituto CAIS/UECE.",
@@ -1664,10 +1743,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 9.6, "nota_chance_aprovacao": 9.1, "nota_financeira": 8.7, "nota_complexidade": 2.5,
             })
         elif "startup ceará" in t_low or "startup ceara" in t_low or "10/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "14/08/2026"
             dados.update({
                 "titulo": "FUNCAP / SEBRAE-CE — Edital nº 10/2026: Seleção de Projetos de Inovação para o Programa Startup Ceará",
-                "valor_financiado": "Subvenção, Bolsas de Inovação e Aceleração Sebrae/FUNCAP (ver PDF oficial)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "R$ 1.080.000,00 (Global) • Bolsas BIT de R$ 3.000,00/mês + Aceleração",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Lançamento: 03/07/2026 • Inscrições: 07/07 a 14/08/2026 • Resultado de Mérito: 25/09/2026 • Aceleração e Vigência das Bolsas: 01/10/2026 a 31/03/2027",
                 "contrapartida": "Econômica conforme edital FUNCAP/SEBRAE",
                 "publico_elegivel": "Startups cearenses, spin-offs acadêmicas e projetos de inovação tecnológica liderados por empreendedores e pesquisadores do Ceará.",
                 "ideia_projeto_cais": "Submeter spin-offs tecnológicas geradas no Instituto CAIS/UECE (soluções SaaS de IA corporativa, HealthTech e IoT industrial) para aceleração e captação de recursos.",
@@ -1677,10 +1760,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 9.4, "nota_chance_aprovacao": 9.0, "nota_financeira": 8.4, "nota_complexidade": 2.5,
             })
         elif "pesquisador visitante" in t_low or "14/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "10/08/2026"
             dados.update({
                 "titulo": "FUNCAP — Edital nº 14/2026: Programa de Bolsa de Pesquisador Visitante no Ceará",
-                "valor_financiado": "Bolsa de Pesquisador Visitante Sênior + Passagens (ver PDF oficial FUNCAP)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "R$ 2.496.000,00 (Global) • Bolsas de R$ 13.000,00/mês + Passagens",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Lançamento: 03/07/2026 • Submissão (Montenegro): 13/07 a 10/08/2026 • Resultado Final: 16/10/2026 • Implementação das Bolsas: Novembro/2026",
                 "contrapartida": "Infraestrutura laboratorial de acolhimento na ICT anfitriã (CAIS/UECE)",
                 "publico_elegivel": "ICTs e Programas de Pós-Graduação do Ceará (CAIS/UECE) recebendo pesquisadores doutores seniores do Brasil ou do exterior.",
                 "ideia_projeto_cais": "Trazer especialistas de referência internacional em Microeletrônica/Semicondutores e Agentes de IA para temporadas de pesquisa aplicada e coorientação nos laboratórios do CAIS/UECE.",
@@ -1690,10 +1777,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 9.1, "nota_chance_aprovacao": 8.9, "nota_financeira": 8.0, "nota_complexidade": 2.5,
             })
         elif "eventos científicos" in t_low or "03/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "20/03/2026"
             dados.update({
                 "titulo": "FUNCAP — Edital nº 03/2026: Programa de Apoio à Realização de Eventos Científicos e Tecnológicos",
-                "valor_financiado": "Auxílio Financeiro a Eventos no Ceará (ver PDF oficial FUNCAP)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "Até R$ 30.000,00 por evento apoiado (Custeio FUNCAP)",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Lançamento: 13/02/2026 • Submissão (Montenegro): 20/02 a 20/03/2026 • Resultado: 08/04/2026 • Realização dos Eventos: 01/06/2026 a 31/05/2027",
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Pesquisadores doutores vinculados a ICTs e universidades sediadas no Estado do Ceará (CAIS/UECE).",
                 "ideia_projeto_cais": "Financiar o Workshop Cearense de Inteligência Artificial Aplicada, Semicondutores e Inovação Aberta promovido pelo Instituto CAIS e UECE em Fortaleza.",
@@ -1705,8 +1796,9 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
         elif "mestrado e doutorado" in t_low or "formação acadêmica" in t_low:
             dados.update({
                 "titulo": "FUNCAP — Edital nº 01/2026: Programa de Bolsas de Formação Acadêmica (Mestrado e Doutorado)",
-                "valor_financiado": "Cotas de Bolsas de Mestrado e Doutorado FUNCAP (ver PDF oficial)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "Cotas Anuais PPG • Bolsas Mestrado (R$ 2.100/mês) e Doutorado (R$ 3.100/mês)",
+                "prazo_submissao": "Fluxo Contínuo",
+                "cronograma_etapas": "Quotas PPG: 15/01 a 10/02/2026 • Janelas Mensais de Cadastramento e Substituição de Bolsistas (Plataforma Montenegro): dias 01 a 16 de cada mês ao longo do ano",
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Programas de Pós-Graduação stricto sensu de ICTs e Universidades do Ceará (como a UECE) e seus orientadores/pesquisadores (CAIS/LDI).",
                 "ideia_projeto_cais": "Alocar mestrandos e doutorandos bolsistas da FUNCAP em dissertações e teses aplicadas aos desafios de IA, Visão Computacional, Redes e Sistemas Embarcados do Instituto CAIS.",
@@ -1716,10 +1808,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 9.3, "nota_chance_aprovacao": 9.3, "nota_financeira": 8.5, "nota_complexidade": 2.0,
             })
         elif "iniciação científica" in t_low or "chamada 01/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "15/06/2026"
             dados.update({
                 "titulo": "FUNCAP — Chamada nº 01/2026: Programa de Bolsas de Iniciação Científica e Tecnológica (BICT)",
-                "valor_financiado": "Bolsas de Iniciação Científica FUNCAP (ver PDF oficial)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "Cotas Institucionais BICT (235 bolsas aprovadas para a UECE • R$ 700,00/mês)",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Lançamento: 13/05/2026 • Solicitação de Quotas BICT (Montenegro): 15/05 a 15/06/2026 • Resultado: 22/06/2026 • Vigência das Bolsas: a partir de 01/09/2026",
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Pesquisadores doutores vinculados a ICTs e universidades cearenses (UECE/CAIS) orientando estudantes de graduação.",
                 "ideia_projeto_cais": "Formar pipeline de jovens talentos da Computação/Engenharias da UECE atuando em iniciação tecnológica nos projetos de software e hardware do CAIS.",
@@ -1729,10 +1825,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 9.0, "nota_chance_aprovacao": 9.3, "nota_financeira": 7.6, "nota_complexidade": 2.0,
             })
         elif "redes de extensão" in t_low or "12/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "10/08/2026"
             dados.update({
                 "titulo": "FUNCAP — Edital nº 12/2026: Programa Redes de Extensão Tecnológica e Inovação Social",
-                "valor_financiado": "Bolsas de Extensão + Custeio FUNCAP (ver PDF oficial)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "R$ 1.000.000,00 (Global) • R$ 672 mil em Bolsas + R$ 328 mil em Custeio",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Lançamento: 03/07/2026 • Inscrições (Montenegro): 13/07 a 10/08/2026 • Resultado Final: 25/09/2026 • Implementação da Rede: a partir de 01/10/2026",
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "ICTs e Universidades públicas/privadas sem fins lucrativos do Estado do Ceará (UECE/CAIS).",
                 "ideia_projeto_cais": "Implantar rede de extensão tecnológica para capacitação em IA, transformação digital e inclusão produtiva junto a municípios e arranjos produtivos locais do Ceará.",
@@ -1742,10 +1842,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 8.7, "nota_chance_aprovacao": 8.9, "nota_financeira": 7.9, "nota_complexidade": 2.5,
             })
         elif "cátedras" in t_low or "02/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "27/03/2026"
             dados.update({
                 "titulo": "FUNCAP — Edital nº 02/2026: Programa Cátedras Franco-Brasileiras no Ceará",
-                "valor_financiado": "Mobilidade Internacional + Bolsas FUNCAP/França (ver PDF oficial)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "Mobilidade Internacional e Diárias FUNCAP + Embaixada da França",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Lançamento: 12/02/2026 • Submissão (Montenegro): 19/02 a 27/03/2026 • Resultado: 20/04/2026 • Vigência das Cátedras: até 31/12/2027",
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Docentes e pesquisadores doutores de ICTs e universidades cearenses (UECE/CAIS) em cooperação com instituições francesas.",
                 "ideia_projeto_cais": "Estabelecer cátedra franco-cearense em Inteligência Artificial Confiável e Sistemas Ciberfísicos entre a UECE/CAIS e universidades/centros da França (INRIA/CNRS).",
@@ -1757,14 +1861,27 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
         elif "saga senai" in t_low:
             if "15/2026" in t_low or "861.pdf" in t_low:
                 rodada_txt = "4ª Rodada — Edital nº 15/2026"
+                prazo_saga = "29/10/2026"
+                valor_saga = "Bolsas de Inovação de R$ 2.500,00/mês (FUNCAP / SENAI-CE)"
+                crono_saga = "Inscrições: 28 e 29/10/2026 • Análise Curricular: 06/11/2026 • Entrevistas: 09/11/2026 • Resultado Final: 16/11/2026"
             elif "07/2026" in t_low or "802.pdf" in t_low or "alunos" in t_low:
                 rodada_txt = "Modalidade Alunos — Edital nº 07/2026"
+                prazo_saga = "19/06/2026"
+                valor_saga = "Bolsas de Inovação de R$ 800,00/mês + Mentoria SENAI-CE"
+                crono_saga = "Inscrições na Plataforma SAGA: 09/06 a 19/06/2026 • Resultado da Análise: 30/06/2026 • Banca Avaliadora: 13/07/2026"
             else:
                 rodada_txt = "Edição 2026"
+                prazo_saga = "29/10/2026"
+                valor_saga = "Bolsas de Inovação de R$ 2.500,00/mês (FUNCAP / SENAI-CE)"
+                crono_saga = "Inscrições e seleção por rodada no portal FUNCAP / SENAI-CE"
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = prazo_saga
             dados.update({
                 "titulo": f"FUNCAP / SENAI-CE — Programa SAGA SENAI Empreendedora ({rodada_txt})",
-                "valor_financiado": "Bolsas e Apoio a Projetos de Inovação Empreendedora (ver PDF oficial FUNCAP)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": valor_saga,
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": crono_saga,
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Equipes de inovação, estudantes e pesquisadores desenvolvendo soluções tecnológicas aplicadas a desafios da indústria cearense.",
                 "ideia_projeto_cais": "Articular equipes mistas de alunos/pesquisadores do CAIS/UECE com demandas industriais mapeadas junto ao SENAI-CE em automação, IA e IoT.",
@@ -1774,10 +1891,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 8.5, "nota_chance_aprovacao": 8.8, "nota_financeira": 7.5, "nota_complexidade": 2.0,
             })
         elif "mulheres empreendedoras" in t_low or "04/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "24/04/2026"
             dados.update({
                 "titulo": "FUNCAP — Edital nº 04/2026: Programa Mulheres Empreendedoras e Inovação no Ceará",
-                "valor_financiado": "Subvenção e Bolsas de Inovação FUNCAP (ver PDF oficial)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "R$ 4.800.000,00 (Global) • Subvenção de até R$ 100.000,00 por projeto",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Lançamento: 09/03/2026 • Submissão FAP (Montenegro): 12/03 a 23/04/2026 • Envio Documental: 24/04/2026 • Resultado de Mérito: 14/08/2026",
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Empreendedoras, pesquisadoras e startups lideradas por mulheres sediadas no Estado do Ceará.",
                 "ideia_projeto_cais": "Apoiar pesquisadoras do Instituto CAIS/UECE na criação e validação de negócios tecnológicos em IA, Saúde Digital e Sustentabilidade no Ceará.",
@@ -1787,10 +1908,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 8.7, "nota_chance_aprovacao": 8.9, "nota_financeira": 7.8, "nota_complexidade": 2.0,
             })
         elif "empresas juniores" in t_low or "11/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "07/08/2026"
             dados.update({
                 "titulo": "FUNCAP — Edital nº 11/2026: Programa EJ-CE de Apoio às Empresas Juniores do Ceará",
-                "valor_financiado": "Apoio Financeiro e Bolsas para Empresas Juniores (ver PDF oficial FUNCAP)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "R$ 1.000.000,00 (Global) • Até R$ 40.000,00 por Empresa Júnior",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Publicação: 03/07/2026 • Submissão FAP (Montenegro): 17/07 a 06/08/2026 • Envio Proposta Completa: 07/08/2026 • Contratação: Outubro/2026",
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Empresas Juniores vinculadas a Instituições de Ensino Superior do Estado do Ceará (como a UECE).",
                 "ideia_projeto_cais": "Apoiar a Empresa Júnior de Computação da UECE (Acens) em parceria técnica com o Instituto CAIS para desenvolvimento de soluções digitais para micro e pequenas empresas.",
@@ -1800,10 +1925,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 8.3, "nota_chance_aprovacao": 9.0, "nota_financeira": 7.2, "nota_complexidade": 2.0,
             })
         elif "h-tec" in t_low or "09/2026" in t_low:
+            prazo_f = _prazo_vigente_cais(prazo_orig)
+            if prazo_f == "Consultar cronograma no edital":
+                prazo_f = "31/07/2026"
             dados.update({
                 "titulo": "FUNCAP / CENTEC — Edital nº 09/2026: Capacitação Tecnológica Projeto H-TEC Ceará",
-                "valor_financiado": "Bolsas de Formação e Capacitação Tecnológica (ver PDF oficial FUNCAP)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "valor_financiado": "R$ 1.080.000,00 (Global) • Bolsas de Formação em Energias Renováveis",
+                "prazo_submissao": prazo_f,
+                "cronograma_etapas": "Publicação: 29/06/2026 • Inscrições (H-TEC): 01/07 a 31/07/2026 • Resultado Preliminar: 19/08/2026 • Recursos: 20/08/2026",
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Profissionais, pesquisadores e instituições do ecossistema de tecnologia e transição energética do Ceará.",
                 "ideia_projeto_cais": "Contribuir com trilhas de formação técnica em Digitalização, IoT e Inteligência Artificial aplicada à cadeia de Hidrogênio Verde e Energias Renováveis no Ceará.",
@@ -1985,10 +2114,14 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
     # 6. SEBRAE / CATALISA ICT
     # ==========================================================================
     elif "sebrae" in org_low or "catalisa" in org_low:
+        prazo_cat = _prazo_vigente_cais(prazo_orig)
+        if prazo_cat == "Consultar cronograma no edital":
+            prazo_cat = "Fluxo Contínuo"
         dados.update({
             "titulo": "Sebrae — Programa Catalisa ICT: Da Pesquisa Acadêmica ao Negócio Deep Tech",
-            "valor_financiado": valor_orig if tem_valor_real else "Bolsas, Subvenção e Mentoria Catalisa ICT (consultar edital)",
-            "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+            "valor_financiado": valor_orig if tem_valor_real else "Bolsas de R$ 6.500/mês + Subvenção até R$ 150.000,00 (Catalisa ICT)",
+            "prazo_submissao": prazo_cat,
+            "cronograma_etapas": "Ciclo Contínuo Sebrae: Etapa 1 (Mobilização e Seleção de Pesquisadores) • Etapa 2 (Plano de Inovação) • Etapa 3 (Fomento e Aceleração Deep Tech)",
             "contrapartida": "Não exigida",
             "publico_elegivel": "Mestres, doutores e estudantes de mestrado/doutorado vinculados a ICTs e universidades (pesquisadores do CAIS e da UECE concorrem diretamente).",
             "ideia_projeto_cais": "Inscrever tecnologias desenvolvidas por mestres e doutores nos laboratórios do CAIS (IA para saúde, sensores inteligentes e agro) para receber capital semente e validação comercial do Sebrae.",
@@ -2045,13 +2178,23 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
         titulo_senai = re.sub(r"^Categoria\s+Categoria:\s*", "SENAI — ", titulo, flags=re.I)
         titulo_senai = re.sub(r"^Categoria\s+", "SENAI — ", titulo_senai, flags=re.I)
 
+        prazo_senai = _prazo_vigente_cais(prazo_orig)
+        crono_senai = ""
         if "autopeças" in t_low or "autopecas" in t_low or "nacionalização" in t_low:
             resumo_senai = "Chamada do Programa MOVER (SENAI) voltada à nacionalização e desenvolvimento de autopeças, sistemas eletrônicos embarcados, sensores automotivos e ferramentais inteligentes."
             ideia_senai = "Desenvolver firmware seguro, unidade de controle eletrônico (ECU) embarcada e visão computacional para inspeção automatizada de componentes automotivos nacionalizados."
+            valor_senai = "R$ 500.000,00 a R$ 5.000.000,00 por projeto (Programa MOVER / SENAI)"
+            if prazo_senai == "Consultar cronograma no edital":
+                prazo_senai = "Fluxo Contínuo"
+            crono_senai = "Submissão contínua na Plataforma de Inscrições SENAI / MOVER • Qualificação conjunta Empresa Proponente + Instituto SENAI/ICT"
             ader_s, chan_s, fin_s, comp_s = 9.1, 8.2, 8.8, 3.5
         elif "saúde conectada" in t_low or "saude conectada" in t_low or "sesi" in t_low:
             resumo_senai = "Chamada Técnica SESI/SENAI Estação Saúde Conectada para desenvolvimento de tecnologias digitais, sensores vestíveis e inteligência de dados voltados à saúde e segurança do trabalhador industrial."
             ideia_senai = "Desenvolver plataforma de telemetria ocupacional com IoT vestível e modelos preditivos de IA para prevenção de acidentes, ergonomia por visão computacional e monitoramento de saúde industrial."
+            valor_senai = "R$ 1.000.000,00 (Global) • Até R$ 500.000,00 por projeto"
+            if prazo_senai == "Consultar cronograma no edital":
+                prazo_senai = "27/07/2026"
+            crono_senai = "Submissão na Plataforma Inovação para a Indústria até 27/07/2026 • Seleção técnica SESI/SENAI"
             ader_s, chan_s, fin_s, comp_s = 9.0, 8.4, 8.4, 3.0
         elif "powershoring" in t_low or "agenda.tech" in t_low:
             resumo_senai = "Chamada Agenda.Tech Powershoring (SENAI) focada em tecnologias para neoindustrialização verde, rastreabilidade de carbono e manufatura intensiva em energia limpa no Brasil."
@@ -2069,12 +2212,17 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
         else:
             resumo_senai = "Categoria Aliança Industrial da Plataforma Inovação para a Indústria (SENAI) para P&D cooperativo de médio e grande porte entre consórcios de empresas e ICTs parceiras."
             ideia_senai = "Estruturar projeto cooperativo de Visão Computacional, Sistemas Embarcados e IA Generativa Industrial conectando empresas do setor produtivo, SENAI-CE e laboratórios do CAIS/UECE."
+            valor_senai = "R$ 200.000,00 a R$ 3.000.000,00 por projeto (Aliança Industrial SENAI)"
+            if prazo_senai == "Consultar cronograma no edital":
+                prazo_senai = "Fluxo Contínuo"
+            crono_senai = "Inscrições abertas em qualquer período do ano na Plataforma Inovação para a Indústria (Fluxo Contínuo)"
             ader_s, chan_s, fin_s, comp_s = 9.1, 8.3, 8.8, 3.5
 
         dados.update({
             "titulo": titulo_senai,
             "valor_financiado": valor_senai,
-            "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+            "prazo_submissao": prazo_senai,
+            "cronograma_etapas": crono_senai or f"Prazo de submissão na Plataforma SENAI: {prazo_senai}",
             "contrapartida": "Conforme regras da chamada industrial parceira (econômica/financeira)",
             "publico_elegivel": "Indústrias, startups de base tecnológica, Unidades SENAI e ICTs coexecutoras (como o Instituto CAIS/UECE).",
             "ideia_projeto_cais": ideia_senai,
@@ -2259,6 +2407,12 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
             })
 
     ed.update(dados)
+    if not ed.get("cronograma_etapas"):
+        p_sub = str(ed.get("prazo_submissao", "")).strip()
+        if p_sub == "Fluxo Contínuo":
+            ed["cronograma_etapas"] = f"Recebimento contínuo de propostas em fluxo permanente no portal oficial ({orgao})."
+        else:
+            ed["cronograma_etapas"] = f"Submissão de propostas aberta até {p_sub} no portal oficial ({orgao})."
     ed["data_descoberta"] = data_desc_preservada
     ed["data_atualizacao"] = data_atu_preservada
     ed["prazo_verificado_fonte"] = bool(

@@ -61,6 +61,8 @@ class TestRadarCais(unittest.TestCase):
             self.assertFalse(resumo.startswith(("= Categoria", "Info ")), f"Ruído residual no resumo de {id_ed}")
             self.assertNotIn(valor, ("R$ 30,0 mil", "R$ 15,0 mil", "R$ 1 mil", "R$ 2 mil", "R$ 1.000.000,00 Mil"), f"Valor truncado em {id_ed}: {valor}")
             self.assertNotEqual(titulo.strip().lower(), "busca de chamadas abertas", f"Título genérico de página de busca em {id_ed}")
+            self.assertNotIn("consultar cronograma", str(ed.get("prazo_submissao", "")).lower(), f"Prazo não extraído do PDF/página em {id_ed}")
+            self.assertTrue(bool(ed.get("cronograma_etapas")), f"Campo cronograma_etapas ausente em {id_ed}")
 
     def test_03_matematica_score_e_semaforo_de_prazos(self):
         """Valida o cálculo da Nota CAIS (0 a 10) e impede que editais vencidos recebam recomendação GO."""

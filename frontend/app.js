@@ -1374,6 +1374,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elContrapartida) elContrapartida.textContent = ed.contrapartida || 'Não exigida';
     if (elPublicoDetalhado) elPublicoDetalhado.textContent = publicoTexto;
 
+    const elCronogramaEtapas = document.getElementById('modalCronogramaEtapas');
+    const boxCronogramaModal = document.getElementById('boxCronogramaModal');
+    if (elCronogramaEtapas && boxCronogramaModal) {
+      const textoCrono = ed.cronograma_etapas ||
+        (ed.prazo_submissao === 'Fluxo Contínuo'
+          ? `Recebimento contínuo de propostas em fluxo permanente no portal oficial (${ed.orgao}).`
+          : `Submissão de propostas até ${ed.prazo_submissao} no portal oficial (${ed.orgao}).`);
+      elCronogramaEtapas.textContent = textoCrono;
+    }
+
     const faixaSinteseModal = document.getElementById('faixaSinteseModal');
     if (faixaSinteseModal) {
       if (isEncerrado) {

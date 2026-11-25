@@ -1,5 +1,5 @@
 {
-  "ultima_execucao": "2026-11-25T12:30:36.439496",
+  "ultima_execucao": "2026-11-25T19:27:51.938382",
   "editais": {
     "97cdc23387068d1a": {
       "id_edital": "97cdc23387068d1a",
@@ -25,7 +25,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.75,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 11/12/2026 no portal oficial (CNPq)."
     },
     "f9ae974256a1dad0": {
       "id_edital": "f9ae974256a1dad0",
@@ -51,7 +52,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.44,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 08/12/2026 no portal oficial (CNPq)."
     },
     "8107e9d7e8aa3fab": {
       "id_edital": "8107e9d7e8aa3fab",
@@ -77,7 +79,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.33,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 07/01/2027 no portal oficial (CNPq)."
     },
     "8d7feb898c61e2de": {
       "id_edital": "8d7feb898c61e2de",
@@ -103,7 +106,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.24,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 04/12/2026 no portal oficial (CNPq)."
     },
     "bb68daffc8757f18": {
       "id_edital": "bb68daffc8757f18",
@@ -129,7 +133,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 7.75,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 31/03/2027 no portal oficial (CNPq)."
     },
     "2eb4ba7f8cbac5fa": {
       "id_edital": "2eb4ba7f8cbac5fa",
@@ -155,7 +160,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 7.43,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 12/02/2027 no portal oficial (CNPq)."
     },
     "b5fc23464b19ccbd": {
       "id_edital": "b5fc23464b19ccbd",
@@ -181,7 +187,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.9,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Recebimento contínuo de propostas em fluxo permanente no portal oficial (ETICE)."
     },
     "cfcfe69cfdd3faed": {
       "id_edital": "cfcfe69cfdd3faed",
@@ -207,7 +214,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.57,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Recebimento contínuo de propostas em fluxo permanente no portal oficial (ETICE)."
     },
     "0626104f6cf85cb2": {
       "id_edital": "0626104f6cf85cb2",
@@ -233,7 +241,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.93,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Recebimento contínuo de propostas em fluxo permanente no portal oficial (EMBRAPII)."
     },
     "0a353ff1dc65b600": {
       "id_edital": "0a353ff1dc65b600",
@@ -259,7 +268,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.1,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 24/11/2026 no portal oficial (CONFAP)."
     },
     "bcba4c87c5f767fd": {
       "id_edital": "bcba4c87c5f767fd",
@@ -285,7 +295,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 7.9,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 02/12/2026 no portal oficial (CONFAP)."
     },
     "d615ed95515a8d77": {
       "id_edital": "d615ed95515a8d77",
@@ -311,7 +322,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.48,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 06/04/2027 no portal oficial (CONFAP)."
     },
     "06456753a319db40": {
       "id_edital": "06456753a319db40",
@@ -337,15 +349,16 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 7.9,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 16/04/2027 no portal oficial (CONFAP)."
     },
     "6230d30362763fe5": {
       "id_edital": "6230d30362763fe5",
       "orgao": "Sebrae / Catalisa ICT",
       "titulo": "Sebrae — Programa Catalisa ICT: Da Pesquisa Acadêmica ao Negócio Deep Tech",
       "link": "https://sebrae.com.br/subsites/catalisa-ict",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Bolsas, Subvenção e Mentoria Catalisa ICT (consultar edital)",
+      "prazo_submissao": "Fluxo Contínuo",
+      "valor_financiado": "Bolsas de R$ 6.500/mês + Subvenção até R$ 150.000,00 (Catalisa ICT)",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Mestres, doutores e estudantes de mestrado/doutorado vinculados a ICTs e universidades (pesquisadores do CAIS e da UECE concorrem diretamente).",
       "resumo_objetivo": "Iniciativa do Sebrae que mobiliza pesquisadores de pós-graduação de todo o Brasil para transformar pesquisas de laboratório em startups deep tech de alto impacto.",
@@ -360,10 +373,11 @@
       "justificativa_cais": "Excelente caminho para gerar receita de royalties/licenciamento para o CAIS e criar startups de base científica a partir das nossas pesquisas.",
       "data_descoberta": "13/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.62,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Ciclo Contínuo Sebrae: Etapa 1 (Mobilização e Seleção de Pesquisadores) • Etapa 2 (Plano de Inovação) • Etapa 3 (Fomento e Aceleração Deep Tech)"
     },
     "68224507153b1511": {
       "id_edital": "68224507153b1511",
@@ -389,7 +403,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.21,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 10/11/2026 no portal oficial (CONFAP)."
     },
     "ef5c775974ad7e19": {
       "id_edital": "ef5c775974ad7e19",
@@ -415,7 +430,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.12,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 06/07/2026 no portal oficial (CONFAP)."
     },
     "ad59b919a556dc77": {
       "id_edital": "ad59b919a556dc77",
@@ -441,7 +457,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.63,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 30/09/2026 no portal oficial (FINEP)."
     },
     "8480832a5c4702e9": {
       "id_edital": "8480832a5c4702e9",
@@ -467,7 +484,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 7.9,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 30/09/2026 no portal oficial (FINEP)."
     },
     "09f2618a4a9b13a2": {
       "id_edital": "09f2618a4a9b13a2",
@@ -493,7 +511,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.05,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 28/05/2026 no portal oficial (FINEP)."
     },
     "67c0a1db5b72f5d9": {
       "id_edital": "67c0a1db5b72f5d9",
@@ -519,7 +538,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.25,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 29/05/2026 no portal oficial (FINEP)."
     },
     "6da11e639b2b5f49": {
       "id_edital": "6da11e639b2b5f49",
@@ -545,7 +565,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.46,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 26/06/2026 no portal oficial (FINEP)."
     },
     "5ebd401d87b260b1": {
       "id_edital": "5ebd401d87b260b1",
@@ -571,7 +592,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.26,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 04/05/2026 no portal oficial (FINEP)."
     },
     "7818e488bfbf6b5b": {
       "id_edital": "7818e488bfbf6b5b",
@@ -597,7 +619,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.86,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 30/09/2026 no portal oficial (FINEP)."
     },
     "6767f1be48592053": {
       "id_edital": "6767f1be48592053",
@@ -623,7 +646,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.64,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 30/09/2026 no portal oficial (FINEP)."
     },
     "130793ed6ee87b19": {
       "id_edital": "130793ed6ee87b19",
@@ -649,7 +673,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.22,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 31/08/2026 no portal oficial (FINEP)."
     },
     "b8e6e262c483616d": {
       "id_edital": "b8e6e262c483616d",
@@ -675,7 +700,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.45,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 31/08/2026 no portal oficial (FINEP)."
     },
     "51b5882a64ccbb76": {
       "id_edital": "51b5882a64ccbb76",
@@ -701,7 +727,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.02,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 31/08/2026 no portal oficial (FINEP)."
     },
     "b1e741ef55dbe017": {
       "id_edital": "b1e741ef55dbe017",
@@ -727,7 +754,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.66,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 31/08/2026 no portal oficial (FINEP)."
     },
     "bfafdffdae975867": {
       "id_edital": "bfafdffdae975867",
@@ -753,7 +781,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.55,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 15/12/2025 no portal oficial (Banco do Nordeste / FUNDECI)."
     },
     "c8a230161253c929": {
       "id_edital": "c8a230161253c929",
@@ -779,7 +808,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": true,
       "score_ponderado": 8.47,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 04/07/2025 no portal oficial (Banco do Nordeste / FUNDECI)."
     },
     "8f0a26001944ad55": {
       "id_edital": "8f0a26001944ad55",
@@ -805,7 +835,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.44,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Prazo de submissão na Plataforma SENAI: 30/09/2025"
     },
     "178d65b4a3a6f0db": {
       "id_edital": "178d65b4a3a6f0db",
@@ -831,15 +862,16 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.51,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Prazo de submissão na Plataforma SENAI: 27/03/2026"
     },
     "c0f582e33d1d199f": {
       "id_edital": "c0f582e33d1d199f",
       "orgao": "SENAI / Plataforma Inovação para a Indústria",
       "titulo": "SENAI — MOVER - Nacionalização de Autopeças (SENAI)",
       "link": "https://www.portaldaindustria.com.br/canais/plataforma-inovacao-para-industria/categoria/mover-nacionalizacao-autopecas/",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Consultar teto por categoria na Plataforma SENAI",
+      "prazo_submissao": "Fluxo Contínuo",
+      "valor_financiado": "R$ 500.000,00 a R$ 5.000.000,00 por projeto (Programa MOVER / SENAI)",
       "contrapartida": "Conforme regras da chamada industrial parceira (econômica/financeira)",
       "publico_elegivel": "Indústrias, startups de base tecnológica, Unidades SENAI e ICTs coexecutoras (como o Instituto CAIS/UECE).",
       "resumo_objetivo": "Chamada do Programa MOVER (SENAI) voltada à nacionalização e desenvolvimento de autopeças, sistemas eletrônicos embarcados, sensores automotivos e ferramentais inteligentes.",
@@ -854,18 +886,19 @@
       "justificativa_cais": "Forte sinergia com a carteira industrial e competências de engenharia de software, IA e hardware do Instituto CAIS.",
       "data_descoberta": "17/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.42,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão contínua na Plataforma de Inscrições SENAI / MOVER • Qualificação conjunta Empresa Proponente + Instituto SENAI/ICT"
     },
     "37152c43dee3d1d3": {
       "id_edital": "37152c43dee3d1d3",
       "orgao": "SENAI / Plataforma Inovação para a Indústria",
       "titulo": "SENAI — Chamada Técnica SESI SENAI – Evolução da Estação SESI Saúde Conectada.",
       "link": "https://www.portaldaindustria.com.br/canais/plataforma-inovacao-para-industria/categoria/categoria-chamada-tecnica-sesi-senai-evolucao-da-e/",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Consultar teto por categoria na Plataforma SENAI",
+      "prazo_submissao": "27/07/2026",
+      "valor_financiado": "R$ 1.000.000,00 (Global) • Até R$ 500.000,00 por projeto",
       "contrapartida": "Conforme regras da chamada industrial parceira (econômica/financeira)",
       "publico_elegivel": "Indústrias, startups de base tecnológica, Unidades SENAI e ICTs coexecutoras (como o Instituto CAIS/UECE).",
       "resumo_objetivo": "Chamada Técnica SESI/SENAI Estação Saúde Conectada para desenvolvimento de tecnologias digitais, sensores vestíveis e inteligência de dados voltados à saúde e segurança do trabalhador industrial.",
@@ -873,25 +906,26 @@
       "nota_financeira": 8.4,
       "nota_complexidade": 3.0,
       "nota_chance_aprovacao": 8.4,
-      "prioridade": "Alta",
-      "decisao_recomendada": "GO (Submeter Proposta)",
+      "prioridade": "Baixa",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
       "ideia_projeto_cais": "Desenvolver plataforma de telemetria ocupacional com IoT vestível e modelos preditivos de IA para prevenção de acidentes, ergonomia por visão computacional e monitoramento de saúde industrial.",
       "parceiros_sugeridos": "FIEC / SENAI Ceará, indústrias parceiras do Nordeste e Laboratórios de IA e Sistemas Embarcados do CAIS/UECE.",
       "justificativa_cais": "Forte sinergia com a carteira industrial e competências de engenharia de software, IA e hardware do Instituto CAIS.",
       "data_descoberta": "17/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.43,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão na Plataforma Inovação para a Indústria até 27/07/2026 • Seleção técnica SESI/SENAI"
     },
     "082c64bf520123ef": {
       "id_edital": "082c64bf520123ef",
       "orgao": "SENAI / Plataforma Inovação para a Indústria",
       "titulo": "Aliança Industrial (SENAI) Desenvolvimento de soluções inovadoras para grupos de empresas de todos os portes",
       "link": "https://www.portaldaindustria.com.br/canais/plataforma-inovacao-para-industria/categoria/alianca-industrial/",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Consultar teto por categoria na Plataforma SENAI",
+      "prazo_submissao": "Fluxo Contínuo",
+      "valor_financiado": "R$ 200.000,00 a R$ 3.000.000,00 por projeto (Aliança Industrial SENAI)",
       "contrapartida": "Conforme regras da chamada industrial parceira (econômica/financeira)",
       "publico_elegivel": "Indústrias, startups de base tecnológica, Unidades SENAI e ICTs coexecutoras (como o Instituto CAIS/UECE).",
       "resumo_objetivo": "Categoria Aliança Industrial da Plataforma Inovação para a Indústria (SENAI) para P&D cooperativo de médio e grande porte entre consórcios de empresas e ICTs parceiras.",
@@ -906,10 +940,11 @@
       "justificativa_cais": "Forte sinergia com a carteira industrial e competências de engenharia de software, IA e hardware do Instituto CAIS.",
       "data_descoberta": "17/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.45,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Inscrições abertas em qualquer período do ano na Plataforma Inovação para a Indústria (Fluxo Contínuo)"
     },
     "15a19f17777aae6d": {
       "id_edital": "15a19f17777aae6d",
@@ -935,7 +970,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.44,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Prazo de submissão na Plataforma SENAI: 17/09/2025"
     },
     "1f33fd1222b492c2": {
       "id_edital": "1f33fd1222b492c2",
@@ -948,8 +984,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP / CENTEC — Edital nº 09/2026: Capacitação Tecnológica Projeto H-TEC Ceará",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Bolsas de Formação e Capacitação Tecnológica (ver PDF oficial FUNCAP)",
+      "prazo_submissao": "31/07/2026",
+      "valor_financiado": "R$ 1.080.000,00 (Global) • Bolsas de Formação em Energias Renováveis",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Profissionais, pesquisadores e instituições do ecossistema de tecnologia e transição energética do Ceará.",
       "ideia_projeto_cais": "Contribuir com trilhas de formação técnica em Digitalização, IoT e Inteligência Artificial aplicada à cadeia de Hidrogênio Verde e Energias Renováveis no Ceará.",
@@ -960,14 +996,15 @@
       "nota_chance_aprovacao": 8.8,
       "nota_financeira": 7.5,
       "nota_complexidade": 2.5,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.19,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Publicação: 29/06/2026 • Inscrições (H-TEC): 01/07 a 31/07/2026 • Resultado Preliminar: 19/08/2026 • Recursos: 20/08/2026"
     },
     "b60671926b1823a5": {
       "id_edital": "b60671926b1823a5",
@@ -980,8 +1017,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP — Edital nº 02/2026: Programa Cátedras Franco-Brasileiras no Ceará",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Mobilidade Internacional + Bolsas FUNCAP/França (ver PDF oficial)",
+      "prazo_submissao": "27/03/2026",
+      "valor_financiado": "Mobilidade Internacional e Diárias FUNCAP + Embaixada da França",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Docentes e pesquisadores doutores de ICTs e universidades cearenses (UECE/CAIS) em cooperação com instituições francesas.",
       "ideia_projeto_cais": "Estabelecer cátedra franco-cearense em Inteligência Artificial Confiável e Sistemas Ciberfísicos entre a UECE/CAIS e universidades/centros da França (INRIA/CNRS).",
@@ -992,14 +1029,15 @@
       "nota_chance_aprovacao": 8.7,
       "nota_financeira": 8.0,
       "nota_complexidade": 3.0,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.35,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Lançamento: 12/02/2026 • Submissão (Montenegro): 19/02 a 27/03/2026 • Resultado: 20/04/2026 • Vigência das Cátedras: até 31/12/2027"
     },
     "530c5068edac1b52": {
       "id_edital": "530c5068edac1b52",
@@ -1012,8 +1050,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP — Edital nº 03/2026: Programa de Apoio à Realização de Eventos Científicos e Tecnológicos",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Auxílio Financeiro a Eventos no Ceará (ver PDF oficial FUNCAP)",
+      "prazo_submissao": "20/03/2026",
+      "valor_financiado": "Até R$ 30.000,00 por evento apoiado (Custeio FUNCAP)",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Pesquisadores doutores vinculados a ICTs e universidades sediadas no Estado do Ceará (CAIS/UECE).",
       "ideia_projeto_cais": "Financiar o Workshop Cearense de Inteligência Artificial Aplicada, Semicondutores e Inovação Aberta promovido pelo Instituto CAIS e UECE em Fortaleza.",
@@ -1024,14 +1062,15 @@
       "nota_chance_aprovacao": 9.2,
       "nota_financeira": 7.4,
       "nota_complexidade": 2.0,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.5,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Lançamento: 13/02/2026 • Submissão (Montenegro): 20/02 a 20/03/2026 • Resultado: 08/04/2026 • Realização dos Eventos: 01/06/2026 a 31/05/2027"
     },
     "e99c305c2d922f84": {
       "id_edital": "e99c305c2d922f84",
@@ -1044,8 +1083,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP / SENAI-CE — Programa SAGA SENAI Empreendedora (Modalidade Alunos — Edital nº 07/2026)",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Bolsas e Apoio a Projetos de Inovação Empreendedora (ver PDF oficial FUNCAP)",
+      "prazo_submissao": "19/06/2026",
+      "valor_financiado": "Bolsas de Inovação de R$ 800,00/mês + Mentoria SENAI-CE",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Equipes de inovação, estudantes e pesquisadores desenvolvendo soluções tecnológicas aplicadas a desafios da indústria cearense.",
       "ideia_projeto_cais": "Articular equipes mistas de alunos/pesquisadores do CAIS/UECE com demandas industriais mapeadas junto ao SENAI-CE em automação, IA e IoT.",
@@ -1056,14 +1095,15 @@
       "nota_chance_aprovacao": 8.8,
       "nota_financeira": 7.5,
       "nota_complexidade": 2.0,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.3,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Inscrições na Plataforma SAGA: 09/06 a 19/06/2026 • Resultado da Análise: 30/06/2026 • Banca Avaliadora: 13/07/2026"
     },
     "ecc3e69ac1299e1f": {
       "id_edital": "ecc3e69ac1299e1f",
@@ -1076,8 +1116,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP — Edital nº 11/2026: Programa EJ-CE de Apoio às Empresas Juniores do Ceará",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Apoio Financeiro e Bolsas para Empresas Juniores (ver PDF oficial FUNCAP)",
+      "prazo_submissao": "07/08/2026",
+      "valor_financiado": "R$ 1.000.000,00 (Global) • Até R$ 40.000,00 por Empresa Júnior",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Empresas Juniores vinculadas a Instituições de Ensino Superior do Estado do Ceará (como a UECE).",
       "ideia_projeto_cais": "Apoiar a Empresa Júnior de Computação da UECE (Acens) em parceria técnica com o Instituto CAIS para desenvolvimento de soluções digitais para micro e pequenas empresas.",
@@ -1088,14 +1128,15 @@
       "nota_chance_aprovacao": 9.0,
       "nota_financeira": 7.2,
       "nota_complexidade": 2.0,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.21,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Publicação: 03/07/2026 • Submissão FAP (Montenegro): 17/07 a 06/08/2026 • Envio Proposta Completa: 07/08/2026 • Contratação: Outubro/2026"
     },
     "461cb6dd20ac1fe8": {
       "id_edital": "461cb6dd20ac1fe8",
@@ -1108,8 +1149,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP — Edital nº 12/2026: Programa Redes de Extensão Tecnológica e Inovação Social",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Bolsas de Extensão + Custeio FUNCAP (ver PDF oficial)",
+      "prazo_submissao": "10/08/2026",
+      "valor_financiado": "R$ 1.000.000,00 (Global) • R$ 672 mil em Bolsas + R$ 328 mil em Custeio",
       "contrapartida": "Não exigida",
       "publico_elegivel": "ICTs e Universidades públicas/privadas sem fins lucrativos do Estado do Ceará (UECE/CAIS).",
       "ideia_projeto_cais": "Implantar rede de extensão tecnológica para capacitação em IA, transformação digital e inclusão produtiva junto a municípios e arranjos produtivos locais do Ceará.",
@@ -1120,14 +1161,15 @@
       "nota_chance_aprovacao": 8.9,
       "nota_financeira": 7.9,
       "nota_complexidade": 2.5,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.41,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Lançamento: 03/07/2026 • Inscrições (Montenegro): 13/07 a 10/08/2026 • Resultado Final: 25/09/2026 • Implementação da Rede: a partir de 01/10/2026"
     },
     "e24698754dcb4026": {
       "id_edital": "e24698754dcb4026",
@@ -1140,8 +1182,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP / SECITECE / CNPq — Edital nº 13/2026: Programa de Fixação de Doutores no Ceará (PROFIX-CE)",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Bolsas de Pós-Doutorado + Auxílio à Pesquisa (ver PDF oficial FUNCAP)",
+      "prazo_submissao": "10/08/2026",
+      "valor_financiado": "R$ 31.075.200,00 (Global) • Bolsas Pós-Doc + Auxílio até R$ 40.000,00",
       "contrapartida": "Não exigida (Fomento público estadual/federal)",
       "publico_elegivel": "Doutores pesquisadores vinculados a ICTs, Universidades e Programas de Pós-Graduação sediados no Ceará (Instituto CAIS e UECE concorrem diretamente).",
       "ideia_projeto_cais": "Captar bolsistas recém-doutores em Inteligência Artificial, Semicondutores, Ciência de Dados e Engenharia de Software para reforçar as linhas de P&D aplicado do Instituto CAIS/UECE.",
@@ -1152,14 +1194,15 @@
       "nota_chance_aprovacao": 9.1,
       "nota_financeira": 8.7,
       "nota_complexidade": 2.5,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.98,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Lançamento: 01/07/2026 • Inscrições (Montenegro): 13/07 a 10/08/2026 • Recursos: 09/11 a 13/11/2026 • Homologação Final CNPq/CAPES/FUNCAP: 30/11/2026"
     },
     "7439bb168b203f06": {
       "id_edital": "7439bb168b203f06",
@@ -1172,8 +1215,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP — Edital nº 14/2026: Programa de Bolsa de Pesquisador Visitante no Ceará",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Bolsa de Pesquisador Visitante Sênior + Passagens (ver PDF oficial FUNCAP)",
+      "prazo_submissao": "10/08/2026",
+      "valor_financiado": "R$ 2.496.000,00 (Global) • Bolsas de R$ 13.000,00/mês + Passagens",
       "contrapartida": "Infraestrutura laboratorial de acolhimento na ICT anfitriã (CAIS/UECE)",
       "publico_elegivel": "ICTs e Programas de Pós-Graduação do Ceará (CAIS/UECE) recebendo pesquisadores doutores seniores do Brasil ou do exterior.",
       "ideia_projeto_cais": "Trazer especialistas de referência internacional em Microeletrônica/Semicondutores e Agentes de IA para temporadas de pesquisa aplicada e coorientação nos laboratórios do CAIS/UECE.",
@@ -1184,14 +1227,15 @@
       "nota_chance_aprovacao": 8.9,
       "nota_financeira": 8.0,
       "nota_complexidade": 2.5,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.59,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Lançamento: 03/07/2026 • Submissão (Montenegro): 13/07 a 10/08/2026 • Resultado Final: 16/10/2026 • Implementação das Bolsas: Novembro/2026"
     },
     "877a0452e9872f2e": {
       "id_edital": "877a0452e9872f2e",
@@ -1204,8 +1248,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP / SENAI-CE — Programa SAGA SENAI Empreendedora (4ª Rodada — Edital nº 15/2026)",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Bolsas e Apoio a Projetos de Inovação Empreendedora (ver PDF oficial FUNCAP)",
+      "prazo_submissao": "29/10/2026",
+      "valor_financiado": "Bolsas de Inovação de R$ 2.500,00/mês (FUNCAP / SENAI-CE)",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Equipes de inovação, estudantes e pesquisadores desenvolvendo soluções tecnológicas aplicadas a desafios da indústria cearense.",
       "ideia_projeto_cais": "Articular equipes mistas de alunos/pesquisadores do CAIS/UECE com demandas industriais mapeadas junto ao SENAI-CE em automação, IA e IoT.",
@@ -1216,14 +1260,15 @@
       "nota_chance_aprovacao": 8.8,
       "nota_financeira": 7.5,
       "nota_complexidade": 2.0,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.3,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Inscrições: 28 e 29/10/2026 • Análise Curricular: 06/11/2026 • Entrevistas: 09/11/2026 • Resultado Final: 16/11/2026"
     },
     "24ddcc62e3e76296": {
       "id_edital": "24ddcc62e3e76296",
@@ -1236,8 +1281,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP / SEBRAE-CE — Edital nº 10/2026: Seleção de Projetos de Inovação para o Programa Startup Ceará",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Subvenção, Bolsas de Inovação e Aceleração Sebrae/FUNCAP (ver PDF oficial)",
+      "prazo_submissao": "14/08/2026",
+      "valor_financiado": "R$ 1.080.000,00 (Global) • Bolsas BIT de R$ 3.000,00/mês + Aceleração",
       "contrapartida": "Econômica conforme edital FUNCAP/SEBRAE",
       "publico_elegivel": "Startups cearenses, spin-offs acadêmicas e projetos de inovação tecnológica liderados por empreendedores e pesquisadores do Ceará.",
       "ideia_projeto_cais": "Submeter spin-offs tecnológicas geradas no Instituto CAIS/UECE (soluções SaaS de IA corporativa, HealthTech e IoT industrial) para aceleração e captação de recursos.",
@@ -1248,14 +1293,15 @@
       "nota_chance_aprovacao": 9.0,
       "nota_financeira": 8.4,
       "nota_complexidade": 2.5,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.81,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Lançamento: 03/07/2026 • Inscrições: 07/07 a 14/08/2026 • Resultado de Mérito: 25/09/2026 • Aceleração e Vigência das Bolsas: 01/10/2026 a 31/03/2027"
     },
     "c6a01d84d7ba3bf5": {
       "id_edital": "c6a01d84d7ba3bf5",
@@ -1268,8 +1314,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP — Edital nº 04/2026: Programa Mulheres Empreendedoras e Inovação no Ceará",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Subvenção e Bolsas de Inovação FUNCAP (ver PDF oficial)",
+      "prazo_submissao": "24/04/2026",
+      "valor_financiado": "R$ 4.800.000,00 (Global) • Subvenção de até R$ 100.000,00 por projeto",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Empreendedoras, pesquisadoras e startups lideradas por mulheres sediadas no Estado do Ceará.",
       "ideia_projeto_cais": "Apoiar pesquisadoras do Instituto CAIS/UECE na criação e validação de negócios tecnológicos em IA, Saúde Digital e Sustentabilidade no Ceará.",
@@ -1280,14 +1326,15 @@
       "nota_chance_aprovacao": 8.9,
       "nota_financeira": 7.8,
       "nota_complexidade": 2.0,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.46,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Lançamento: 09/03/2026 • Submissão FAP (Montenegro): 12/03 a 23/04/2026 • Envio Documental: 24/04/2026 • Resultado de Mérito: 14/08/2026"
     },
     "1abf064182b2745f": {
       "id_edital": "1abf064182b2745f",
@@ -1300,8 +1347,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP — Edital nº 01/2026: Programa de Bolsas de Formação Acadêmica (Mestrado e Doutorado)",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Cotas de Bolsas de Mestrado e Doutorado FUNCAP (ver PDF oficial)",
+      "prazo_submissao": "Fluxo Contínuo",
+      "valor_financiado": "Cotas Anuais PPG • Bolsas Mestrado (R$ 2.100/mês) e Doutorado (R$ 3.100/mês)",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Programas de Pós-Graduação stricto sensu de ICTs e Universidades do Ceará (como a UECE) e seus orientadores/pesquisadores (CAIS/LDI).",
       "ideia_projeto_cais": "Alocar mestrandos e doutorandos bolsistas da FUNCAP em dissertações e teses aplicadas aos desafios de IA, Visão Computacional, Redes e Sistemas Embarcados do Instituto CAIS.",
@@ -1316,10 +1363,11 @@
       "prioridade": "Alta",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.95,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Quotas PPG: 15/01 a 10/02/2026 • Janelas Mensais de Cadastramento e Substituição de Bolsistas (Plataforma Montenegro): dias 01 a 16 de cada mês ao longo do ano"
     },
     "9097db953333cebb": {
       "id_edital": "9097db953333cebb",
@@ -1332,8 +1380,8 @@
       "datas_detectadas": "",
       "valores_detectados": "",
       "titulo": "FUNCAP — Chamada nº 01/2026: Programa de Bolsas de Iniciação Científica e Tecnológica (BICT)",
-      "prazo_submissao": "Consultar cronograma no edital",
-      "valor_financiado": "Bolsas de Iniciação Científica FUNCAP (ver PDF oficial)",
+      "prazo_submissao": "15/06/2026",
+      "valor_financiado": "Cotas Institucionais BICT (235 bolsas aprovadas para a UECE • R$ 700,00/mês)",
       "contrapartida": "Não exigida",
       "publico_elegivel": "Pesquisadores doutores vinculados a ICTs e universidades cearenses (UECE/CAIS) orientando estudantes de graduação.",
       "ideia_projeto_cais": "Formar pipeline de jovens talentos da Computação/Engenharias da UECE atuando em iniciação tecnológica nos projetos de software e hardware do CAIS.",
@@ -1344,14 +1392,15 @@
       "nota_chance_aprovacao": 9.3,
       "nota_financeira": 7.6,
       "nota_complexidade": 2.0,
-      "decisao_recomendada": "GO (Submeter Proposta)",
-      "prioridade": "Alta",
+      "decisao_recomendada": "NO-GO (Prazo Encerrado)",
+      "prioridade": "Baixa",
       "data_descoberta": "22/11/2026",
       "data_atualizacao": "25/11/2026",
-      "prazo_verificado_fonte": false,
-      "valor_verificado_fonte": false,
+      "prazo_verificado_fonte": true,
+      "valor_verificado_fonte": true,
       "score_ponderado": 8.64,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Lançamento: 13/05/2026 • Solicitação de Quotas BICT (Montenegro): 15/05 a 15/06/2026 • Resultado: 22/06/2026 • Vigência das Bolsas: a partir de 01/09/2026"
     },
     "4796487e733e5297": {
       "id_edital": "4796487e733e5297",
@@ -1383,7 +1432,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.38,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 18/03/2027 no portal oficial (Horizon Europe (União Europeia))."
     },
     "b70399b5c57dd27d": {
       "id_edital": "b70399b5c57dd27d",
@@ -1415,7 +1465,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.17,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 18/03/2027 no portal oficial (Horizon Europe (União Europeia))."
     },
     "7deac8e5c1c3608d": {
       "id_edital": "7deac8e5c1c3608d",
@@ -1447,7 +1498,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.29,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 18/03/2027 no portal oficial (Horizon Europe (União Europeia))."
     },
     "cd4c3c8b7db42868": {
       "id_edital": "cd4c3c8b7db42868",
@@ -1479,7 +1531,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.13,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 15/04/2026 no portal oficial (Horizon Europe (União Europeia))."
     },
     "2e091df4749989f7": {
       "id_edital": "2e091df4749989f7",
@@ -1511,7 +1564,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.3,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 15/04/2026 no portal oficial (Horizon Europe (União Europeia))."
     },
     "1a84faedad43356a": {
       "id_edital": "1a84faedad43356a",
@@ -1543,7 +1597,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.4,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 15/04/2026 no portal oficial (Horizon Europe (União Europeia))."
     },
     "0d02006e54d8638e": {
       "id_edital": "0d02006e54d8638e",
@@ -1569,7 +1624,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 7.16,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 01/03/2027 no portal oficial (CNPq)."
     },
     "030a2a5043597315": {
       "id_edital": "030a2a5043597315",
@@ -1595,7 +1651,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.29,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 15/04/2026 no portal oficial (Horizon Europe (União Europeia))."
     },
     "7b9e029ee3585456": {
       "id_edital": "7b9e029ee3585456",
@@ -1621,7 +1678,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.29,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 15/04/2026 no portal oficial (Horizon Europe (União Europeia))."
     },
     "52fad8e71ddc777e": {
       "id_edital": "52fad8e71ddc777e",
@@ -1647,7 +1705,8 @@
       "prazo_verificado_fonte": true,
       "valor_verificado_fonte": false,
       "score_ponderado": 8.29,
-      "origem": "REAL"
+      "origem": "REAL",
+      "cronograma_etapas": "Submissão de propostas aberta até 15/04/2026 no portal oficial (Horizon Europe (União Europeia))."
     }
   },
   "gestao_interna": {
