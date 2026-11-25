@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261125_rag_ml_v1">
+  <link rel="stylesheet" href="style.css?v=20261125_clean_v2">
 </head>
 <body>
 
@@ -36,10 +36,10 @@
           <span id="textoStatus">Base Sincronizada</span>
         </div>
 
-        <!-- Botão Copiloto IA (RAG) & Predição ML -->
-        <button class="botao botao-copiloto-topo" id="btnAbrirCopilotoTopo" type="button" title="Abrir Copiloto CAIS (Busca Semântica RAG + Motor Preditivo Machine Learning)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9" cy="13" r="1.25"/><circle cx="15" cy="13" r="1.25"/><path d="M9 17h6"/></svg>
-          <span>Copiloto IA &amp; ML</span>
+        <!-- Botão Assistente Inteligente (abre sob demanda, sem poluir a tela inicial) -->
+        <button class="botao botao-copiloto-topo" id="btnAbrirCopilotoTopo" type="button" title="Abrir Assistente Inteligente para encontrar o edital ideal para sua ideia">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+          <span>Assistente IA</span>
         </button>
 
         <!-- Botão Relatório Executivo PDF -->
@@ -184,80 +184,82 @@
       </div>
     </section>
 
-    <!-- COPILOTO CAIS (RAG + LLM) & MOTOR PREDITIVO DE CAPTAÇÃO (MACHINE LEARNING) -->
+    <!-- ASSISTENTE INTELIGENTE CAIS (RECOLHIDO POR PADRÃO PARA NÃO POLUIR A PÁGINA PRINCIPAL) -->
     <section class="painel-copiloto-ml" id="painelCopilotoRagMl" style="display:none;">
       <div class="cabecalho-copiloto-ml">
         <div class="cabecalho-copiloto-esquerda">
-          <span class="badge-ia-novo">IA + ML ATIVO</span>
+          <span class="badge-ia-novo">✨ ASSISTENTE CAIS</span>
           <div>
-            <h2 class="titulo-copiloto-ml">Copiloto CAIS (RAG + LLM) &amp; Motor Preditivo de Captação (Machine Learning)</h2>
-            <p class="subtitulo-copiloto-ml">Busca vetorial TF-IDF/Cosseno sobre os editais auditados, predição de esforço/gargalo de prazo e recomendação de ROI para a equipe CAIS.</p>
+            <h2 class="titulo-copiloto-ml">Não sabe qual edital escolher? Descreva sua ideia e o Assistente indica os melhores</h2>
           </div>
         </div>
         <div class="cabecalho-copiloto-acoes">
-          <button type="button" class="btn-config-gemini" id="btnConfigGeminiKey" title="Opcional: conectar chave gratuita do Google Gemini para respostas generativas avançadas">
-            <span id="labelStatusGemini">⚡ Motor RAG Vetorial Local (Grátis)</span>
-          </button>
-          <button type="button" class="btn-toggle-copiloto" id="btnToggleCorpoCopiloto" aria-expanded="true">
-            <span id="textoToggleCopiloto">Recolher Painel IA</span>
+          <button type="button" class="btn-toggle-copiloto" id="btnToggleCorpoCopiloto" aria-expanded="false">
+            <span id="textoToggleCopiloto">Abrir Assistente Inteligente</span>
           </button>
         </div>
       </div>
 
-      <!-- Configuração opcional de chave Gemini no navegador -->
-      <div class="box-config-gemini" id="boxConfigGemini" style="display:none;">
-        <div class="box-config-gemini-interno">
-          <div>
-            <strong>Modo Híbrido RAG + Google Gemini LLM (Opcional e Gratuito):</strong>
-            <p>O motor RAG vetorial já funciona 100% grátis sem chave. Se desejar sínteses generativas com o modelo <code>gemini-2.5-flash</code>, cole uma chave gratuita do <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a> (salva apenas no seu navegador):</p>
-          </div>
-          <div class="linha-input-gemini">
-            <input type="password" id="inputChaveGeminiUser" placeholder="AIzaSy... (opcional — salva apenas no seu navegador)" autocomplete="off">
-            <button type="button" class="botao botao-primario" id="btnSalvarChaveGemini">Salvar Chave</button>
-            <button type="button" class="botao botao-secundario" id="btnRemoverChaveGemini" style="color:#0F172A; border-color:#CBD5E1;">Usar Só RAG Local</button>
-          </div>
+      <!-- CORPO DO ASSISTENTE (OCULTO POR PADRÃO — SÓ ABRE QUANDO O USUÁRIO CLICA) -->
+      <div class="corpo-copiloto-ml" id="corpoCopilotoRagMl" style="display:none;">
+        <!-- Navegação simples em 2 passos claros (um de cada vez) -->
+        <div class="abas-assistente-didatico">
+          <button type="button" class="aba-assistente-btn ativa" id="btnAbaAssistenteBusca">
+            1. Descobrir Edital para Minha Ideia
+          </button>
+          <button type="button" class="aba-assistente-btn" id="btnAbaAssistentePrioridades">
+            2. Top 3 Recomendações da Semana &amp; Prazos
+          </button>
+          <button type="button" class="btn-config-gemini" id="btnConfigGeminiKey" title="Opcional: conectar chave gratuita do Google Gemini">
+            <span id="labelStatusGemini">⚙️ IA: Modo Local Gratuito</span>
+          </button>
         </div>
-      </div>
 
-      <div class="corpo-copiloto-ml" id="corpoCopilotoRagMl">
-        <div class="grid-copiloto-ml">
-          <!-- COLUNA 1: COPILOTO RAG & MATCH SEMÂNTICO DE PROJETOS -->
-          <div class="coluna-rag-box">
-            <div class="topo-coluna-ia">
-              <span class="tag-modulo-ia tag-rag">1. LLMs + RAG VETORIAL</span>
-              <strong>Consulta em Linguagem Natural &amp; Match Semântico de Ideias de Projeto</strong>
+        <!-- Configuração opcional de chave Gemini (oculta) -->
+        <div class="box-config-gemini" id="boxConfigGemini" style="display:none;">
+          <div class="box-config-gemini-interno">
+            <div>
+              <strong>Opcional — Conectar Google Gemini (Gratuito):</strong>
+              <p>O assistente já funciona sozinho sem chave. Se quiser respostas redigidas pelo Google Gemini, cole uma chave gratuita do <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>:</p>
             </div>
-            <p class="dica-modulo-ia">Faça uma pergunta estratégica ou cole o resumo de uma ideia de projeto do laboratório para encontrar os editais com maior compatibilidade matemática:</p>
+            <div class="linha-input-gemini">
+              <input type="password" id="inputChaveGeminiUser" placeholder="Cole sua chave AIzaSy... (opcional)" autocomplete="off">
+              <button type="button" class="botao botao-primario" id="btnSalvarChaveGemini">Ativar Gemini</button>
+              <button type="button" class="botao botao-secundario" id="btnRemoverChaveGemini" style="color:#0F172A; border-color:#CBD5E1;">Usar Modo Padrão</button>
+            </div>
+          </div>
+        </div>
 
+        <!-- ABA 1 DO ASSISTENTE: BUSCA GUIADA PASSO A PASSO -->
+        <div class="painel-assistente-aba" id="abaAssistenteBusca">
+          <div class="coluna-rag-box">
+            <div class="passo-didatico-label">PASSO 1 • Escolha uma situação pronta abaixo ou escreva sua ideia de projeto:</div>
             <div class="chips-prompts-rag" id="chipsPromptsRag">
-              <button type="button" class="chip-prompt-ia" data-prompt="Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?">💡 IA &amp; Chips sem contrapartida</button>
-              <button type="button" class="chip-prompt-ia" data-prompt="Temos pesquisadores e doutores na UECE; quais os melhores editais abertos hoje para bolsas de mestrado, doutorado e fixação?">🎓 Bolsas UECE / Pós-Doc</button>
-              <button type="button" class="chip-prompt-ia" data-prompt="Queremos submeter projeto em parceria com indústria ou startup; quais editais de subvenção e fluxo contínuo têm maior nota?">🏭 Parceria com Empresa / Indústria</button>
-              <button type="button" class="chip-prompt-ia" data-prompt="Quais editais vigentes têm o maior retorno (ROI), aprovação mais rápida e menor burocracia para o CAIS iniciar esta semana?">⚡ Maior ROI &amp; Menor Esforço</button>
+              <button type="button" class="chip-prompt-ia ativo" data-prompt="Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?">💡 Projeto de IA ou Chips sem contrapartida</button>
+              <button type="button" class="chip-prompt-ia" data-prompt="Temos pesquisadores e doutores na UECE; quais os melhores editais abertos hoje para bolsas de mestrado, doutorado e fixação?">🎓 Bolsas para pesquisadores (UECE)</button>
+              <button type="button" class="chip-prompt-ia" data-prompt="Queremos submeter projeto em parceria com indústria ou startup; quais editais de subvenção e fluxo contínuo têm maior nota?">🏭 Projeto em parceria com Empresa</button>
+              <button type="button" class="chip-prompt-ia" data-prompt="Quais editais vigentes têm o maior retorno (ROI), aprovação mais rápida e menor burocracia para o CAIS iniciar esta semana?">⚡ Editais mais fáceis e rápidos de aprovar</button>
             </div>
 
             <div class="caixa-input-rag">
-              <input type="text" id="inputPerguntaRag" placeholder="Pergunte ao Copiloto ou descreva a ideia do seu projeto (ex: visão computacional com drones para energia)...">
+              <input type="text" id="inputPerguntaRag" placeholder="Ou escreva aqui sua ideia (ex: usar drones e IA para inspecionar redes elétricas)...">
               <button type="button" class="botao botao-primario" id="btnExecutarRag">
-                <span>Analisar (RAG)</span>
+                <span>Buscar Melhores Editais</span>
               </button>
             </div>
 
+            <div class="passo-didatico-label" style="margin-top:14px;">PASSO 2 • Veja a recomendação e clique em um dos 3 editais mais compatíveis:</div>
             <div class="resultado-rag-container" id="resultadoRagContainer"></div>
           </div>
+        </div>
 
-          <!-- COLUNA 2: MOTOR PREDITIVO DE CAPTAÇÃO (MACHINE LEARNING) -->
+        <!-- ABA 2 DO ASSISTENTE: TOP 3 DA SEMANA & PRAZOS (OCULTA ATÉ CLICAR) -->
+        <div class="painel-assistente-aba" id="abaAssistentePrioridades" style="display:none;">
           <div class="coluna-ml-box">
-            <div class="topo-coluna-ia">
-              <span class="tag-modulo-ia tag-ml">2. MACHINE LEARNING PREDITIVO</span>
-              <strong>Alocação Ótima da Equipe (Top ROI) &amp; Previsão de Gargalos de Prazo</strong>
-            </div>
-            <p class="dica-modulo-ia">O modelo cruza chance de aprovação, volume de recurso, complexidade documental e dias restantes para prever onde o tempo da equipe CAIS gera maior retorno:</p>
-
-            <div class="subtitulo-bloco-ml">🏆 Top 3 Editais com Maior Índice Preditivo de Conversão (ROI do Esforço)</div>
+            <div class="passo-didatico-label">🏆 Os 3 editais abertos com maior chance de sucesso e melhor retorno para a equipe hoje:</div>
             <div class="lista-top-roi-ml" id="listaTopRoiMl"></div>
 
-            <div class="subtitulo-bloco-ml" style="margin-top:12px;">⏱️ Diagnóstico Preditivo de Gargalos &amp; Carga por Laboratório CAIS (Clique para filtrar)</div>
+            <div class="passo-didatico-label" style="margin-top:16px;">⏱️ Situação dos prazos e oportunidades por Laboratório CAIS (clique em um laboratório para filtrar):</div>
             <div class="resumo-gargalos-ml" id="resumoGargalosMl"></div>
           </div>
         </div>
@@ -659,6 +661,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261125_rag_ml_v1"></script>
+  <script src="app.js?v=20261125_clean_v2"></script>
 </body>
 </html>

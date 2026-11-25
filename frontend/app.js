@@ -114,6 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputChaveGeminiUser = document.getElementById('inputChaveGeminiUser');
   const btnSalvarChaveGemini = document.getElementById('btnSalvarChaveGemini');
   const btnRemoverChaveGemini = document.getElementById('btnRemoverChaveGemini');
+  const btnAbaAssistenteBusca = document.getElementById('btnAbaAssistenteBusca');
+  const btnAbaAssistentePrioridades = document.getElementById('btnAbaAssistentePrioridades');
+  const abaAssistenteBusca = document.getElementById('abaAssistenteBusca');
+  const abaAssistentePrioridades = document.getElementById('abaAssistentePrioridades');
   const chipsPromptsRag = document.getElementById('chipsPromptsRag');
   const inputPerguntaRag = document.getElementById('inputPerguntaRag');
   const btnExecutarRag = document.getElementById('btnExecutarRag');
@@ -920,13 +924,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const scoreNum = Number(ed.score_ponderado || 0);
       const pctNota = Math.min(100, Math.round(scoreNum * 10));
-      const predMl = calcularPredicaoMlEdital(ed);
-      const badgeMlCard = !isEncerrado
-        ? `<div class="faixa-ml-card ${predMl.classeGargalo}" title="${escapeHtml(predMl.explicacaoCurta)}">
-             <span>🔮 <strong>ROI ML: ${predMl.indiceRoi}%</strong> • Preparo ~${predMl.diasPreparo}d</span>
-             <span class="tag-janela-ml">${escapeHtml(predMl.rotuloJanela)}</span>
-           </div>`
-        : '';
 
       card.innerHTML = `
         <div class="corpo-card-minimal">
@@ -957,7 +954,6 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="pilar-valor font-mono ${isEncerrado ? 'prazo-encerrado-txt' : ''}">${escapeHtml(prazoCurto)}</span>
             </div>
           </div>
-          ${badgeMlCard}
         </div>
 
         <div class="rodape-acao-card">
@@ -2421,17 +2417,16 @@ ${ed.parceiros_sugeridos}
       div.className = 'card-top-roi-ml';
       div.innerHTML = `
         <div class="topo-card-roi-ml">
-          <span class="rank-roi-ml">#${idx + 1} RECOMENDAÇÃO ML</span>
+          <span class="rank-roi-ml">${idx + 1}º MAIS VANTAJOSO</span>
           <span class="badge-tag badge-orgao">${escapeHtml(item.ed.orgao)}</span>
-          <span class="pilula-roi-ml font-mono">ROI ${item.ml.indiceRoi}% • Chance ~${item.ml.probConversao}%</span>
+          <span class="pilula-roi-ml font-mono">Nota ${Number(item.ed.score_ponderado || 0).toFixed(1)}/10 • Chance Alta (~${item.ml.probConversao}%)</span>
         </div>
         <div class="titulo-card-roi-ml">${escapeHtml(item.ed.titulo)}</div>
         <div class="meta-card-roi-ml">
-          <span>⏱️ Preparo: <strong>~${item.ml.diasPreparo} dias</strong></span>
+          <span>⏱️ Tempo médio para preparar a proposta: <strong>~${item.ml.diasPreparo} dias</strong></span>
           <span>•</span>
           <span>${escapeHtml(item.ml.rotuloJanela)}</span>
-          <span>•</span>
-          <span class="link-abrir-roi-ml">Abrir Plano CAIS &rarr;</span>
+          <span class="link-abrir-roi-ml">Ver Passo a Passo &rarr;</span>
         </div>
       `;
       div.addEventListener('click', () => abrirModal(item.ed));
@@ -2447,11 +2442,11 @@ ${ed.parceiros_sugeridos}
 
     const alertaGargaloHtml = gargalosCriticos.length > 0
       ? `<div class="alerta-gargalo-ml">
-           <strong>⚠️ Alerta Preditivo de Prazo (${gargalosCriticos.length} ${gargalosCriticos.length === 1 ? 'chamada' : 'chamadas'}):</strong>
-           O modelo identificou que <em>${escapeHtml(gargalosCriticos[0].ed.orgao)}</em> (${escapeHtml(truncarTexto(gargalosCriticos[0].ed.titulo, 58))}) exige ~${gargalosCriticos[0].ml.diasPreparo}d de preparo documental para apenas ${gargalosCriticos[0].ml.diasRestantes}d restantes. Priorize a articulação hoje.
+           <strong>⚠️ Atenção ao Prazo (${gargalosCriticos.length} ${gargalosCriticos.length === 1 ? 'edital' : 'editais'}):</strong>
+           O edital da <strong>${escapeHtml(gargalosCriticos[0].ed.orgao)}</strong> (${escapeHtml(truncarTexto(gargalosCriticos[0].ed.titulo, 65))}) costuma levar cerca de <strong>${gargalosCriticos[0].ml.diasPreparo} dias</strong> para juntar a documentação, mas faltam apenas <strong>${gargalosCriticos[0].ml.diasRestantes} dias</strong>. Se tiver interesse, comece hoje!
          </div>`
       : `<div class="alerta-gargalo-ml alerta-gargalo-ok">
-           <strong>✅ Janelas Operacionais Saudáveis:</strong> Todos os ${vigentes.length} editais vigentes possuem folga superior ao tempo médio estimado de preparação documental.
+           <strong>✅ Todos os prazos estão tranquilos:</strong> Os ${vigentes.length} editais abertos têm tempo suficiente para preparar a documentação com calma.
          </div>`;
 
     const chipsLabsHtml = Object.entries(contagemLabs)
@@ -2498,14 +2493,14 @@ ${ed.parceiros_sugeridos}
 
     const similaresHtml = similares.length > 0
       ? `<div class="bloco-cluster-ml">
-           <div class="titulo-cluster-ml">🔗 Reaproveitamento Inteligente de Proposta (Cluster ML por Similaridade de Cosseno):</div>
-           <p class="sub-cluster-ml">A proposta escrita para este edital pode ser adaptada com baixo esforço adicional para estas chamadas vigentes:</p>
+           <div class="titulo-cluster-ml">💡 Dica Prática — Aproveite o mesmo projeto em outros editais parecidos:</div>
+           <p class="sub-cluster-ml">Se você escrever uma proposta para este edital, pode usar quase o mesmo texto para concorrer também nestes:</p>
            <div class="lista-similares-ml">
              ${similares.map(s => `
                <button type="button" class="item-similar-ml" data-id="${escapeHtml(s.ed.id_edital)}">
                  <span class="badge-tag badge-orgao">${escapeHtml(s.ed.orgao)}</span>
                  <span class="texto-similar-ml">${escapeHtml(truncarTexto(s.ed.titulo, 68))}</span>
-                 <span class="afinidade-similar-ml font-mono">${s.afinidade}% similar &rarr;</span>
+                 <span class="afinidade-similar-ml font-mono">${s.afinidade}% parecido &rarr;</span>
                </button>
              `).join('')}
            </div>
@@ -2514,20 +2509,19 @@ ${ed.parceiros_sugeridos}
 
     boxPredicaoMlModal.innerHTML = `
       <div class="cabecalho-predicao-modal">
-        <span class="tag-modulo-ia tag-ml">🔮 DIAGNÓSTICO PREDITIVO (MACHINE LEARNING)</span>
-        <span class="font-mono" style="font-size:12px; font-weight:700; color:#0B2545;">ROI do Esforço: ${ml.indiceRoi}%</span>
+        <span class="tag-modulo-ia tag-ml">⏱️ PLANEJAMENTO PRÁTICO DE SUBMISSÃO</span>
       </div>
       <div class="grid-metricas-ml-modal">
         <div class="item-metrica-ml-modal">
-          <span class="label-metrica-ml">Chance Preditiva de Conversão</span>
-          <strong class="valor-metrica-ml font-mono">${ml.probConversao}%</strong>
+          <span class="label-metrica-ml">Chance Estimada</span>
+          <strong class="valor-metrica-ml font-mono">~${ml.probConversao}%</strong>
         </div>
         <div class="item-metrica-ml-modal">
-          <span class="label-metrica-ml">Esforço Médio de Preparo</span>
-          <strong class="valor-metrica-ml font-mono">~${ml.diasPreparo} dias úteis</strong>
+          <span class="label-metrica-ml">Tempo para Preparar Proposta</span>
+          <strong class="valor-metrica-ml font-mono">Cerca de ${ml.diasPreparo} dias</strong>
         </div>
         <div class="item-metrica-ml-modal">
-          <span class="label-metrica-ml">Risco de Gargalo de Prazo</span>
+          <span class="label-metrica-ml">Situação do Prazo</span>
           <strong class="valor-metrica-ml">${escapeHtml(ml.rotuloJanela)}</strong>
         </div>
       </div>
@@ -2614,38 +2608,38 @@ ${ed.parceiros_sugeridos}
     });
 
     ranqueados.sort((a, b) => b.scoreCombinado - a.scoreCombinado);
-    const topRecuperados = ranqueados.slice(0, 4);
+    const topRecuperados = ranqueados.slice(0, 3);
 
     if (topRecuperados.length === 0) {
-      resultadoRagContainer.innerHTML = `<div class="parecer-rag-box">Nenhum edital vigente encontrado para esta consulta.</div>`;
+      resultadoRagContainer.innerHTML = `<div class="parecer-rag-box">Nenhum edital aberto encontrado para esta busca.</div>`;
       return;
     }
 
     const primeiro = topRecuperados[0];
     const segundo = topRecuperados[1];
 
-    // Síntese determinística fundamentada nos documentos recuperados (Zero alucinação)
+    // Resposta didática, direta e sem jargão técnico
     let sinteseRagHtml = `
-      <p><strong>Síntese Fundamentada (RAG Vetorial • ${ranqueados.length} chamadas vigentes analisadas):</strong>
-      Para a consulta <em>"${escapeHtml(truncarTexto(consulta, 110))}"</em>, o motor vetorial identificou maior compatibilidade em
-      <strong>${escapeHtml(primeiro.ed.orgao)}</strong> (<em>${escapeHtml(truncarTexto(primeiro.ed.titulo, 75))}</em>, com <strong>${primeiro.pctMatch}% de match semântico</strong> e <strong>ROI preditivo de ${primeiro.ml.indiceRoi}%</strong>)${segundo ? `, seguido por <strong>${escapeHtml(segundo.ed.orgao)}</strong> (${segundo.pctMatch}% de match)` : ''}.</p>
-      <p style="margin-top:6px;"><strong>Estratégia Recomendada para o CAIS:</strong> Propor <em>${escapeHtml(truncarTexto(primeiro.ed.ideia_projeto_cais || primeiro.ed.resumo_objetivo, 145))}</em> envolvendo <strong>${escapeHtml(primeiro.lab)}</strong> (${escapeHtml(primeiro.ed.contrapartida || 'sem contrapartida financeira obrigatória para ICT')}). Tempo estimado de preparo: <strong>~${primeiro.ml.diasPreparo} dias úteis</strong>.</p>
+      <p><strong>💡 Recomendação do Assistente:</strong>
+      Para o que você procura, a melhor oportunidade aberta hoje é o edital da <strong>${escapeHtml(primeiro.ed.orgao)}</strong>
+      (<em>${escapeHtml(truncarTexto(primeiro.ed.titulo, 80))}</em> — <strong>${primeiro.pctMatch}% compatível</strong> com seu pedido)${segundo ? `, seguido pela opção da <strong>${escapeHtml(segundo.ed.orgao)}</strong> (${segundo.pctMatch}% compatível)` : ''}.</p>
+      <p style="margin-top:6px;"><strong>📋 Como aproveitar:</strong> ${escapeHtml(truncarTexto(primeiro.ed.ideia_projeto_cais || primeiro.ed.resumo_objetivo, 150))}
+      • <strong>Contrapartida:</strong> ${escapeHtml(primeiro.ed.contrapartida || 'Não exigida')}
+      • <strong>Tempo médio para preparar a proposta:</strong> cerca de ${primeiro.ml.diasPreparo} dias.</p>
     `;
 
     const cardsRecuperadosHtml = topRecuperados.map((item, idx) => `
       <div class="card-recuperado-rag" data-id="${escapeHtml(item.ed.id_edital)}">
         <div class="topo-card-rag">
-          <span class="badge-match-rag font-mono">Match ${item.pctMatch}% • ROI ${item.ml.indiceRoi}%</span>
+          <span class="badge-match-rag">${idx + 1}ª Opção • ${item.pctMatch}% compatível</span>
           <span class="badge-tag badge-orgao">${escapeHtml(item.ed.orgao)}</span>
           <span class="nota-circulo font-mono" style="font-size:11px; padding:2px 6px;">Nota ${Number(item.ed.score_ponderado || 0).toFixed(1)}</span>
         </div>
-        <div class="titulo-card-rag">${idx + 1}. ${escapeHtml(item.ed.titulo)}</div>
-        <div class="resumo-card-rag"><strong>Proposta CAIS:</strong> ${escapeHtml(truncarTexto(item.ed.ideia_projeto_cais || item.ed.resumo_objetivo, 115))}</div>
+        <div class="titulo-card-rag">${escapeHtml(item.ed.titulo)}</div>
+        <div class="resumo-card-rag"><strong>O que propor:</strong> ${escapeHtml(truncarTexto(item.ed.ideia_projeto_cais || item.ed.resumo_objetivo, 115))}</div>
         <div class="rodape-card-rag">
           <span>💰 ${escapeHtml(resumirValorCard(item.ed.valor_financiado))}</span>
-          <span>•</span>
-          <span>⏱️ ~${item.ml.diasPreparo}d preparo</span>
-          <span class="acao-abrir-rag">Ver Plano &rarr;</span>
+          <span class="acao-abrir-rag">Abrir Edital &rarr;</span>
         </div>
       </div>
     `).join('');
@@ -2713,25 +2707,48 @@ ${ed.parceiros_sugeridos}
     if (!labelStatusGemini) return;
     const chave = (localStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
     if (chave) {
-      labelStatusGemini.textContent = '🟢 RAG + Gemini 2.5 Flash Conectado';
+      labelStatusGemini.textContent = '🟢 IA: Google Gemini Ativo';
     } else {
-      labelStatusGemini.textContent = '⚡ Motor RAG Vetorial Local (Grátis)';
+      labelStatusGemini.textContent = '⚙️ IA: Modo Local Gratuito';
     }
+  }
+
+  function alternarAbaInternaAssistente(qualAba) {
+    if (!abaAssistenteBusca || !abaAssistentePrioridades) return;
+    const isBusca = qualAba === 'busca';
+    abaAssistenteBusca.style.display = isBusca ? 'block' : 'none';
+    abaAssistentePrioridades.style.display = isBusca ? 'none' : 'block';
+    if (btnAbaAssistenteBusca) btnAbaAssistenteBusca.classList.toggle('ativa', isBusca);
+    if (btnAbaAssistentePrioridades) btnAbaAssistentePrioridades.classList.toggle('ativa', !isBusca);
   }
 
   function configurarEventosCopilotoRagMl() {
     atualizarBadgeStatusGemini();
 
+    if (btnAbaAssistenteBusca) {
+      btnAbaAssistenteBusca.addEventListener('click', () => alternarAbaInternaAssistente('busca'));
+    }
+    if (btnAbaAssistentePrioridades) {
+      btnAbaAssistentePrioridades.addEventListener('click', () => alternarAbaInternaAssistente('prioridades'));
+    }
+
     if (btnAbrirCopilotoTopo && painelCopilotoRagMl) {
       btnAbrirCopilotoTopo.addEventListener('click', () => {
         painelCopilotoRagMl.style.display = 'block';
-        if (corpoCopilotoRagMl && corpoCopilotoRagMl.style.display === 'none') {
-          corpoCopilotoRagMl.style.display = 'block';
-          if (textoToggleCopiloto) textoToggleCopiloto.textContent = 'Recolher Painel IA';
-          if (btnToggleCorpoCopiloto) btnToggleCorpoCopiloto.setAttribute('aria-expanded', 'true');
+        if (corpoCopilotoRagMl) {
+          const estavaOculto = corpoCopilotoRagMl.style.display === 'none';
+          corpoCopilotoRagMl.style.display = estavaOculto ? 'block' : 'none';
+          if (textoToggleCopiloto) {
+            textoToggleCopiloto.textContent = estavaOculto ? 'Fechar Assistente' : 'Abrir Assistente Inteligente';
+          }
+          if (btnToggleCorpoCopiloto) {
+            btnToggleCorpoCopiloto.setAttribute('aria-expanded', estavaOculto ? 'true' : 'false');
+          }
+          if (estavaOculto) {
+            painelCopilotoRagMl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (inputPerguntaRag) inputPerguntaRag.focus();
+          }
         }
-        painelCopilotoRagMl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        if (inputPerguntaRag) inputPerguntaRag.focus();
       });
     }
 
@@ -2741,7 +2758,7 @@ ${ed.parceiros_sugeridos}
         corpoCopilotoRagMl.style.display = oculto ? 'block' : 'none';
         btnToggleCorpoCopiloto.setAttribute('aria-expanded', oculto ? 'true' : 'false');
         if (textoToggleCopiloto) {
-          textoToggleCopiloto.textContent = oculto ? 'Recolher Painel IA' : 'Expandir Painel IA';
+          textoToggleCopiloto.textContent = oculto ? 'Fechar Assistente' : 'Abrir Assistente Inteligente';
         }
       });
     }

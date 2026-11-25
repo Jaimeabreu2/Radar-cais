@@ -2572,9 +2572,64 @@ mark.grifo-busca {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 14px 20px;
-  background: linear-gradient(90deg, #0B2545 0%, #0F294A 100%);
+  padding: 11px 18px;
+  background: linear-gradient(90deg, #0B2545 0%, #10325C 100%);
   color: #FFFFFF;
+}
+
+.abas-assistente-didatico {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #CBD5E1;
+}
+
+.aba-assistente-btn {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+  font-family: var(--font-principal);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aba-assistente-btn:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+.aba-assistente-btn.ativa {
+  background: var(--cais-navy);
+  color: #FFFFFF;
+  border-color: var(--cais-navy);
+  box-shadow: 0 2px 6px rgba(11, 37, 69, 0.18);
+}
+
+.abas-assistente-didatico .btn-config-gemini {
+  margin-left: auto;
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+}
+
+.abas-assistente-didatico .btn-config-gemini:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+.passo-didatico-label {
+  font-family: var(--font-titulos);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cais-navy);
+  margin-bottom: 8px;
 }
 
 .cabecalho-copiloto-esquerda {
@@ -2824,8 +2879,8 @@ mark.grifo-busca {
 
 .grade-recuperados-rag {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .card-recuperado-rag {
@@ -3292,10 +3347,20 @@ mark.grifo-busca {
   }
 
   .btn-config-gemini,
-  .btn-toggle-copiloto {
+  .btn-toggle-copiloto,
+  .aba-assistente-btn {
     width: 100%;
     text-align: center;
-    padding: 8px 10px;
+    padding: 9px 10px;
+  }
+
+  .abas-assistente-didatico {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .abas-assistente-didatico .btn-config-gemini {
+    margin-left: 0;
   }
 
   .corpo-copiloto-ml {
