@@ -1,0 +1,61 @@
+name: Radar CAIS — Monitoramento Diário & Atualização GitHub Pages
+
+on:
+  schedule:
+    # Executa todos os dias às 08h00 BRT (11h00 UTC)
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    inputs:
+      ciclo:
+        description: 'Ciclo de varredura a executar (auto, diaria, semanal, quinzenal, mensal, todos)'
+        required: false
+        default: 'auto'
+
+permissions:
+  contents: write
+
+jobs:
+  monitorar-editais:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Instalar Dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Executar Varredura e Qualificação CAIS
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL || 'gemini-2.5-flash' }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '465' }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
+        run: |
+          CICLO="${{ github.event.inputs.ciclo || 'auto' }}"
+          python agente_editais_cais.py --ciclo "$CICLO"
+
+      - name: Persistir Base de Conhecimento e Atualizar GitHub Pages
+        run: |
+          git config user.name "Radar CAIS Bot"
+          git config user.email "bot@cais.org.br"
+          git add historico_editais.json frontend/historico_editais.json banco_editais_cais.db pipeline_oportunidades_cais.csv relatorio_ultimo_ciclo.md relatorio_ultimo_ciclo.html
+          git diff --staged --quiet || git commit -m "chore(radar): atualização automática de editais [skip ci]"
+          git push origin main
+          git checkout -B gh-pages
+          cp -f frontend/index.html frontend/style.css frontend/app.js frontend/historico_editais.json pipeline_oportunidades_cais.csv .
+          touch .nojekyll
+          git add index.html style.css app.js historico_editais.json pipeline_oportunidades_cais.csv .nojekyll
+          git diff --staged --quiet || git commit -m "chore(pages): sincronização diária de editais [skip ci]"
+          git push -f origin gh-pages

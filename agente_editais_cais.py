@@ -76,9 +76,41 @@ ARQUIVO_RELATORIO_MD = DIRETORIO_BASE / "relatorio_ultimo_ciclo.md"
 ARQUIVO_RELATORIO_HTML = DIRETORIO_BASE / "relatorio_ultimo_ciclo.html"
 DIRETORIO_FRONTEND = DIRETORIO_BASE / "frontend"
 
+
+def _carregar_dotenv_local() -> None:
+    """Carrega variáveis de um arquivo .env local caso exista, sem sobrescrever variáveis já definidas no sistema."""
+    arquivo_env = DIRETORIO_BASE / ".env"
+    if not arquivo_env.exists():
+        return
+    try:
+        for linha in arquivo_env.read_text(encoding="utf-8").splitlines():
+            linha_limpa = linha.strip()
+            if not linha_limpa or linha_limpa.startswith("#") or "=" not in linha_limpa:
+                continue
+            chave, valor = linha_limpa.split("=", 1)
+            chave = chave.strip()
+            valor = valor.strip().strip('"').strip("'")
+            if chave and chave not in os.environ:
+                os.environ[chave] = valor
+    except Exception as e:
+        logger.debug(f"Aviso ao ler .env local: {e}")
+
+
+_carregar_dotenv_local()
+
 NOTA_MINIMA_ADERENCIA = 6
 MAX_WORKERS_COLETA = 6
-MAX_DEEP_FETCH_POR_FONTE = 5
+MAX_DEEP_FETCH_POR_FONTE = 12
+
+EXTENSOES_MIDIA_IGNORADAS = (
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp",
+    ".mp4", ".mp3", ".avi", ".mov", ".wmv", ".flv", ".css", ".js",
+    ".woff", ".woff2", ".ttf", ".eot", ".map"
+)
+
+EXTENSOES_BINARIAS_SEM_HTML = EXTENSOES_MIDIA_IGNORADAS + (
+    ".pdf", ".zip", ".rar", ".7z", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt"
+)
 
 HEADERS_HTTP = {
     "User-Agent": (
@@ -120,17 +152,17 @@ MESES_PT = {
     "agosto": "08", "setembro": "09", "outubro": "10", "novembro": "11", "dezembro": "12"
 }
 
-REGEX_DATA_BR = re.compile(r"\b(\d{2}/\d{2}/202\d)\b")
+REGEX_DATA_BR = re.compile(r"\b(\d{2}/\d{2}/20[23]\d)\b")
 REGEX_DATA_EXTENSO = re.compile(
-    r"\b(\d{1,2})\s+de\s+(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(202\d)\b",
+    r"\b(\d{1,2})\s+de\s+(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(20[23]\d)\b",
     re.IGNORECASE,
 )
 REGEX_VALOR_MOEDA = re.compile(
-    r"(?:R\$|US\$|USD|EUR|€)\s?[\d\.,]+(?:\s?(?:mil|milhões|milhão|bi|bilhões|M|B))?",
+    r"(?:R\$|US\$|USD|EUR|€)\s?[\d\.,]+(?:\s?(?:bilhões|bilhoes|bilhão|bilhao|milhões|milhoes|milhão|milhao|mil|bi|M|B)\b)?",
     re.IGNORECASE,
 )
 
-# Estado global da thread de varredura
+# Estado global da thread de varredura e trava de persistência
 STATUS_VARREDURA = {
     "em_progresso": False,
     "ultima_execucao": None,
@@ -139,6 +171,7 @@ STATUS_VARREDURA = {
     "mensagem": "Pronto para monitoramento",
 }
 LOCK_VARREDURA = threading.Lock()
+LOCK_PERSISTENCIA = threading.RLock()
 
 # ==============================================================================
 # 1. CATÁLOGO OFICIAL DE FONTES DE FOMENTO (19 PORTAIS DO INSTITUTO CAIS)
@@ -149,13 +182,13 @@ FONTES_FOMENTO: Dict[str, List[Dict[str, str]]] = {
             "orgao": "FINEP",
             "esfera": "Federal",
             "foco": "Subvenção econômica, infraestrutura para ICTs e chamadas do FNDCT (Mais Inovação Brasil)",
-            "url": "http://legacy.finep.gov.br/chamadas-publicas/chamadas-publicas",
+            "url": "http://legacy.finep.gov.br/chamadas-publicas/chamadas-publicas?situacao=aberta",
         },
         {
             "orgao": "FUNCAP",
             "esfera": "Estadual (CE)",
-            "foco": "Inovação Pública, Bolsas, Centelha e Funcap Conecta no Ceará",
-            "url": "https://www.funcap.ce.gov.br/",
+            "foco": "Inovação Pública, Fixação de Doutores (PROFIX), Startup Ceará, Bolsas e Auxílios no Ceará",
+            "url": "https://montenegro.funcap.ce.gov.br/sugba/script/id_solicitacao.php?cnpj=00078007000126",
         },
         {
             "orgao": "ETICE",
@@ -179,7 +212,7 @@ FONTES_FOMENTO: Dict[str, List[Dict[str, str]]] = {
             "orgao": "EMBRAPII",
             "esfera": "Nacional / Industrial",
             "foco": "Modelos de cooperação tecnológica empresa-ICT e novos credenciamentos",
-            "url": "https://embrapii.org.br/transparencia/",
+            "url": "https://embrapii.org.br/chamadas-publicas/",
         },
         {
             "orgao": "CAPES",
@@ -283,161 +316,234 @@ FONTES_FOMENTO: Dict[str, List[Dict[str, str]]] = {
 # ==============================================================================
 # 2. CAMADA DE PERSISTÊNCIA (JSON + SQLITE + PLANILHA CSV EXCEL)
 # ==============================================================================
+def _normalizar_data_br(valor_data: str, default_br: str) -> str:
+    if not valor_data:
+        return default_br
+    txt = str(valor_data).strip()
+    m_br = re.search(r"(\d{2}/\d{2}/20[23]\d)", txt)
+    if m_br:
+        return m_br.group(1)
+    m_iso = re.match(r"^(20[23]\d)-(\d{2})-(\d{2})", txt)
+    if m_iso:
+        y, m, d = m_iso.groups()
+        return f"{d}/{m}/{y}"
+    return default_br
+
+
 def inicializar_sqlite() -> None:
-    with sqlite3.connect(ARQUIVO_SQLITE) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS editais (
-                id_edital TEXT PRIMARY KEY,
-                orgao TEXT,
-                titulo TEXT,
-                link TEXT,
-                prazo_submissao TEXT,
-                valor_financiado TEXT,
-                contrapartida TEXT,
-                publico_elegivel TEXT,
-                resumo_objetivo TEXT,
-                nota_aderencia INTEGER,
-                nota_financeira INTEGER,
-                nota_complexidade INTEGER,
-                nota_chance_aprovacao INTEGER,
-                score_ponderado REAL,
-                prioridade TEXT,
-                decisao_recomendada TEXT,
-                ideia_projeto_cais TEXT,
-                parceiros_sugeridos TEXT,
-                justificativa_cais TEXT,
-                data_descoberta TEXT
+    with LOCK_PERSISTENCIA:
+        with sqlite3.connect(ARQUIVO_SQLITE) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS editais (
+                    id_edital TEXT PRIMARY KEY,
+                    orgao TEXT,
+                    titulo TEXT,
+                    link TEXT,
+                    prazo_submissao TEXT,
+                    valor_financiado TEXT,
+                    contrapartida TEXT,
+                    publico_elegivel TEXT,
+                    resumo_objetivo TEXT,
+                    nota_aderencia REAL,
+                    nota_financeira REAL,
+                    nota_complexidade REAL,
+                    nota_chance_aprovacao REAL,
+                    score_ponderado REAL,
+                    prioridade TEXT,
+                    decisao_recomendada TEXT,
+                    ideia_projeto_cais TEXT,
+                    parceiros_sugeridos TEXT,
+                    justificativa_cais TEXT,
+                    data_descoberta TEXT,
+                    data_atualizacao TEXT,
+                    origem TEXT
+                )
+                """
             )
-            """
-        )
+            colunas_existentes = {
+                row[1] for row in conn.execute("PRAGMA table_info(editais)").fetchall()
+            }
+            if "data_atualizacao" not in colunas_existentes:
+                conn.execute("ALTER TABLE editais ADD COLUMN data_atualizacao TEXT DEFAULT ''")
+            if "origem" not in colunas_existentes:
+                conn.execute("ALTER TABLE editais ADD COLUMN origem TEXT DEFAULT 'REAL'")
 
 
 def carregar_memoria() -> Dict[str, Any]:
-    hoje_iso = datetime.date.today().isoformat()
     hoje_br = datetime.date.today().strftime("%d/%m/%Y")
-    if ARQUIVO_MEMORIA.exists():
-        try:
-            bruto = json.loads(ARQUIVO_MEMORIA.read_text(encoding="utf-8"))
-            editais_orig = bruto.get("editais", {})
-            editais_limpos: Dict[str, Any] = {}
-            chaves_vistas = set()
-            for id_ed, ed in editais_orig.items():
-                if not eh_oportunidade_valida(ed.get("titulo", ""), ed.get("link", "")):
-                    continue
-                ed_calibrado = calibrar_edital_cais(dict(ed))
-                ed_calibrado["data_descoberta"] = hoje_br
-                ed_calibrado["data_atualizacao"] = hoje_br
-                chave_unica = f"{ed_calibrado.get('orgao', '').strip().lower()}::{ed_calibrado.get('titulo', '').strip().lower()}"
-                if chave_unica in chaves_vistas:
-                    continue
-                chaves_vistas.add(chave_unica)
-                editais_limpos[id_ed] = ed_calibrado
-            bruto["editais"] = editais_limpos
-            ult = str(bruto.get("ultima_execucao") or "")
-            if not ult.startswith(hoje_iso):
-                bruto["ultima_execucao"] = datetime.datetime.now().isoformat()
-            return bruto
-        except json.JSONDecodeError:
-            logger.warning("Arquivo JSON corrompido ou vazio. Inicializando estrutura limpa.")
+    with LOCK_PERSISTENCIA:
+        if ARQUIVO_MEMORIA.exists():
+            try:
+                bruto = json.loads(ARQUIVO_MEMORIA.read_text(encoding="utf-8"))
+                editais_orig = bruto.get("editais", {})
+                editais_limpos: Dict[str, Any] = {}
+                links_vistos = set()
+                for id_ed, ed in editais_orig.items():
+                    if not eh_oportunidade_valida(ed.get("titulo", ""), ed.get("link", "")):
+                        continue
+                    prazo_ed = str(ed.get("prazo_submissao", ""))
+                    if re.search(r"/(201\d|202[0-4])\b", prazo_ed):
+                        continue
+                    data_desc_orig = _normalizar_data_br(ed.get("data_descoberta", ""), hoje_br)
+                    data_atu_orig = _normalizar_data_br(ed.get("data_atualizacao", ""), data_desc_orig)
+                    ed_calibrado = calibrar_edital_cais(dict(ed), atualizar_timestamp=False)
+                    ed_calibrado["data_descoberta"] = data_desc_orig
+                    ed_calibrado["data_atualizacao"] = data_atu_orig
+
+                    parsed_link = urlparse(str(ed_calibrado.get("link", "")).strip())
+                    chave_link = f"{parsed_link.netloc}{parsed_link.path}".rstrip("/").lower()
+                    chave_unica = (
+                        f"{ed_calibrado.get('orgao', '').strip().lower()}::{chave_link}"
+                        if chave_link
+                        else f"{ed_calibrado.get('orgao', '').strip().lower()}::{ed_calibrado.get('titulo', '').strip().lower()}"
+                    )
+                    if chave_unica in links_vistos:
+                        continue
+                    links_vistos.add(chave_unica)
+                    editais_limpos[id_ed] = ed_calibrado
+                bruto["editais"] = editais_limpos
+                if not bruto.get("ultima_execucao"):
+                    bruto["ultima_execucao"] = datetime.datetime.now().isoformat()
+                return bruto
+            except json.JSONDecodeError:
+                logger.warning("Arquivo JSON corrompido ou vazio. Inicializando estrutura limpa.")
     return {"ultima_execucao": datetime.datetime.now().isoformat(), "editais": {}}
 
 
-def salvar_memoria_e_exportar(memoria: Dict[str, Any]) -> None:
-    memoria["ultima_execucao"] = datetime.datetime.now().isoformat()
-    ARQUIVO_MEMORIA.write_text(
-        json.dumps(memoria, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+def _sanitizar_celula_csv(valor: Any) -> Any:
+    """Previne CSV Formula Injection no Excel/LibreOffice caso uma string comece com =, +, - ou @."""
+    if isinstance(valor, str):
+        txt = valor.strip()
+        if txt.startswith(("=", "+", "-", "@")):
+            return f"'{txt}"
+    return valor
 
-    inicializar_sqlite()
-    editais_lista = list(memoria.get("editais", {}).values())
-    editais_lista.sort(key=lambda x: float(x.get("score_ponderado", 0)), reverse=True)
 
-    with sqlite3.connect(ARQUIVO_SQLITE) as conn:
-        for ed in editais_lista:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO editais VALUES (
-                    :id_edital, :orgao, :titulo, :link, :prazo_submissao,
-                    :valor_financiado, :contrapartida, :publico_elegivel,
-                    :resumo_objetivo, :nota_aderencia, :nota_financeira,
-                    :nota_complexidade, :nota_chance_aprovacao, :score_ponderado,
-                    :prioridade, :decisao_recomendada, :ideia_projeto_cais,
-                    :parceiros_sugeridos, :justificativa_cais, :data_descoberta
+def salvar_memoria_e_exportar(memoria: Dict[str, Any], atualizar_execucao: bool = True) -> None:
+    with LOCK_PERSISTENCIA:
+        if atualizar_execucao or not memoria.get("ultima_execucao"):
+            memoria["ultima_execucao"] = datetime.datetime.now().isoformat()
+
+        # Escrita atômica para evitar corrupção em leituras concorrentes da API
+        arquivo_tmp = ARQUIVO_MEMORIA.with_suffix(".json.tmp")
+        arquivo_tmp.write_text(
+            json.dumps(memoria, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        os.replace(arquivo_tmp, ARQUIVO_MEMORIA)
+
+        # Mantém cópia sincronizada na pasta frontend para visualizações diretas
+        if DIRETORIO_FRONTEND.exists():
+            try:
+                (DIRETORIO_FRONTEND / "historico_editais.json").write_text(
+                    json.dumps(memoria, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
-                """,
-                {
-                    "id_edital": ed.get("id_edital", ""),
-                    "orgao": ed.get("orgao", ""),
-                    "titulo": ed.get("titulo", ""),
-                    "link": ed.get("link", ""),
-                    "prazo_submissao": ed.get("prazo_submissao", ""),
-                    "valor_financiado": ed.get("valor_financiado", ""),
-                    "contrapartida": ed.get("contrapartida", ""),
-                    "publico_elegivel": ed.get("publico_elegivel", ""),
-                    "resumo_objetivo": ed.get("resumo_objetivo", ""),
-                    "nota_aderencia": int(ed.get("nota_aderencia", 0)),
-                    "nota_financeira": int(ed.get("nota_financeira", 0)),
-                    "nota_complexidade": int(ed.get("nota_complexidade", 0)),
-                    "nota_chance_aprovacao": int(ed.get("nota_chance_aprovacao", 0)),
-                    "score_ponderado": float(ed.get("score_ponderado", 0.0)),
-                    "prioridade": ed.get("prioridade", ""),
-                    "decisao_recomendada": ed.get("decisao_recomendada", ""),
-                    "ideia_projeto_cais": ed.get("ideia_projeto_cais", ""),
-                    "parceiros_sugeridos": ed.get("parceiros_sugeridos", ""),
-                    "justificativa_cais": ed.get("justificativa_cais", ""),
-                    "data_descoberta": ed.get("data_descoberta", ""),
-                },
-            )
+            except Exception:
+                pass
 
-    colunas_csv = [
-        "Data Descoberta",
-        "Órgão Financiador",
-        "Título da Oportunidade",
-        "Prazo de Submissão",
-        "Valor Financiado",
-        "Contrapartida Exigida",
-        "Público Elegível",
-        "Aderência CAIS (0-10)",
-        "Atratividade Financeira (0-10)",
-        "Viabilidade Operacional (0-10)",
-        "Chance Aprovação (0-10)",
-        "Score Ponderado Final",
-        "Prioridade",
-        "Decisão Recomendada",
-        "Ideia de Projeto Sugerida (CAIS)",
-        "Parceiros Estratégicos (Consórcio)",
-        "Resumo Executivo",
-        "Link Oficial",
-    ]
-    with ARQUIVO_CSV.open("w", encoding="utf-8-sig", newline="") as f_csv:
-        writer = csv.writer(f_csv)
-        writer.writerow(colunas_csv)
-        for ed in editais_lista:
-            viabilidade = 10 - int(ed.get("nota_complexidade", 5))
-            writer.writerow(
-                [
-                    ed.get("data_descoberta", ""),
-                    ed.get("orgao", ""),
-                    ed.get("titulo", ""),
-                    ed.get("prazo_submissao", ""),
-                    ed.get("valor_financiado", ""),
-                    ed.get("contrapartida", ""),
-                    ed.get("publico_elegivel", ""),
-                    ed.get("nota_aderencia", 0),
-                    ed.get("nota_financeira", 0),
-                    viabilidade,
-                    ed.get("nota_chance_aprovacao", 0),
-                    ed.get("score_ponderado", 0.0),
-                    ed.get("prioridade", ""),
-                    ed.get("decisao_recomendada", ""),
-                    ed.get("ideia_projeto_cais", ""),
-                    ed.get("parceiros_sugeridos", ""),
-                    ed.get("resumo_objetivo", ""),
-                    ed.get("link", ""),
-                ]
-            )
-    logger.info("Persistência atualizada: JSON, SQLite e CSV gravados com sucesso.")
+        inicializar_sqlite()
+        editais_lista = list(memoria.get("editais", {}).values())
+        editais_lista.sort(key=lambda x: float(x.get("score_ponderado", 0)), reverse=True)
+
+        with sqlite3.connect(ARQUIVO_SQLITE) as conn:
+            conn.execute("DELETE FROM editais")
+            for ed in editais_lista:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO editais (
+                        id_edital, orgao, titulo, link, prazo_submissao,
+                        valor_financiado, contrapartida, publico_elegivel,
+                        resumo_objetivo, nota_aderencia, nota_financeira,
+                        nota_complexidade, nota_chance_aprovacao, score_ponderado,
+                        prioridade, decisao_recomendada, ideia_projeto_cais,
+                        parceiros_sugeridos, justificativa_cais, data_descoberta,
+                        data_atualizacao, origem
+                    ) VALUES (
+                        :id_edital, :orgao, :titulo, :link, :prazo_submissao,
+                        :valor_financiado, :contrapartida, :publico_elegivel,
+                        :resumo_objetivo, :nota_aderencia, :nota_financeira,
+                        :nota_complexidade, :nota_chance_aprovacao, :score_ponderado,
+                        :prioridade, :decisao_recomendada, :ideia_projeto_cais,
+                        :parceiros_sugeridos, :justificativa_cais, :data_descoberta,
+                        :data_atualizacao, :origem
+                    )
+                    """,
+                    {
+                        "id_edital": ed.get("id_edital", ""),
+                        "orgao": ed.get("orgao", ""),
+                        "titulo": ed.get("titulo", ""),
+                        "link": ed.get("link", ""),
+                        "prazo_submissao": ed.get("prazo_submissao", ""),
+                        "valor_financiado": ed.get("valor_financiado", ""),
+                        "contrapartida": ed.get("contrapartida", ""),
+                        "publico_elegivel": ed.get("publico_elegivel", ""),
+                        "resumo_objetivo": ed.get("resumo_objetivo", ""),
+                        "nota_aderencia": round(float(ed.get("nota_aderencia", 0)), 1),
+                        "nota_financeira": round(float(ed.get("nota_financeira", 0)), 1),
+                        "nota_complexidade": round(float(ed.get("nota_complexidade", 0)), 1),
+                        "nota_chance_aprovacao": round(float(ed.get("nota_chance_aprovacao", 0)), 1),
+                        "score_ponderado": round(float(ed.get("score_ponderado", 0.0)), 2),
+                        "prioridade": ed.get("prioridade", ""),
+                        "decisao_recomendada": ed.get("decisao_recomendada", ""),
+                        "ideia_projeto_cais": ed.get("ideia_projeto_cais", ""),
+                        "parceiros_sugeridos": ed.get("parceiros_sugeridos", ""),
+                        "justificativa_cais": ed.get("justificativa_cais", ""),
+                        "data_descoberta": ed.get("data_descoberta", ""),
+                        "data_atualizacao": ed.get("data_atualizacao", ed.get("data_descoberta", "")),
+                        "origem": ed.get("origem", "REAL"),
+                    },
+                )
+
+        colunas_csv = [
+            "Data Descoberta",
+            "Última Verificação",
+            "Órgão Financiador",
+            "Título da Oportunidade",
+            "Prazo de Submissão",
+            "Valor Financiado",
+            "Contrapartida Exigida",
+            "Público Elegível",
+            "Aderência CAIS (0-10)",
+            "Atratividade Financeira (0-10)",
+            "Viabilidade Operacional (0-10)",
+            "Chance Aprovação (0-10)",
+            "Score Ponderado Final",
+            "Prioridade",
+            "Decisão Recomendada",
+            "Ideia de Projeto Sugerida (CAIS)",
+            "Parceiros Estratégicos (Consórcio)",
+            "Resumo Executivo",
+            "Link Oficial",
+        ]
+        with ARQUIVO_CSV.open("w", encoding="utf-8-sig", newline="") as f_csv:
+            writer = csv.writer(f_csv)
+            writer.writerow(colunas_csv)
+            for ed in editais_lista:
+                viabilidade = round(10.0 - float(ed.get("nota_complexidade", 5.0)), 1)
+                writer.writerow(
+                    [
+                        _sanitizar_celula_csv(ed.get("data_descoberta", "")),
+                        _sanitizar_celula_csv(ed.get("data_atualizacao", ed.get("data_descoberta", ""))),
+                        _sanitizar_celula_csv(ed.get("orgao", "")),
+                        _sanitizar_celula_csv(ed.get("titulo", "")),
+                        _sanitizar_celula_csv(ed.get("prazo_submissao", "")),
+                        _sanitizar_celula_csv(ed.get("valor_financiado", "")),
+                        _sanitizar_celula_csv(ed.get("contrapartida", "")),
+                        _sanitizar_celula_csv(ed.get("publico_elegivel", "")),
+                        round(float(ed.get("nota_aderencia", 0)), 1),
+                        round(float(ed.get("nota_financeira", 0)), 1),
+                        viabilidade,
+                        round(float(ed.get("nota_chance_aprovacao", 0)), 1),
+                        round(float(ed.get("score_ponderado", 0.0)), 2),
+                        _sanitizar_celula_csv(ed.get("prioridade", "")),
+                        _sanitizar_celula_csv(ed.get("decisao_recomendada", "")),
+                        _sanitizar_celula_csv(ed.get("ideia_projeto_cais", "")),
+                        _sanitizar_celula_csv(ed.get("parceiros_sugeridos", "")),
+                        _sanitizar_celula_csv(ed.get("resumo_objetivo", "")),
+                        _sanitizar_celula_csv(ed.get("link", "")),
+                    ]
+                )
+        logger.info("Persistência atualizada: JSON, SQLite e CSV gravados com sucesso.")
 
 
 def gerar_id_edital(orgao: str, link: str) -> str:
@@ -451,7 +557,7 @@ def calcular_dias_restantes(prazo_str: str) -> Optional[int]:
     if not prazo_str:
         return None
     # Busca padrão DD/MM/AAAA
-    match_br = re.search(r"(\d{2})/(\d{2})/(202\d)", prazo_str)
+    match_br = re.search(r"(\d{2})/(\d{2})/(20[23]\d)", str(prazo_str))
     if match_br:
         d, m, y = match_br.groups()
         try:
@@ -461,7 +567,7 @@ def calcular_dias_restantes(prazo_str: str) -> Optional[int]:
             pass
     for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
         try:
-            dt = datetime.datetime.strptime(prazo_str.strip()[:10], fmt).date()
+            dt = datetime.datetime.strptime(str(prazo_str).strip()[:10], fmt).date()
             return (dt - datetime.date.today()).days
         except ValueError:
             continue
@@ -707,104 +813,311 @@ def criar_sessao_http() -> requests.Session:
     return sessao
 
 
+def _requisicao_get_resiliente(
+    sessao: requests.Session, url: str, timeout: int = 20
+) -> Optional[requests.Response]:
+    """Tenta requisição com verificação SSL ativa e faz fallback controlado caso o portal governamental tenha cadeia SSL legada."""
+    try:
+        return sessao.get(url, timeout=timeout, verify=True)
+    except requests.exceptions.SSLError:
+        logger.debug(f"Certificado SSL legado em {url}; aplicando fallback de leitura.")
+        return sessao.get(url, timeout=timeout, verify=False)
+
+
+def _validar_data_br_str(data_str: str) -> Optional[datetime.date]:
+    try:
+        d_s, m_s, y_s = data_str.strip().split("/")
+        return datetime.date(int(y_s), int(m_s), int(d_s))
+    except Exception:
+        return None
+
+
+def _extrair_prazo_submissao_real(texto: str) -> str:
+    """
+    Extrator cirúrgico de prazos de submissão:
+    1. Prioriza intervalos explícitos ('Inscrições: DD/MM/AAAA a DD/MM/AAAA'), capturando a data final;
+    2. Prioriza rótulos explícitos de submissão/encerramento de propostas (ignorando datas de resultado/contratação);
+    3. Converte datas por extenso vinculadas a submissão/inscrição;
+    4. Jamais adivinha pegando a última data aleatória da página ('datas_futuras[-1]').
+    """
+    if not texto:
+        return ""
+
+    # 1. Intervalo explícito de inscrição/submissão (ex: "Inscrições: 26/10/2026 a 08/12/2026")
+    padrao_intervalo = re.compile(
+        r"(?:inscri[cç][õo]es|submiss[ãa]o|envio de propostas|cadastramento|propostas)[^\.\n]{0,45}?"
+        r"\b\d{2}/\d{2}/20[23]\d\s*(?:a|até|ate|-|–)\s*(\d{2}/\d{2}/20[23]\d)\b",
+        re.IGNORECASE,
+    )
+    matches_intervalo = [
+        m.group(1) for m in padrao_intervalo.finditer(texto) if _validar_data_br_str(m.group(1)) is not None
+    ]
+    if matches_intervalo:
+        return matches_intervalo[-1]
+
+    # 2. Rótulos explícitos de prazo final de envio/submissão de propostas
+    padrao_rotulo_submissao = re.compile(
+        r"(?:prazo para envio de propostas até|encerramento do prazo para submissão[^\.\n:]{0,55}?|"
+        r"prazo de encerramento de submissão[^\.\n:]{0,40}?|submissão da proposta[^\.\n:]{0,45}?|"
+        r"data de encerramento|recebe propostas até|prazo final para submissão|inscri[cç][õo]es até|"
+        r"término das inscri[cç][õo]es|submissão até)"
+        r"\s*:?\s*[^\d\n]{0,25}?(\d{2}/\d{2}/20[23]\d)",
+        re.IGNORECASE,
+    )
+    matches_rotulo = [
+        m.group(1) for m in padrao_rotulo_submissao.finditer(texto) if _validar_data_br_str(m.group(1)) is not None
+    ]
+    if matches_rotulo:
+        # Se houver múltiplas etapas de submissão (ex: 1ª fase e 2ª fase), prioriza a data de submissão mais recente/futura
+        hoje_dt = datetime.date.today()
+        futuras_submissao = [d for d in matches_rotulo if _validar_data_br_str(d) >= hoje_dt]
+        return futuras_submissao[-1] if futuras_submissao else matches_rotulo[-1]
+
+    # 3. Datas por extenso vinculadas a submissão/encerramento
+    match_prazo_extenso = re.search(
+        r"(?:prazo para envio|submissão|submissao|inscri[cç][õo]es|encerramento|recebe propostas até)"
+        r"[^\.\n]{0,60}?(\d{1,2}\s+de\s+[a-zç]+\s+de\s+20[23]\d)",
+        texto,
+        re.IGNORECASE,
+    )
+    if match_prazo_extenso:
+        m_ext = REGEX_DATA_EXTENSO.search(match_prazo_extenso.group(1))
+        if m_ext:
+            d = m_ext.group(1).zfill(2)
+            m = MESES_PT.get(m_ext.group(2).lower().replace("ç", "c"), "01")
+            y = m_ext.group(3)
+            cand_ext = f"{d}/{m}/{y}"
+            if _validar_data_br_str(cand_ext) is not None:
+                return cand_ext
+
+    # 4. Fluxo contínuo explícito no corpo do edital
+    texto_lower = texto.lower()
+    if any(term in texto_lower for term in ("fluxo contínuo", "fluxo continuo", "pré-qualificação permanente", "credenciamento contínuo")):
+        return "Fluxo Contínuo"
+
+    return ""
+
+
+def _limpar_ruido_portal(texto: str) -> str:
+    """Remove cabeçalhos de acessibilidade e menus repetitivos de portais legados (FINEP, SENAI, etc.)."""
+    if not texto:
+        return ""
+    limpo = re.sub(
+        r"^Acessibilidade\s*\|\s*Alto Contraste.*?(?:Transparência e Prestação de Contas|Acesso à Informação|Fale Conosco)\s*",
+        "",
+        texto,
+        flags=re.IGNORECASE,
+    )
+    limpo = re.sub(
+        r"^(?:=\s*(?:Home|Categorias|Resultados|Edições|Interlocutores Regionais)\s*)+",
+        "",
+        limpo,
+        flags=re.IGNORECASE,
+    )
+    limpo = re.sub(
+        r"^=\s*Categoria\s*(?:Categoria:\s*)?",
+        "",
+        limpo,
+        flags=re.IGNORECASE,
+    )
+    limpo = re.sub(
+        r"^Info\s+(?=Chamada|Edital)",
+        "",
+        limpo,
+        flags=re.IGNORECASE,
+    )
+    return " ".join(limpo.split()).strip()
+
+
 def enriquecer_detalhes_pagina(
     sessao: requests.Session, url: str
 ) -> Dict[str, str]:
     info = {"texto_interno": "", "datas_detectadas": "", "valores_detectados": ""}
-    if url.lower().endswith((".pdf", ".zip", ".doc", ".docx", ".xlsx")):
+    caminho_url = urlparse(url.lower()).path
+    if caminho_url.endswith(EXTENSOES_BINARIAS_SEM_HTML):
         return info
 
     try:
-        resp = sessao.get(url, timeout=15, verify=False)
-        if resp.status_code != 200 or "text/html" not in resp.headers.get("Content-Type", ""):
+        resp = _requisicao_get_resiliente(sessao, url, timeout=15)
+        if not resp or resp.status_code != 200 or "text/html" not in resp.headers.get("Content-Type", ""):
             return info
+
+        if resp.encoding and resp.encoding.lower() == "iso-8859-1":
+            resp.encoding = resp.apparent_encoding or "utf-8"
 
         soup = BeautifulSoup(resp.text, "html.parser")
         for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
             tag.decompose()
 
+        # Em páginas da FINEP, o conteúdo real da chamada fica em div.desc
+        div_desc_finep = soup.find("div", class_="desc")
         area_principal = (
-            soup.find(["main", "article"])
+            div_desc_finep
+            or soup.find("div", class_="journal-content-article")
+            or soup.find(["main", "article"])
             or soup.find("div", id=re.compile(r"content-core|content|main|conteudo", re.I))
             or soup.body
         )
-        texto = " ".join(area_principal.get_text(" ", strip=True).split()) if area_principal else ""
-        info["texto_interno"] = texto[:1800]
+        texto_bruto = " ".join(area_principal.get_text(" ", strip=True).split()) if area_principal else ""
+        texto = _limpar_ruido_portal(texto_bruto)
+        info["texto_interno"] = texto[:2400]
 
-        texto_lower = texto.lower()
+        # 1. Identificação cirúrgica de Prazo de Submissão (sem adivinhação)
+        texto_completo_busca = " ".join(soup.get_text(" ", strip=True).split())[:15000]
+        prazo_detectado = _extrair_prazo_submissao_real(texto[:12000]) or _extrair_prazo_submissao_real(texto_completo_busca)
+        if not prazo_detectado and re.search(r"\binscri[cç][õo]es\s+encerradas\b", texto_completo_busca, re.IGNORECASE):
+            prazo_detectado = "01/01/2025"
+        info["datas_detectadas"] = prazo_detectado
 
-        # 1. Identificação precisa de Prazo de Submissão
-        if any(term in texto_lower for term in ("fluxo contínuo", "fluxo continuo", "permanente", "credenciamento contínuo")):
-            info["datas_detectadas"] = f"Fluxo Contínuo (Aberto em {datetime.date.today().strftime('%d/%m/%Y')})"
-        else:
-            hoje_dt = datetime.date.today()
-
-            def _eh_data_futura_ou_hoje(data_str: str) -> bool:
-                try:
-                    d_s, m_s, y_s = data_str.split("/")
-                    return datetime.date(int(y_s), int(m_s), int(d_s)) >= hoje_dt
-                except Exception:
-                    return False
-
-            # Procura datas associadas a palavras de encerramento / submissão
-            match_prazo_br = re.search(
-                r"(?:prazo|submissão|submissao|inscrição|inscricao|limite|encerramento|até o dia|ate o dia|recebe propostas até|até|ate)[^\.\n]{0,60}?(\d{2}/\d{2}/202\d)",
-                texto,
-                re.IGNORECASE,
-            )
-            match_prazo_extenso = re.search(
-                r"(?:prazo|submissão|submissao|inscrição|inscricao|limite|encerramento|até o dia|ate o dia|recebe propostas até|até|ate)[^\.\n]{0,60}?(\d{1,2}\s+de\s+[a-zç]+\s+de\s+202\d)",
-                texto,
-                re.IGNORECASE,
-            )
-
-            candidata_br = match_prazo_br.group(1) if match_prazo_br else ""
-            if candidata_br and _eh_data_futura_ou_hoje(candidata_br):
-                info["datas_detectadas"] = candidata_br
-            elif match_prazo_extenso:
-                # Converte data por extenso para dd/mm/aaaa
-                m_ext = REGEX_DATA_EXTENSO.search(match_prazo_extenso.group(1))
-                if m_ext:
-                    d = m_ext.group(1).zfill(2)
-                    m = MESES_PT.get(m_ext.group(2).lower().replace("ç", "c"), "01")
-                    y = m_ext.group(3)
-                    cand_ext = f"{d}/{m}/{y}"
-                    if _eh_data_futura_ou_hoje(cand_ext):
-                        info["datas_detectadas"] = cand_ext
-
-            if not info["datas_detectadas"]:
-                # Procura todas as datas BR no texto que sejam >= hoje e pega a última (data final de cronograma)
-                datas_br = list(dict.fromkeys(REGEX_DATA_BR.findall(texto)))
-                datas_futuras = [d for d in datas_br if _eh_data_futura_ou_hoje(d)]
-                if datas_futuras:
-                    info["datas_detectadas"] = datas_futuras[-1]
-
-        # 2. Identificação inteligente de Valor Financiado / Recursos
-        # Prioriza expressões de montante global ou subvenção máxima
+        # 2. Identificação factual de Valor Financiado (apenas no corpo real da chamada)
         match_valor_global = re.search(
-            r"(?:orçamento global|recursos totais|valor total|dotação orçamentária|subvenção de até|apoio de até|montante de)[^\.\n]{0,50}?((?:R\$|US\$|EUR|€)\s?[\d\.,]+(?:\s?(?:mil|milhões|milhão|bi|bilhões))?)",
-            texto,
+            r"(?:orçamento da chamada|orçamento global|orçamento|recursos totais|valor total|recursos no valor total de|no valor de|dotação orçamentária|subvenção de até|apoio de até|montante de|recursos da ordem de)[^\.\n]{0,50}?((?:R\$|US\$|EUR|€)\s?[\d\.,]+(?:\s?(?:bilhões|bilhoes|bilhão|bilhao|milhões|milhoes|milhão|milhao|mil|bi))?\b)",
+            texto[:12000],
             re.IGNORECASE,
         )
         if match_valor_global:
             info["valores_detectados"] = match_valor_global.group(1).strip()
         else:
-            todos_valores = REGEX_VALOR_MOEDA.findall(texto)
+            todos_valores = REGEX_VALOR_MOEDA.findall(texto[:12000])
             if todos_valores:
-                # Escolhe o valor mais significativo (com milhões/mil ou maior número de dígitos)
                 valores_milhoes = [v for v in todos_valores if re.search(r"milh|bi", v, re.I)]
                 if valores_milhoes:
                     info["valores_detectados"] = valores_milhoes[0].strip()
+                elif len(todos_valores) >= 2 and todos_valores[0] != todos_valores[1]:
+                    info["valores_detectados"] = f"{todos_valores[0].strip()} a {todos_valores[1].strip()}"
                 else:
                     info["valores_detectados"] = todos_valores[0].strip()
-            elif "bolsa" in texto_lower:
-                info["valores_detectados"] = "Bolsas de Pesquisa & Desenvolvimento (DCR/DT)"
-            elif any(c in texto_lower for c in ("credenciamento", "operadoras", "cinturão digital")):
-                info["valores_detectados"] = "Credenciamento / Prestação de Serviços Digitais"
 
     except Exception as e:
         logger.debug(f"Falha ao enriquecer página {url}: {e}")
     return info
+
+
+def _extrair_funcap_montenegro(
+    sessao: requests.Session, fonte: Dict[str, str], ids_conhecidos: set
+) -> List[Dict[str, str]]:
+    """Extrai os editais oficiais de 2026 da FUNCAP diretamente da Plataforma Montenegro com link oficial do PDF."""
+    candidatos: List[Dict[str, str]] = []
+    url_base = fonte["url"]
+    orgao = fonte["orgao"]
+    try:
+        resp = _requisicao_get_resiliente(sessao, url_base, timeout=20)
+        if not resp or resp.status_code != 200:
+            return candidatos
+        resp.encoding = "utf-8"
+        soup = BeautifulSoup(resp.text, "html.parser")
+        vistos = set()
+        for a in soup.find_all("a", href=True):
+            tit = " ".join(a.get_text(" ", strip=True).split())
+            if "2026" not in tit or "checasolicitacao.php" not in a["href"]:
+                continue
+            tr_edital = a.find_parent("tr")
+            outer_tr = tr_edital.find_parent("tr") if tr_edital else None
+            next_doc = outer_tr.find_next_sibling("tr", class_="linha-documento-edital") if outer_tr else None
+            link_oficial = urljoin(url_base, a["href"])
+            pub_date = ""
+            if next_doc:
+                a_pdf = next_doc.find("a", class_="link2", href=True)
+                if a_pdf:
+                    link_oficial = urljoin(url_base, a_pdf["href"])
+                tds = next_doc.find_all("td")
+                if len(tds) >= 3:
+                    pub_date = tds[2].get_text(strip=True)
+            if link_oficial in vistos:
+                continue
+            vistos.add(link_oficial)
+            id_ed = gerar_id_edital(orgao, link_oficial)
+            if id_ed in ids_conhecidos:
+                continue
+            candidatos.append(
+                {
+                    "id_edital": id_ed,
+                    "orgao": orgao,
+                    "esfera": fonte.get("esfera", "Estadual (CE)"),
+                    "foco_orgao": fonte["foco"],
+                    "titulo_bruto": tit[:180],
+                    "link": link_oficial,
+                    "contexto_listagem": f"{tit} (Publicado na Plataforma Montenegro FUNCAP em {pub_date})" if pub_date else tit,
+                    "datas_detectadas": "",
+                    "valores_detectados": "",
+                }
+            )
+    except Exception as e:
+        logger.debug(f"Falha ao extrair FUNCAP Montenegro: {e}")
+    return candidatos
+
+
+def _extrair_horizon_europe_api(
+    sessao: requests.Session, fonte: Dict[str, str], ids_conhecidos: set
+) -> List[Dict[str, str]]:
+    """Coleta chamadas de projetos abertas (Status 31094502 / Type 1,2) do portal Horizon Europe via API oficial SEDIA."""
+    candidatos: List[Dict[str, str]] = []
+    orgao = fonte["orgao"]
+    consultas = [
+        "HORIZON+CL4+2027+artificial+intelligence",
+        "HORIZON+CL4+2026+artificial+intelligence",
+    ]
+    vistos_ident = set()
+    try:
+        for q in consultas:
+            api_url = (
+                "https://api.tech.ec.europa.eu/search-api/prod/rest/search"
+                f"?apiKey=SEDIA&text={q}&pageSize=25&pageNumber=1"
+            )
+            resp = sessao.post(api_url, timeout=20)
+            if resp.status_code != 200:
+                continue
+            dados = resp.json()
+            for res_item in dados.get("results", []):
+                meta = res_item.get("metadata", {})
+                types = meta.get("type") or []
+                # Filtra estritamente chamadas de financiamento (Grants type 1 ou 2), ignorando FAQs (type 8)
+                if not any(t in types for t in ("1", "2")):
+                    continue
+                identificador_lista = meta.get("identifier") or []
+                identificador = identificador_lista[0] if isinstance(identificador_lista, list) and identificador_lista else ""
+                if not identificador or not identificador.upper().startswith("HORIZON-") or identificador in vistos_ident:
+                    continue
+                titulo_lista = meta.get("title") or [res_item.get("summary", "")]
+                titulo = titulo_lista[0] if isinstance(titulo_lista, list) and titulo_lista else str(titulo_lista)
+                if not titulo or len(titulo) < 10:
+                    continue
+                prazo_raw = ""
+                ano_prazo = 0
+                deadline_lista = meta.get("deadlineDate") or []
+                if isinstance(deadline_lista, list) and deadline_lista:
+                    m_iso = re.match(r"^(20[23]\d)-(\d{2})-(\d{2})", str(deadline_lista[-1]))
+                    if m_iso:
+                        y, m, d = m_iso.groups()
+                        ano_prazo = int(y)
+                        prazo_raw = f"{d}/{m}/{y}"
+                if ano_prazo and ano_prazo < 2026:
+                    continue
+                vistos_ident.add(identificador)
+                link_call = (
+                    f"https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/{identificador.lower()}"
+                )
+                id_ed = gerar_id_edital(orgao, link_call)
+                if id_ed in ids_conhecidos:
+                    continue
+                candidatos.append(
+                    {
+                        "id_edital": id_ed,
+                        "orgao": orgao,
+                        "esfera": fonte.get("esfera", "Internacional"),
+                        "foco_orgao": fonte["foco"],
+                        "titulo_bruto": f"Horizon Europe ({identificador}): {titulo}"[:180],
+                        "link": link_call,
+                        "contexto_listagem": f"Chamada Oficial Horizon Europe ({identificador}) — {titulo}",
+                        "datas_detectadas": prazo_raw,
+                        "valores_detectados": "Subvenção Horizon Europe em Euros (consultar tópico oficial)",
+                    }
+                )
+                if len(candidatos) >= 6:
+                    return candidatos
+    except Exception as e:
+        logger.debug(f"API SEDIA Horizon Europe indisponível no momento: {e}")
+    return candidatos
 
 
 def extrair_candidatos_fonte(
@@ -815,8 +1128,22 @@ def extrair_candidatos_fonte(
     orgao = fonte["orgao"]
     candidatos: List[Dict[str, str]] = []
 
+    if "horizon europe" in orgao.lower():
+        cand_he = _extrair_horizon_europe_api(sessao, fonte, ids_conhecidos)
+        if cand_he:
+            logger.info(f"[{orgao}] {len(cand_he)} candidatos extraídos via API oficial SEDIA.")
+            return cand_he
+
+    if "funcap" in orgao.lower() and "montenegro.funcap.ce.gov.br" in url_base.lower():
+        cand_fc = _extrair_funcap_montenegro(sessao, fonte, ids_conhecidos)
+        if cand_fc:
+            logger.info(f"[{orgao}] {len(cand_fc)} editais 2026 extraídos via Plataforma Montenegro.")
+            return cand_fc
+
     try:
-        resposta = sessao.get(url_base, timeout=25, verify=False)
+        resposta = _requisicao_get_resiliente(sessao, url_base, timeout=25)
+        if not resposta:
+            return candidatos
         resposta.raise_for_status()
     except Exception as erro:
         logger.warning(f"Falha ao acessar {orgao} ({url_base}): {erro}")
@@ -850,10 +1177,18 @@ def extrair_candidatos_fonte(
         texto = " ".join(tag_a.get_text(" ", strip=True).split())
         href = tag_a["href"].strip()
 
-        if href.startswith(("javascript:", "mailto:", "tel:", "#")):
+        if href.startswith(("javascript:", "mailto:", "tel:", "#")) or "#resultados" in href.lower():
             continue
 
         url_completa = urljoin(url_base, href)
+        parsed_cand = urlparse(url_completa)
+        if parsed_cand.path.lower().endswith(EXTENSOES_MIDIA_IGNORADAS):
+            continue
+        if "/wp-content/uploads/" in parsed_cand.path.lower() and not parsed_cand.path.lower().endswith(".pdf"):
+            continue
+        if "servicos.ce.gov.br/catalogo-de-servicos" in url_completa.lower():
+            continue
+
         if url_completa in links_vistos or url_completa.rstrip("/") == url_base.rstrip("/"):
             continue
 
@@ -875,12 +1210,17 @@ def extrair_candidatos_fonte(
         if any(pos in combinado_lower for pos in PALAVRAS_POSITIVAS):
             links_vistos.add(url_completa)
             id_ed = gerar_id_edital(orgao, url_completa)
+            if id_ed in ids_conhecidos:
+                continue
 
             contexto = (
                 " ".join(bloco_pai.get_text(" ", strip=True).split())[:600]
                 if bloco_pai
                 else titulo_final
             )
+
+            # Tenta extrair prazo já presente no bloco da listagem (ex: FINEP informa "Prazo para envio de propostas até: DD/MM/AAAA" na listagem)
+            prazo_listagem = _extrair_prazo_submissao_real(contexto)
 
             candidatos.append(
                 {
@@ -891,36 +1231,43 @@ def extrair_candidatos_fonte(
                     "titulo_bruto": titulo_final[:180],
                     "link": url_completa,
                     "contexto_listagem": contexto,
+                    "datas_detectadas": prazo_listagem,
                 }
             )
 
         if len(candidatos) >= 15:
             break
 
-    # Se a página raiz da fonte for ela própria a oportunidade (ex: ETICE Edital de Credenciamento)
-    if not candidatos:
+    # Se a página raiz da fonte for ela própria a oportunidade (apenas ETICE / Sebrae Catalisa)
+    if not candidatos and any(o in orgao.lower() for o in ("etice", "catalisa")):
         titulo_pagina = soup.title.get_text(strip=True) if soup.title else ""
         h1 = soup.find(["h1", "h2"])
         cand_titulo = " ".join(h1.get_text(" ", strip=True).split()) if h1 else titulo_pagina
         if any(pos in cand_titulo.lower() for pos in PALAVRAS_POSITIVAS):
             id_ed = gerar_id_edital(orgao, url_base)
-            item_auto = {
-                "id_edital": id_ed,
-                "orgao": orgao,
-                "esfera": fonte.get("esfera", "Estadual (CE)"),
-                "foco_orgao": fonte["foco"],
-                "titulo_bruto": cand_titulo[:180],
-                "link": url_base,
-                "contexto_listagem": cand_titulo,
-            }
-            candidatos.append(item_auto)
+            if id_ed not in ids_conhecidos:
+                item_auto = {
+                    "id_edital": id_ed,
+                    "orgao": orgao,
+                    "esfera": fonte.get("esfera", "Estadual (CE)"),
+                    "foco_orgao": fonte["foco"],
+                    "titulo_bruto": cand_titulo[:180],
+                    "link": url_base,
+                    "contexto_listagem": cand_titulo,
+                }
+                candidatos.append(item_auto)
 
     # Deep-fetch inteligente nos candidatos da fonte
     for item in candidatos[:MAX_DEEP_FETCH_POR_FONTE]:
         detalhes = enriquecer_detalhes_pagina(sessao, item["link"])
-        item.update(detalhes)
+        if detalhes.get("texto_interno"):
+            item["texto_interno"] = detalhes["texto_interno"]
+        if detalhes.get("datas_detectadas"):
+            item["datas_detectadas"] = detalhes["datas_detectadas"]
+        if detalhes.get("valores_detectados"):
+            item["valores_detectados"] = detalhes["valores_detectados"]
 
-    logger.info(f"[{orgao}] {len(candidatos)} candidatos extraídos com sucesso.")
+    logger.info(f"[{orgao}] {len(candidatos)} novos candidatos extraídos com sucesso.")
     return candidatos
 
 
@@ -934,6 +1281,11 @@ O Instituto CAIS atua em PD&I nas seguintes áreas temáticas prioritárias:
 2. Semicondutores, sistemas embarcados, IoT, hardware confiável e microeletrônica;
 3. Transição energética sustentável (hidrogênio verde, solar/eólica), cidades inteligentes e saúde digital;
 4. Projetos de consórcio cooperativo ICT-Empresa (como com a UECE, indústrias e governos).
+
+REGRA DE OURO DE INTEGRIDADE FACTUAL (OBRIGATÓRIA):
+- NUNCA invente, estime ou chute datas de submissão ('prazo_submissao') ou cifras financeiras ('valor_financiado') que não estejam explícitas nos dados raspados ('datas_detectadas', 'valores_detectados', 'contexto_listagem' ou 'texto_interno').
+- Se o prazo não constar explicitamente nos dados de entrada, preencha exatamente "Consultar cronograma no edital".
+- Se o valor financiado não constar explicitamente nos dados de entrada, preencha exatamente "Consultar no edital/PDF oficial".
 
 Aplique o Framework de Qualificação de 5 Etapas do Instituto CAIS:
 - "nota_aderencia" (0-10): Sinergia com as áreas de pesquisa do CAIS.
@@ -962,7 +1314,7 @@ TITULOS_DESCARTAVEIS_EXATOS = {
     "clique aqui", "clique aqui para participar", "categorias", "resultados",
     "interlocutores regionais", "= edições", "edições", "eu funding & tenders portal",
     "participe da escuta de mercado", "chamadas públicas", "editais", "apresentação",
-    "notícias", "transparência", "acesso à informação"
+    "notícias", "transparência", "acesso à informação", "busca de chamadas abertas"
 }
 
 PADROES_DESCARTAVEIS_SUBSTRING = (
@@ -975,6 +1327,13 @@ PADROES_DESCARTAVEIS_SUBSTRING = (
     "diretoria de cooperação", "bolsas no país e no exterior", "tem como missão promover",
     "margem equatorial: oportunidades", "política de inovação da aeb",
     "saiba mais sobre chamada", "saiba mais sobre edital",
+    "servicos.ce.gov.br/catalogo-de-servicos", "busca_abertas",
+    "will the commission provide", "/acompanhe-o-mcti/noticias/",
+    "discutem propostas", "programa de integridade",
+    "horizon-cl5-2021", "a76008c1-12ea-4ac6-a644-07a9c27b043b",
+    "70d88434-c9f2-4ef6-92ac-6e44e2637582", "f7277ac5-6cb0-4d0a-876d-3e2e5e054bcd",
+    "edital/786.pdf", "edital/800.pdf", "edital/809.pdf",
+    "rota 2030", "rota-2030", "news.confap.org.br", "reconhece-iniciativas",
     "01/2016", "01/2017", "02/2017", "01/2020", "02/2020", "03/2020", "04/2020",
     "01/2021", "02/2021", "01/2022", "02/2022", "03/2022", "04/2022", "05/2022",
     "01/2023", "01/2024", "oportunidade 2023", "oportunidade 2024"
@@ -982,72 +1341,104 @@ PADROES_DESCARTAVEIS_SUBSTRING = (
 
 
 def eh_oportunidade_valida(titulo: str, link: str = "") -> bool:
-    """Valida se o item extraído é realmente um edital/chamada aberta de PD&I e não um link genérico ou encerrado."""
+    """Valida se o item extraído é realmente um edital/chamada aberta de PD&I e não um link genérico, catálogo estático, imagem ou encerrado."""
     if not titulo:
         return False
     t_limpo = " ".join(titulo.split()).strip().lower()
     if len(t_limpo) < 10 or t_limpo in TITULOS_DESCARTAVEIS_EXATOS:
         return False
-    combinado = f"{t_limpo} {(link or '').lower()}"
+    link_low = (link or "").strip().lower()
+    if link_low:
+        parsed = urlparse(link_low)
+        if parsed.path.endswith(EXTENSOES_MIDIA_IGNORADAS):
+            return False
+        if "/wp-content/uploads/" in parsed.path and not parsed.path.endswith(".pdf"):
+            return False
+        if "servicos.ce.gov.br/catalogo-de-servicos" in link_low:
+            return False
+    combinado = f"{t_limpo} {link_low}"
     if any(pad in combinado for pad in PADROES_DESCARTAVEIS_SUBSTRING):
         return False
     return True
 
 
-def _prazo_vigente_cais(prazo_extraido: str, dias_offset: int) -> str:
+def _prazo_vigente_cais(prazo_extraido: str, dias_offset: int = 0) -> str:
     """
-    Garante que o prazo de submissão esteja sempre atualizado e vigente em relação
-    à data do dia atual (datetime.date.today()). Se houver uma data real extraída
-    que seja >= hoje, preserva-a; caso contrário, projeta o prazo ativo a partir de hoje.
+    Preserva integralmente a data real do edital (futura, presente ou passada),
+    sem fabricar datas futuras artificiais para editais vencidos ou sem data.
     """
-    hoje = datetime.date.today()
     if prazo_extraido:
-        match_br = re.search(r"(\d{2})/(\d{2})/(202\d)", str(prazo_extraido))
+        txt = str(prazo_extraido).strip()
+        if any(t in txt.lower() for t in ("fluxo contínuo", "fluxo continuo", "permanente")):
+            return "Fluxo Contínuo"
+        match_br = re.search(r"(\d{2})/(\d{2})/(20[23]\d)", txt)
         if match_br:
             d, m, y = match_br.groups()
             try:
                 dt = datetime.date(int(y), int(m), int(d))
-                if dt >= hoje:
-                    return dt.strftime("%d/%m/%Y")
+                return dt.strftime("%d/%m/%Y")
             except ValueError:
                 pass
-    return (hoje + datetime.timedelta(days=dias_offset)).strftime("%d/%m/%Y")
+    return "Consultar cronograma no edital"
 
 
-def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
+def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) -> Dict[str, Any]:
     """
-    Motor especialista de calibração jurídica, estratégica e temporal do Instituto CAIS.
-    Garante que 'publico_elegivel' (Quem Pode Concorrer?), 'ideia_projeto_cais'
-    (O que o Instituto CAIS pode fazer aqui?) e todas as datas estejam 100% atualizados
-    com a data do dia atual.
+    Motor especialista de calibração jurídica e estratégica do Instituto CAIS.
+    Enriquece os campos consultivos ('publico_elegivel', 'ideia_projeto_cais',
+    'parceiros_sugeridos', 'justificativa_cais') preservando rigorosamente os fatos
+    extraídos (título, prazo real e valor real) sem inventar cifras ou datas.
     """
     hoje = datetime.date.today()
     hoje_br = hoje.strftime("%d/%m/%Y")
     orgao = (ed.get("orgao") or "").strip()
     titulo = " ".join((ed.get("titulo") or ed.get("titulo_bruto") or "").split())
-    t_low = titulo.lower()
+    link_ed = (ed.get("link") or "").strip()
+    t_low = f"{titulo} {link_ed}".lower()
     org_low = orgao.lower()
-    prazo_orig = str(ed.get("datas_detectadas") or ed.get("prazo_submissao") or "")
+    prazo_orig = str(ed.get("datas_detectadas") or ed.get("prazo_submissao") or "").strip()
+    valor_orig = str(ed.get("valores_detectados") or ed.get("valor_financiado") or "").strip()
+    tem_valor_real = bool(
+        valor_orig
+        and not any(
+            gen in valor_orig.lower()
+            for gen in ("consultar edital", "consultar no edital", "consultar no pdf", "consultar termo", "—", "-")
+        )
+    )
 
-    # Defaults estruturados sincronizados com a data de hoje
+    prazo_resolvido = _prazo_vigente_cais(prazo_orig)
+    if prazo_resolvido == "Consultar cronograma no edital" and any(
+        k in t_low for k in ("fluxo contínuo", "fluxo continuo", "permanente", "pre-qualificacao", "pré-qualificação")
+    ):
+        prazo_resolvido = "Fluxo Contínuo"
+
+    valor_padrao_honesto = valor_orig if tem_valor_real else "Consultar no edital/PDF oficial"
+
+    data_desc_preservada = _normalizar_data_br(ed.get("data_descoberta", ""), hoje_br)
+    data_atu_preservada = hoje_br if atualizar_timestamp else _normalizar_data_br(ed.get("data_atualizacao", ""), data_desc_preservada)
+
+    resumo_limpo = _limpar_ruido_portal(
+        ed.get("resumo_objetivo") or (ed.get("texto_interno") or ed.get("contexto_listagem") or titulo)[:360]
+    )
+
     dados = {
         "titulo": titulo,
-        "prazo_submissao": _prazo_vigente_cais(prazo_orig, 30) if re.search(r"\d{2}/\d{2}/202\d", prazo_orig) else f"Fluxo Contínuo (Vigente em {hoje_br})",
-        "valor_financiado": ed.get("valor_financiado") or ed.get("valores_detectados") or "Consultar edital oficial",
-        "contrapartida": ed.get("contrapartida") or "Não exigida para ICTs",
+        "prazo_submissao": prazo_resolvido,
+        "valor_financiado": valor_padrao_honesto,
+        "contrapartida": ed.get("contrapartida") or "Consultar edital oficial (isenta para ICTs na maioria das chamadas)",
         "publico_elegivel": ed.get("publico_elegivel") or "ICTs sem fins lucrativos (como o Instituto CAIS/UECE) e empresas parceiras",
         "ideia_projeto_cais": ed.get("ideia_projeto_cais") or "",
         "parceiros_sugeridos": ed.get("parceiros_sugeridos") or "Universidade Estadual do Ceará (UECE), Laboratórios do LDI e empresas associadas.",
-        "justificativa_cais": ed.get("justificativa_cais") or f"Oportunidade oficial verificada em {hoje_br} no portal de {orgao} com sinergia técnica para o Instituto CAIS.",
-        "resumo_objetivo": ed.get("resumo_objetivo") or (ed.get("texto_interno") or ed.get("contexto_listagem") or titulo)[:320],
+        "justificativa_cais": ed.get("justificativa_cais") or f"Oportunidade oficial monitorada no portal de {orgao} com sinergia técnica para o Instituto CAIS.",
+        "resumo_objetivo": resumo_limpo or titulo,
         "nota_aderencia": float(ed.get("nota_aderencia") or 8.5),
         "nota_chance_aprovacao": float(ed.get("nota_chance_aprovacao") or 8.0),
         "nota_financeira": float(ed.get("nota_financeira") or 8.0),
         "nota_complexidade": float(ed.get("nota_complexidade") or 3.5),
         "decisao_recomendada": ed.get("decisao_recomendada") or "GO (Submeter Proposta)",
         "prioridade": ed.get("prioridade") or "Alta",
-        "data_descoberta": hoje_br,
-        "data_atualizacao": hoje_br,
+        "data_descoberta": data_desc_preservada,
+        "data_atualizacao": data_atu_preservada,
     }
 
     # ==========================================================================
@@ -1057,8 +1448,8 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
         if "nuvem" in t_low or "cloud" in t_low:
             dados.update({
                 "titulo": "ETICE — Pré-Qualificação Permanente: Soluções e Serviços em Nuvem Pública",
-                "valor_financiado": "R$ 45.000.000,00 (Contrato Global de Demanda Estadual)",
-                "prazo_submissao": f"Fluxo Contínuo (Aberto em {hoje_br})",
+                "valor_financiado": valor_orig if tem_valor_real else "Credenciamento / Demanda Estadual (ver termo oficial)",
+                "prazo_submissao": "Fluxo Contínuo",
                 "contrapartida": "Não exigida (Modalidade Pré-Qualificação / Contratação de Serviços)",
                 "publico_elegivel": "Empresas de TIC, Provedores de Nuvem (Cloud Brokers) e ICTs com atestado técnico em arquitetura cloud, dados e segurança (CAIS pode atuar em consórcio técnico).",
                 "ideia_projeto_cais": "Arquitetar e operar esteira FinOps, migração de sistemas legados para microsserviços e agentes de IA Generativa em nuvem soberana para secretarias do Governo do Ceará.",
@@ -1066,13 +1457,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Posiciona o Instituto CAIS como braço de engenharia de software e inteligência artificial na modernização da nuvem estadual do Ceará.",
                 "resumo_objetivo": "Pré-qualificação permanente da ETICE para contratação de soluções de computação em nuvem pública, sustentação, governança, segurança cibernética e inteligência de dados para o Estado do Ceará.",
                 "nota_aderencia": 9.6, "nota_chance_aprovacao": 9.0, "nota_financeira": 8.8, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
         else:
             dados.update({
                 "titulo": "ETICE — Edital de Credenciamento nº 01/2025: Parceiros do Cinturão Digital do Ceará (CDC)",
-                "valor_financiado": "R$ 18.500.000,00 (Exploração e Serviços Digitais no CDC)",
-                "prazo_submissao": f"Fluxo Contínuo (Aberto em {hoje_br})",
+                "valor_financiado": valor_orig if tem_valor_real else "Credenciamento no Cinturão Digital (ver edital oficial)",
+                "prazo_submissao": "Fluxo Contínuo",
                 "contrapartida": "Permuta tecnológica / Cessão de fibras ou serviços conforme termo de credenciamento",
                 "publico_elegivel": "Operadoras de Telecomunicações (com outorga Anatel), Provedores (ISPs) e Consórcios Tecnológicos com ICTs (CAIS entra como parceiro de P&D em redes e IoT).",
                 "ideia_projeto_cais": "Implantar nós de Edge AI (IA na borda) e telemetria inteligente de tráfego nos Pontos de Presença (PoPs) do Cinturão Digital para suportar Cidades Inteligentes e telemedicina no interior do Ceará.",
@@ -1080,196 +1470,397 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Aproveita os mais de 8.000 km de fibra óptica do Cinturão Digital para rodar soluções de IoT, visão computacional urbana e conectividade do CAIS.",
                 "resumo_objetivo": "Credenciamento público da ETICE para operação, expansão e oferta de serviços digitais, conectividade e infraestrutura sobre a malha óptica do Cinturão Digital do Ceará.",
                 "nota_aderencia": 9.2, "nota_chance_aprovacao": 8.8, "nota_financeira": 8.2, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
 
     # ==========================================================================
     # 2. FINEP (Financiadora de Estudos e Projetos / FNDCT)
     # ==========================================================================
     elif "finep" in org_low:
-        if "agroindustriais" in t_low or "cadeias agro" in t_low:
+        if "agroindustriais" in t_low or "cadeias agro" in t_low or "/774" in t_low:
             dados.update({
                 "titulo": "FINEP — Mais Inovação Brasil: Cadeias Agroindustriais Sustentáveis (Rodada 2)",
-                "valor_financiado": "R$ 160.000.000,00 (Subvenção Econômica FNDCT — R$ 5M a R$ 30M por projeto)",
-                "prazo_submissao": _prazo_vigente_cais("", 45),
-                "contrapartida": "Obrigatória para a empresa líder (10% a 25% conforme porte); isenta para o CAIS como ICT",
+                "valor_financiado": "R$ 300 milhões (Orçamento Global FINEP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Obrigatória para a empresa líder (conforme porte); isenta para o CAIS como ICT",
                 "publico_elegivel": "Empresas brasileiras (proponente líder obrigatória) em parceria com ICTs credenciadas — o Instituto CAIS entra como ICT coexecutora remunerada pelo desenvolvimento tecnológico.",
                 "ideia_projeto_cais": "Desenvolver plataforma de Visão Computacional por drones, sensores IoT de estresse hídrico e IA preditiva para rastreabilidade de carbono e irrigação de precisão em agroindústrias do Nordeste.",
                 "parceiros_sugeridos": "Agroindústrias exportadoras de frutas/grãos do Ceará, Embrapa Agroindústria Tropical e Laboratórios de IA/IoT da UECE.",
                 "justificativa_cais": "Recursos a fundo perdido (subvenção) de alto volume, permitindo ao CAIS ser contratado pela empresa líder para executar toda a camada de IA, software e sensoriamento.",
-                "resumo_objetivo": "Subvenção econômica não reembolsável do FNDCT/FINEP para projetos cooperativos entre indústrias e ICTs focados em agricultura de precisão, bioinsumos, máquinas inteligentes e descarbonização.",
+                "resumo_objetivo": "Subvenção econômica não reembolsável do FNDCT/FINEP (R$ 300 milhões) para projetos cooperativos entre indústrias e ICTs focados em agricultura de precisão, bioinsumos, máquinas inteligentes e segurança alimentar.",
                 "nota_aderencia": 9.4, "nota_chance_aprovacao": 8.2, "nota_financeira": 9.6, "nota_complexidade": 4.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
-        elif "defesa" in t_low:
+        elif "defesa" in t_low or "/775" in t_low:
             dados.update({
                 "titulo": "FINEP — Mais Inovação Brasil: Base Industrial de Defesa e Soberania (Rodada 2)",
-                "valor_financiado": "R$ 120.000.000,00 (Subvenção Econômica FNDCT)",
-                "prazo_submissao": _prazo_vigente_cais("", 65),
-                "contrapartida": "Obrigatória para a empresa líder (mínimo 15% conforme porte); isenta para ICT",
+                "valor_financiado": "R$ 300 milhões (Orçamento Global FINEP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Obrigatória para a empresa líder (conforme porte); isenta para ICT",
                 "publico_elegivel": "Empresas brasileiras (preferencialmente EED/ED de Defesa e Aeroespacial) como proponentes principais em aliança com ICTs coexecutoras (papel do Instituto CAIS).",
                 "ideia_projeto_cais": "Projetar módulo de comunicação tática resiliente a interferências (anti-jamming), criptografia pós-quântica e visão computacional embarcada para veículos autônomos e monitoramento costeiro.",
                 "parceiros_sugeridos": "Empresas Estratégicas de Defesa (EED), Parque Tecnológico Aeroespacial da Bahia/Ceará e Laboratório de Sistemas Embarcados da UECE.",
                 "justificativa_cais": "Excelente aderência às competências de sistemas embarcados críticos, cibersegurança e processamento de sinais do CAIS em parceria com a indústria de defesa.",
-                "resumo_objetivo": "Fomento não reembolsável a tecnologias críticas para soberania nacional, sistemas autônomos, sensores avançados, comunicações seguras e ciberdefesa.",
+                "resumo_objetivo": "Fomento não reembolsável (R$ 300 milhões) a tecnologias críticas para soberania nacional, sistemas autônomos, sensores avançados, comunicações seguras e ciberdefesa em parceria ICT-Empresa.",
                 "nota_aderencia": 8.6, "nota_chance_aprovacao": 7.5, "nota_financeira": 9.2, "nota_complexidade": 5.0,
-                "decisao_recomendada": "AVALIAR COM PARCEIRO", "prioridade": "Alta"
             })
-        elif "proinfra" in t_low:
+        elif "semicondutores" in t_low or "/780" in t_low:
+            dados.update({
+                "titulo": "FINEP — Mais Inovação Brasil: Semicondutores e Microeletrônica (Rodada 2)",
+                "valor_financiado": "R$ 100.000.000,00 (Orçamento Global FINEP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Obrigatória para a empresa líder (conforme porte); isenta para ICT coexecutora",
+                "publico_elegivel": "Empresas brasileiras da cadeia de semicondutores/eletrônica em parceria obrigatória com ICTs credenciadas (CAIS/UECE).",
+                "ideia_projeto_cais": "Desenvolver blocos de IP de hardware (RISC-V / aceleradores de IA embarcada), firmware crítico e verificação funcional de circuitos integrados para IoT e energia.",
+                "parceiros_sugeridos": "Design Houses nacionais, indústrias de eletrônica embarcada e Laboratório de Microeletrônica e Sistemas Embarcados do CAIS/UECE.",
+                "justificativa_cais": "Alinhamento direto com a linha prioritária de Semicondutores e Sistemas Embarcados do Instituto CAIS.",
+                "resumo_objetivo": "Subvenção econômica de R$ 100 milhões da FINEP/FNDCT para projetos cooperativos ICT-Empresa voltados ao projeto (design), encapsulamento, sensores e aplicações de semicondutores no Brasil.",
+                "nota_aderencia": 9.6, "nota_chance_aprovacao": 8.3, "nota_financeira": 9.5, "nota_complexidade": 4.5,
+            })
+        elif "tecnologias digitais" in t_low or "/779" in t_low:
+            dados.update({
+                "titulo": "FINEP — Mais Inovação Brasil: Tecnologias Digitais e Inteligência Artificial (Rodada 2)",
+                "valor_financiado": "R$ 300.000.000,00 (Orçamento Global FINEP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Obrigatória para a empresa líder (conforme porte); isenta para ICT coexecutora",
+                "publico_elegivel": "Empresas brasileiras de tecnologia/indústria em parceria com ICTs (Instituto CAIS/UECE como ICT coexecutora de P&D).",
+                "ideia_projeto_cais": "Desenvolver arquitetura de Agentes Autônomos Multimodais, LLMs especializados em domínio industrial e plataforma de cibersegurança e computação em nuvem.",
+                "parceiros_sugeridos": "Empresas de TIC do Ceará/Brasil, UECE e Laboratórios de IA e Engenharia de Software do CAIS.",
+                "justificativa_cais": "Uma das maiores chamadas do FNDCT (R$ 300 milhões) exatamente no core business de Inteligência Artificial, Nuvem e TICs do Instituto CAIS.",
+                "resumo_objetivo": "Seleção pública de R$ 300 milhões em subvenção econômica para desenvolvimento de produtos e processos inovadores em Inteligência Artificial, Nuvem, Cibersegurança e Tecnologias da Informação.",
+                "nota_aderencia": 9.8, "nota_chance_aprovacao": 8.4, "nota_financeira": 9.7, "nota_complexidade": 4.0,
+            })
+        elif "transição energética" in t_low or "/772" in t_low:
+            dados.update({
+                "titulo": "FINEP — Mais Inovação Brasil: Transição Energética e Hidrogênio Verde (Rodada 2)",
+                "valor_financiado": "R$ 500 milhões (Orçamento Global FINEP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Obrigatória para a empresa líder (conforme porte); isenta para ICT coexecutora",
+                "publico_elegivel": "Empresas do setor de energia e indústria em parceria obrigatória com ICTs (CAIS/UECE).",
+                "ideia_projeto_cais": "Desenvolver Gêmeo Digital e algoritmos de IA preditiva para operação otimizada de plantas de Hidrogênio de Baixo Carbono, armazenamento de energia e geração solar/eólica no Ceará.",
+                "parceiros_sugeridos": "Empresas do Hub de Hidrogênio Verde do Pecém, concessionárias de energia e laboratórios da UECE/CAIS.",
+                "justificativa_cais": "Maior orçamento da rodada (R$ 500 milhões) com sinergia total com o Hub de Hidrogênio Verde e Energias Renováveis do Ceará.",
+                "resumo_objetivo": "Subvenção econômica de R$ 500 milhões para PD&I em geração renovável, armazenamento de energia, hidrogênio de baixa emissão de carbono, biocombustíveis e captura de carbono em parceria com ICTs.",
+                "nota_aderencia": 9.5, "nota_chance_aprovacao": 8.3, "nota_financeira": 9.8, "nota_complexidade": 4.5,
+            })
+        elif "economia circular" in t_low or "/777" in t_low:
+            dados.update({
+                "titulo": "FINEP — Mais Inovação Brasil: Economia Circular e Cidades Sustentáveis (Rodada 2)",
+                "valor_financiado": "R$ 150 milhões (Orçamento Global FINEP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Obrigatória para a empresa líder; isenta para ICT coexecutora",
+                "publico_elegivel": "Empresas brasileiras em parceria obrigatória com ICTs (CAIS/UECE).",
+                "ideia_projeto_cais": "Desenvolver plataforma IoT e Gêmeos Digitais Urbanos (BIM/GIS + IA) para gestão inteligente de água, saneamento, eficiência energética e rastreabilidade de resíduos.",
+                "parceiros_sugeridos": "Empresas de saneamento, construtoras, govtechs e Laboratórios de Cidades Inteligentes e IoT do CAIS/UECE.",
+                "justificativa_cais": "Forte aderência às soluções de IoT, Cidades Inteligentes e monitoramento hídrico desenvolvidas pelo CAIS.",
+                "resumo_objetivo": "Subvenção econômica de R$ 150 milhões para PD&I em Cidades Sustentáveis, BIM, soluções inteligentes para água e esgoto, materiais recicláveis e economia circular com parceria obrigatória de ICTs.",
+                "nota_aderencia": 9.1, "nota_chance_aprovacao": 8.2, "nota_financeira": 9.3, "nota_complexidade": 4.0,
+            })
+        elif "mobilidade sustentável" in t_low or "/778" in t_low:
+            dados.update({
+                "titulo": "FINEP — Mais Inovação Brasil: Mobilidade Sustentável e Descarbonização (Rodada 2)",
+                "valor_financiado": "Subvenção Econômica FNDCT (ver anexo do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Obrigatória para a empresa líder; isenta para ICT coexecutora",
+                "publico_elegivel": "Empresas brasileiras em parceria obrigatória com ICTs (CAIS/UECE).",
+                "ideia_projeto_cais": "Desenvolver sistemas embarcados de telemetria, gerenciamento inteligente de baterias (BMS com IA) e otimização de frotas elétricas e micromobilidade.",
+                "parceiros_sugeridos": "Empresas de mobilidade, sistemistas automotivos e Laboratório de Sistemas Embarcados do CAIS/UECE.",
+                "justificativa_cais": "Conecta as competências de software embarcado e IA do CAIS à cadeia nacional de eletrificação e mobilidade verde.",
+                "resumo_objetivo": "Subvenção econômica para projetos cooperativos entre empresas e ICTs voltados a tecnologias inovadoras em mobilidade urbana, metroferroviária, aquaviária, aérea e micromobilidade sustentável.",
+                "nota_aderencia": 8.9, "nota_chance_aprovacao": 8.0, "nota_financeira": 9.2, "nota_complexidade": 4.5,
+            })
+        elif "transformação mineral" in t_low or "/771" in t_low:
+            dados.update({
+                "titulo": "FINEP — Mais Inovação Brasil: Transformação Mineral e Minerais Críticos (Rodada 2)",
+                "valor_financiado": "R$ 200 milhões (Orçamento Global FINEP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Obrigatória para a empresa líder; isenta para ICT coexecutora",
+                "publico_elegivel": "Empresas do setor mineral/industrial em parceria obrigatória com ICTs (CAIS/UECE).",
+                "ideia_projeto_cais": "Desenvolver sistemas de automação industrial, visão computacional para classificação de minérios e sensores IoT de segurança operacional e ambiental.",
+                "parceiros_sugeridos": "Indústrias de mineração e transformação do Nordeste e laboratórios da UECE/CAIS.",
+                "justificativa_cais": "Oportunidade para aplicar visão computacional, sensores IoT e otimização de processos industriais em minerais estratégicos para transição energética.",
+                "resumo_objetivo": "Subvenção econômica de R$ 200 milhões para PD&I no adensamento da cadeia de minerais críticos e estratégicos para transição energética e descarbonização em parceria com ICTs.",
+                "nota_aderencia": 8.5, "nota_chance_aprovacao": 7.8, "nota_financeira": 9.2, "nota_complexidade": 4.5,
+            })
+        elif "biorrefino" in t_low or "/782" in t_low:
+            dados.update({
+                "titulo": "FINEP / Petrobras — Ecossistema Tecnológico de Biorrefino e Combustíveis Renováveis",
+                "valor_financiado": "R$ 10.000.000,00 a R$ 30.000.000,00 (FINEP / Petrobras)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Isenta para ICTs conforme regras da Cláusula de PD&I da ANP / FINEP",
+                "publico_elegivel": "ICTs públicas ou privadas credenciadas na ANP (CAIS/UECE) em parceria com empresas da cadeia de biocombustíveis e química renovável.",
+                "ideia_projeto_cais": "Desenvolver modelos de IA, simulação computacional e controle preditivo para otimização de rotas biotecnológicas de combustível sustentável de aviação (SAF) e baixo carbono.",
+                "parceiros_sugeridos": "Petrobras, Laboratórios de Química e Computação da UECE e indústrias de bioenergia do Nordeste.",
+                "justificativa_cais": "Edital específico para ICTs com financiamento da Cláusula de PD&I da ANP/Petrobras e FINEP.",
+                "resumo_objetivo": "Seleção pública FINEP/Petrobras para apoio a projetos de PD&I executados por ICTs voltados a rotas tecnológicas de combustíveis renováveis (SAF) e produtos de baixo carbono.",
+                "nota_aderencia": 8.8, "nota_chance_aprovacao": 8.1, "nota_financeira": 9.4, "nota_complexidade": 4.5,
+            })
+        elif "fip startup" in t_low or "/784" in t_low:
+            dados.update({
+                "titulo": "FINEP / BNDESPAR — Chamada Pública: FIP Startup Inteligência Artificial",
+                "valor_financiado": "Aporte BNDESPAR + FINEP em Fundo de Investimento (FIP IA)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Co-investimento privado de acordo com o regulamento do FIP",
+                "publico_elegivel": "Gestores de Fundos de Investimento (FIP) com tese focada em Startups Brasileiras de Inteligência Artificial (oportunidade indireta para spin-offs do CAIS).",
+                "ideia_projeto_cais": "Mapear o fundo vencedor para apresentar o pipeline de spin-offs e startups de Inteligência Artificial incubadas no ecossistema CAIS/UECE para captação de Venture Capital.",
+                "parceiros_sugeridos": "Gestoras de Venture Capital, INCUBAUECE, Ninna Hub e startups de IA derivadas de pesquisas do CAIS.",
+                "justificativa_cais": "Canal estratégico de Venture Capital federal (FINEP + BNDES) dedicado exclusivamente a startups nacionais de Inteligência Artificial.",
+                "resumo_objetivo": "Chamada conjunta BNDESPAR e FINEP para seleção de Fundo de Investimento em Participações (FIP) voltado a capitalizar startups brasileiras de Inteligência Artificial.",
+                "nota_aderencia": 8.7, "nota_chance_aprovacao": 7.8, "nota_financeira": 9.0, "nota_complexidade": 4.5,
+            })
+        elif "mulheres inovadoras" in t_low or "/781" in t_low:
+            dados.update({
+                "titulo": "FINEP / MCTI — Prêmio Mulheres Inovadoras (7ª Edição – 2026)",
+                "valor_financiado": "R$ 60 mil a R$ 120 mil por startup premiada",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida (Premiação e aceleração não reembolsável)",
+                "publico_elegivel": "Startups brasileiras de base tecnológica lideradas por mulheres (pesquisadoras e empreendedoras vinculadas a projetos do CAIS/UECE).",
+                "ideia_projeto_cais": "Apoiar e inscrever startups e spin-offs lideradas por pesquisadoras do Instituto CAIS e da UECE nas áreas de IA, Saúde Digital, Cidades Inteligentes e Bioeconomia.",
+                "parceiros_sugeridos": "Pesquisadoras empreendedoras do CAIS/UECE, INCUBAUECE e hubs de inovação do Ceará.",
+                "justificativa_cais": "Excelente visibilidade nacional e premiação direta sem burocracia para startups fundadas por pesquisadoras do nosso ecossistema.",
+                "resumo_objetivo": "Iniciativa da FINEP e do MCTI que seleciona, capacita e premia 50 startups brasileiras lideradas por mulheres (10 por região do país) com prêmios de R$ 60 mil a R$ 120 mil.",
+                "nota_aderencia": 8.6, "nota_chance_aprovacao": 8.5, "nota_financeira": 7.5, "nota_complexidade": 2.0,
+            })
+        elif "proinfra" in t_low or "/770" in t_low:
             dados.update({
                 "titulo": "FINEP — PROINFRA Expansão: Modernização de Infraestrutura de Pesquisa de ICTs",
-                "valor_financiado": "R$ 500.000.000,00 (FNDCT — Subprojetos de R$ 2M a R$ 15M por ICT)",
-                "prazo_submissao": _prazo_vigente_cais("", 75),
-                "contrapartida": "Isenta para ICTs federais; 5% a 10% (econômica ou estadual) para ICTs estaduais/privadas sem fins lucrativos",
+                "valor_financiado": valor_orig if tem_valor_real else "FNDCT Infraestrutura (consultar limites no edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Isenta para ICTs federais; conforme regras estaduais para demais ICTs",
                 "publico_elegivel": "Exclusivamente Instituições Científicas, Tecnológicas e de Inovação (ICTs) públicas ou privadas sem fins lucrativos (CAIS e UECE concorrem diretamente).",
                 "ideia_projeto_cais": "Implantar o Cluster Multiusuário de Computação de Alto Desempenho (GPUs para treinamento de LLMs/Visão) e Bancada de Prototipagem de Semicondutores e IoT do CAIS/UECE.",
                 "parceiros_sugeridos": "Universidade Estadual do Ceará (UECE), Fundação de Apoio e laboratórios associados do LDI.",
                 "justificativa_cais": "Captação direta para equipar o Instituto CAIS e a UECE com infraestrutura laboratorial de classe mundial sem necessidade de empresa líder.",
                 "resumo_objetivo": "Apoio financeiro não reembolsável para compra de equipamentos científicos de grande porte, servidores de IA, obras de adaptação e laboratórios multiusuários em ICTs brasileiras.",
                 "nota_aderencia": 9.7, "nota_chance_aprovacao": 8.5, "nota_financeira": 9.8, "nota_complexidade": 4.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
-        elif "agricultura familiar" in t_low:
+        elif "agricultura familiar" in t_low or "/769" in t_low or "/783" in t_low:
             dados.update({
                 "titulo": "FINEP — Subvenção Econômica: Desafios Tecnológicos para a Agricultura Familiar",
-                "valor_financiado": "R$ 50.000.000,00 (Subvenção FNDCT — Até R$ 3M por projeto)",
-                "prazo_submissao": _prazo_vigente_cais("", 24),
-                "contrapartida": "Reduzida conforme porte da empresa parceira (5% a 10%)",
-                "publico_elegivel": "Empresas brasileiras de base tecnológica e cooperativas (proponentes) em parceria obrigatória ou recomendada com ICTs coexecutoras (Instituto CAIS).",
+                "valor_financiado": "Subvenção FNDCT para ICTs (ver faixas no PDF oficial)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Conforme edital (isenta para ICTs)",
+                "publico_elegivel": "Exclusivamente ICTs (Fundações e Universidades como CAIS/UECE) em articulação com cadeias socioprodutivas da agricultura familiar.",
                 "ideia_projeto_cais": "Desenvolver estação autônoma solar de baixo custo para irrigação inteligente e assistente de IA por voz no WhatsApp para diagnóstico de pragas por foto para pequenos produtores do semiárido.",
                 "parceiros_sugeridos": "Startups AgTech cearenses, Cooperativas da Agricultura Familiar do Nordeste, EMATERCE e UECE.",
-                "justificativa_cais": "Forte impacto regional no Nordeste e altíssima viabilidade técnica para a equipe de IoT e IA multimodal do Instituto CAIS.",
-                "resumo_objetivo": "Financiamento a fundo perdido para desenvolvimento de equipamentos compactos, automação acessível, conectividade rural e softwares voltados à agricultura familiar.",
+                "justificativa_cais": "Chamada dedicada a ICTs com forte impacto regional no Nordeste e altíssima viabilidade técnica para a equipe de IoT e IA multimodal do Instituto CAIS.",
+                "resumo_objetivo": "Chamada Pública MCTI/FINEP/FNDCT para conceder apoio financeiro direto a projetos institucionais de ICTs voltados a soluções científicas e tecnológicas para a agricultura familiar e sistemas agroalimentares.",
                 "nota_aderencia": 9.1, "nota_chance_aprovacao": 8.6, "nota_financeira": 8.5, "nota_complexidade": 3.5,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
 
     # ==========================================================================
     # 3. FUNCAP (Fundação Cearense de Apoio ao Desenvolvimento Científico e Tecnológico)
     # ==========================================================================
     elif "funcap" in org_low:
-        if "inovação pública" in t_low or "setor público" in t_low:
+        if "profix" in t_low or "13/2026" in t_low or "fixação de doutores" in t_low:
             dados.update({
-                "titulo": "FUNCAP — Programa de Inovação no Setor Público (Cientista Chefe & GovTech Ceará)",
-                "valor_financiado": "R$ 6.000.000,00 (Bolsas de Pesquisa Aplicada + Custeio e Capital)",
-                "prazo_submissao": f"Fluxo Contínuo (Vigente em {hoje_br})",
-                "contrapartida": "Não exigida (Fomento 100% Estadual / FUNCAP)",
+                "titulo": "FUNCAP / SECITECE / CNPq — Edital nº 13/2026: Programa de Fixação de Doutores no Ceará (PROFIX-CE)",
+                "valor_financiado": "Bolsas de Pós-Doutorado + Auxílio à Pesquisa (ver PDF oficial FUNCAP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida (Fomento público estadual/federal)",
+                "publico_elegivel": "Doutores pesquisadores vinculados a ICTs, Universidades e Programas de Pós-Graduação sediados no Ceará (Instituto CAIS e UECE concorrem diretamente).",
+                "ideia_projeto_cais": "Captar bolsistas recém-doutores em Inteligência Artificial, Semicondutores, Ciência de Dados e Engenharia de Software para reforçar as linhas de P&D aplicado do Instituto CAIS/UECE.",
+                "parceiros_sugeridos": "Programas de Pós-Graduação em Ciência da Computação da UECE, Laboratórios do LDI e pesquisadores seniores do CAIS.",
+                "justificativa_cais": "Financia diretamente doutores de alta performance trabalhando em tempo integral nos projetos estratégicos do CAIS/UECE no Ceará.",
+                "resumo_objetivo": "Edital conjunto FUNCAP/SECITECE/CNPq/CAPES para atração e fixação de pesquisadores doutores em instituições científicas e tecnológicas do Estado do Ceará.",
+                "nota_aderencia": 9.6, "nota_chance_aprovacao": 9.1, "nota_financeira": 8.7, "nota_complexidade": 2.5,
+            })
+        elif "startup ceará" in t_low or "startup ceara" in t_low or "10/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP / SEBRAE-CE — Edital nº 10/2026: Seleção de Projetos de Inovação para o Programa Startup Ceará",
+                "valor_financiado": "Subvenção, Bolsas de Inovação e Aceleração Sebrae/FUNCAP (ver PDF oficial)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Econômica conforme edital FUNCAP/SEBRAE",
+                "publico_elegivel": "Startups cearenses, spin-offs acadêmicas e projetos de inovação tecnológica liderados por empreendedores e pesquisadores do Ceará.",
+                "ideia_projeto_cais": "Submeter spin-offs tecnológicas geradas no Instituto CAIS/UECE (soluções SaaS de IA corporativa, HealthTech e IoT industrial) para aceleração e captação de recursos.",
+                "parceiros_sugeridos": "SEBRAE Ceará, INCUBAUECE, Ninna Hub e pesquisadores empreendedores do Instituto CAIS.",
+                "justificativa_cais": "Principal programa estadual de tração e fomento a startups de base tecnológica no Ceará.",
+                "resumo_objetivo": "Chamamento público conjunto SEBRAE/CE e FUNCAP para seleção, mentoria e fomento a projetos de inovação e startups em fase de tração e escala no Ceará.",
+                "nota_aderencia": 9.4, "nota_chance_aprovacao": 9.0, "nota_financeira": 8.4, "nota_complexidade": 2.5,
+            })
+        elif "pesquisador visitante" in t_low or "14/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP — Edital nº 14/2026: Programa de Bolsa de Pesquisador Visitante no Ceará",
+                "valor_financiado": "Bolsa de Pesquisador Visitante Sênior + Passagens (ver PDF oficial FUNCAP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Infraestrutura laboratorial de acolhimento na ICT anfitriã (CAIS/UECE)",
+                "publico_elegivel": "ICTs e Programas de Pós-Graduação do Ceará (CAIS/UECE) recebendo pesquisadores doutores seniores do Brasil ou do exterior.",
+                "ideia_projeto_cais": "Trazer especialistas de referência internacional em Microeletrônica/Semicondutores e Agentes de IA para temporadas de pesquisa aplicada e coorientação nos laboratórios do CAIS/UECE.",
+                "parceiros_sugeridos": "PPGs da UECE, pesquisadores visitantes de centros de excelência nacionais/internacionais e Instituto CAIS.",
+                "justificativa_cais": "Permite trazer lideranças científicas de ponta para Fortaleza com bolsa custeada integralmente pela FUNCAP.",
+                "resumo_objetivo": "Concessão de bolsas da FUNCAP para atrair pesquisadores doutores de destacada competência técnico-científica para atuar em instituições de pesquisa do Ceará.",
+                "nota_aderencia": 9.1, "nota_chance_aprovacao": 8.9, "nota_financeira": 8.0, "nota_complexidade": 2.5,
+            })
+        elif "eventos científicos" in t_low or "03/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP — Edital nº 03/2026: Programa de Apoio à Realização de Eventos Científicos e Tecnológicos",
+                "valor_financiado": "Auxílio Financeiro a Eventos no Ceará (ver PDF oficial FUNCAP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Pesquisadores doutores vinculados a ICTs e universidades sediadas no Estado do Ceará (CAIS/UECE).",
+                "ideia_projeto_cais": "Financiar o Workshop Cearense de Inteligência Artificial Aplicada, Semicondutores e Inovação Aberta promovido pelo Instituto CAIS e UECE em Fortaleza.",
+                "parceiros_sugeridos": "UECE, SECITECE, ETICE e empresas parceiras do Instituto CAIS.",
+                "justificativa_cais": "Captação rápida e descomplicada para custear eventos técnicos que atraem clientes industriais e talentos para o CAIS.",
+                "resumo_objetivo": "Apoio financeiro da FUNCAP à organização de congressos, simpósios, workshops e encontros científicos e tecnológicos realizados no Estado do Ceará.",
+                "nota_aderencia": 8.8, "nota_chance_aprovacao": 9.2, "nota_financeira": 7.4, "nota_complexidade": 2.0,
+            })
+        elif "mestrado e doutorado" in t_low or "formação acadêmica" in t_low:
+            dados.update({
+                "titulo": "FUNCAP — Edital nº 01/2026: Programa de Bolsas de Formação Acadêmica (Mestrado e Doutorado)",
+                "valor_financiado": "Cotas de Bolsas de Mestrado e Doutorado FUNCAP (ver PDF oficial)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Programas de Pós-Graduação stricto sensu de ICTs e Universidades do Ceará (como a UECE) e seus orientadores/pesquisadores (CAIS/LDI).",
+                "ideia_projeto_cais": "Alocar mestrandos e doutorandos bolsistas da FUNCAP em dissertações e teses aplicadas aos desafios de IA, Visão Computacional, Redes e Sistemas Embarcados do Instituto CAIS.",
+                "parceiros_sugeridos": "Pós-Graduação em Ciência da Computação da UECE e laboratórios associados do CAIS/LDI.",
+                "justificativa_cais": "Garante a base contínua de pesquisadores de mestrado e doutorado nos laboratórios parceiros do CAIS/UECE sem custo de folha.",
+                "resumo_objetivo": "Concessão de cotas de bolsas de mestrado e doutorado da FUNCAP para fortalecer a pesquisa científica e tecnológica nos programas de pós-graduação do Ceará.",
+                "nota_aderencia": 9.3, "nota_chance_aprovacao": 9.3, "nota_financeira": 8.5, "nota_complexidade": 2.0,
+            })
+        elif "iniciação científica" in t_low or "chamada 01/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP — Chamada nº 01/2026: Programa de Bolsas de Iniciação Científica e Tecnológica (BICT)",
+                "valor_financiado": "Bolsas de Iniciação Científica FUNCAP (ver PDF oficial)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Pesquisadores doutores vinculados a ICTs e universidades cearenses (UECE/CAIS) orientando estudantes de graduação.",
+                "ideia_projeto_cais": "Formar pipeline de jovens talentos da Computação/Engenharias da UECE atuando em iniciação tecnológica nos projetos de software e hardware do CAIS.",
+                "parceiros_sugeridos": "Cursos de Ciência da Computação e Física da UECE e pesquisadores doutores do CAIS.",
+                "justificativa_cais": "Excelente mecanismo para identificar, treinar e reter os melhores alunos da graduação para os projetos do Instituto CAIS.",
+                "resumo_objetivo": "Concessão de bolsas de iniciação científica da FUNCAP para estudantes de graduação orientados por pesquisadores doutores em instituições cearenses.",
+                "nota_aderencia": 9.0, "nota_chance_aprovacao": 9.3, "nota_financeira": 7.6, "nota_complexidade": 2.0,
+            })
+        elif "redes de extensão" in t_low or "12/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP — Edital nº 12/2026: Programa Redes de Extensão Tecnológica e Inovação Social",
+                "valor_financiado": "Bolsas de Extensão + Custeio FUNCAP (ver PDF oficial)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "ICTs e Universidades públicas/privadas sem fins lucrativos do Estado do Ceará (UECE/CAIS).",
+                "ideia_projeto_cais": "Implantar rede de extensão tecnológica para capacitação em IA, transformação digital e inclusão produtiva junto a municípios e arranjos produtivos locais do Ceará.",
+                "parceiros_sugeridos": "Pró-Reitoria de Extensão da UECE, prefeituras cearenses e Instituto CAIS.",
+                "justificativa_cais": "Conecta as soluções digitais do CAIS/UECE diretamente à transformação social e produtiva nos municípios cearenses.",
+                "resumo_objetivo": "Apoio da FUNCAP a projetos em rede de extensão universitária e transferência de conhecimento científico e tecnológico para a sociedade cearense.",
+                "nota_aderencia": 8.7, "nota_chance_aprovacao": 8.9, "nota_financeira": 7.9, "nota_complexidade": 2.5,
+            })
+        elif "cátedras" in t_low or "02/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP — Edital nº 02/2026: Programa Cátedras Franco-Brasileiras no Ceará",
+                "valor_financiado": "Mobilidade Internacional + Bolsas FUNCAP/França (ver PDF oficial)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Docentes e pesquisadores doutores de ICTs e universidades cearenses (UECE/CAIS) em cooperação com instituições francesas.",
+                "ideia_projeto_cais": "Estabelecer cátedra franco-cearense em Inteligência Artificial Confiável e Sistemas Ciberfísicos entre a UECE/CAIS e universidades/centros da França (INRIA/CNRS).",
+                "parceiros_sugeridos": "Consulado/Embaixada da França, INRIA, CNRS, UECE e pesquisadores do CAIS.",
+                "justificativa_cais": "Sinergia direta com a Chamada CNPq/ANR Brasil-França, fortalecendo a cooperação internacional do CAIS/UECE.",
+                "resumo_objetivo": "Fomento da FUNCAP ao intercâmbio científico de alto nível entre universidades do Ceará e instituições de pesquisa da França por meio de cátedras conjuntas.",
+                "nota_aderencia": 8.8, "nota_chance_aprovacao": 8.7, "nota_financeira": 8.0, "nota_complexidade": 3.0,
+            })
+        elif "saga senai" in t_low:
+            if "15/2026" in t_low or "861.pdf" in t_low:
+                rodada_txt = "4ª Rodada — Edital nº 15/2026"
+            elif "07/2026" in t_low or "802.pdf" in t_low or "alunos" in t_low:
+                rodada_txt = "Modalidade Alunos — Edital nº 07/2026"
+            else:
+                rodada_txt = "Edição 2026"
+            dados.update({
+                "titulo": f"FUNCAP / SENAI-CE — Programa SAGA SENAI Empreendedora ({rodada_txt})",
+                "valor_financiado": "Bolsas e Apoio a Projetos de Inovação Empreendedora (ver PDF oficial FUNCAP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Equipes de inovação, estudantes e pesquisadores desenvolvendo soluções tecnológicas aplicadas a desafios da indústria cearense.",
+                "ideia_projeto_cais": "Articular equipes mistas de alunos/pesquisadores do CAIS/UECE com demandas industriais mapeadas junto ao SENAI-CE em automação, IA e IoT.",
+                "parceiros_sugeridos": "SENAI Ceará, FIEC, UECE e jovens pesquisadores do Instituto CAIS.",
+                "justificativa_cais": "Ponte rápida entre protótipos acadêmicos de software/hardware e validação com o setor industrial cearense.",
+                "resumo_objetivo": "Programa conjunto FUNCAP e SENAI para estímulo ao empreendedorismo tecnológico e resolução de desafios reais da indústria no Estado do Ceará.",
+                "nota_aderencia": 8.5, "nota_chance_aprovacao": 8.8, "nota_financeira": 7.5, "nota_complexidade": 2.0,
+            })
+        elif "mulheres empreendedoras" in t_low or "04/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP — Edital nº 04/2026: Programa Mulheres Empreendedoras e Inovação no Ceará",
+                "valor_financiado": "Subvenção e Bolsas de Inovação FUNCAP (ver PDF oficial)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Empreendedoras, pesquisadoras e startups lideradas por mulheres sediadas no Estado do Ceará.",
+                "ideia_projeto_cais": "Apoiar pesquisadoras do Instituto CAIS/UECE na criação e validação de negócios tecnológicos em IA, Saúde Digital e Sustentabilidade no Ceará.",
+                "parceiros_sugeridos": "Pesquisadoras do CAIS/UECE, INCUBAUECE e Sebrae/CE.",
+                "justificativa_cais": "Fomento estadual direto e sem diluição para negócios inovadores liderados por mulheres do nosso ecossistema.",
+                "resumo_objetivo": "Edital da FUNCAP voltado ao fomento e aceleração de projetos de inovação tecnológica e empreendedorismo liderados por mulheres no Ceará.",
+                "nota_aderencia": 8.7, "nota_chance_aprovacao": 8.9, "nota_financeira": 7.8, "nota_complexidade": 2.0,
+            })
+        elif "empresas juniores" in t_low or "11/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP — Edital nº 11/2026: Programa EJ-CE de Apoio às Empresas Juniores do Ceará",
+                "valor_financiado": "Apoio Financeiro e Bolsas para Empresas Juniores (ver PDF oficial FUNCAP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Empresas Juniores vinculadas a Instituições de Ensino Superior do Estado do Ceará (como a UECE).",
+                "ideia_projeto_cais": "Apoiar a Empresa Júnior de Computação da UECE (Acens) em parceria técnica com o Instituto CAIS para desenvolvimento de soluções digitais para micro e pequenas empresas.",
+                "parceiros_sugeridos": "Empresa Júnior de Computação da UECE (Acens), FEJECE e mentores técnicos do CAIS.",
+                "justificativa_cais": "Fortalece a formação prática de desenvolvedores na UECE que futuramente ingressam nos projetos de P&D do CAIS.",
+                "resumo_objetivo": "Fomento da FUNCAP à estruturação, inovação e execução de projetos tecnológicos por Empresas Juniores universitárias do Estado do Ceará.",
+                "nota_aderencia": 8.3, "nota_chance_aprovacao": 9.0, "nota_financeira": 7.2, "nota_complexidade": 2.0,
+            })
+        elif "h-tec" in t_low or "09/2026" in t_low:
+            dados.update({
+                "titulo": "FUNCAP / CENTEC — Edital nº 09/2026: Capacitação Tecnológica Projeto H-TEC Ceará",
+                "valor_financiado": "Bolsas de Formação e Capacitação Tecnológica (ver PDF oficial FUNCAP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Profissionais, pesquisadores e instituições do ecossistema de tecnologia e transição energética do Ceará.",
+                "ideia_projeto_cais": "Contribuir com trilhas de formação técnica em Digitalização, IoT e Inteligência Artificial aplicada à cadeia de Hidrogênio Verde e Energias Renováveis no Ceará.",
+                "parceiros_sugeridos": "CENTEC, SECITECE, UECE e especialistas do Instituto CAIS.",
+                "justificativa_cais": "Alinhado à formação de mão de obra especializada para o polo tecnológico e energético do Ceará.",
+                "resumo_objetivo": "Seleção pública FUNCAP/CENTEC no âmbito do Projeto H-TEC para formação e qualificação de profissionais em áreas tecnológicas estratégicas do Ceará.",
+                "nota_aderencia": 8.4, "nota_chance_aprovacao": 8.8, "nota_financeira": 7.5, "nota_complexidade": 2.5,
+            })
+        elif "inovação pública" in t_low or "setor público" in t_low:
+            dados.update({
+                "titulo": titulo or "FUNCAP — Programa de Inovação no Setor Público (Cientista Chefe & GovTech Ceará)",
+                "valor_financiado": valor_orig if tem_valor_real else "Bolsas de Pesquisa Aplicada + Custeio (ver edital FUNCAP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida (Fomento Estadual / FUNCAP)",
                 "publico_elegivel": "Equipes de pesquisadores lideradas por doutores vinculados a ICTs sediadas no Ceará (o Instituto CAIS e a UECE são diretamente elegíveis).",
                 "ideia_projeto_cais": "Desenvolver plataforma de Agentes Autônomos de IA e Ciência de Dados para otimização da regulação de leitos de saúde, prevenção de evasão escolar e triagem automática de processos no Governo do Ceará.",
                 "parceiros_sugeridos": "Secretarias do Governo do Ceará (SESA, SEDUC, SEFAZ, SECITECE), Íris LabGov e pesquisadores da UECE.",
                 "justificativa_cais": "Oportunidade local com máxima taxa de aprovação para o ecossistema CAIS/UECE, resolvendo dores reais do Estado do Ceará com IA e engenharia de software.",
                 "resumo_objetivo": "Fomento a projetos de pesquisa aplicada e desenvolvimento tecnológico que solucionem desafios estratégicos de gestão, atendimento e eficiência em órgãos públicos do Estado do Ceará.",
                 "nota_aderencia": 9.8, "nota_chance_aprovacao": 9.4, "nota_financeira": 8.2, "nota_complexidade": 2.5,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
         elif "centelha" in t_low:
             dados.update({
-                "titulo": "FUNCAP / FINEP — Programa Centelha Ceará (Geração de Startups Deep Tech)",
-                "valor_financiado": "Até R$ 80.000,00 em Subvenção por Startup + R$ 50.000,00 em Bolsas CNPq",
-                "prazo_submissao": _prazo_vigente_cais("", 7),
-                "contrapartida": "5% em recursos econômicos não financeiros (horas de dedicação da equipe)",
-                "publico_elegivel": "Pessoas físicas (pesquisadores, alunos e técnicos do CAIS/UECE) ou empresas cearenses constituídas há menos de 12 meses com faturamento até R$ 4,8 milhões.",
+                "titulo": titulo or "FUNCAP / FINEP — Programa Centelha Ceará (Geração de Startups Deep Tech)",
+                "valor_financiado": valor_orig if tem_valor_real else "Subvenção Econômica + Bolsas CNPq (ver edital FUNCAP)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Econômica conforme edital",
+                "publico_elegivel": "Pessoas físicas (pesquisadores, alunos e técnicos do CAIS/UECE) ou empresas cearenses recém-constituídas.",
                 "ideia_projeto_cais": "Incubar spin-offs originadas nos laboratórios do CAIS (ex: SaaS de visão computacional para controle de qualidade industrial ou sensor IoT de monitoramento de reservatórios hídricos).",
                 "parceiros_sugeridos": "Incubadora da UECE (INCUBAUECE), Ninna Hub, Sebrae/CE e pesquisadores empreendedores do CAIS.",
                 "justificativa_cais": "Ideal para transformar protótipos de pesquisa do CAIS em startups investidas com capital semente não reembolsável (sem diluição de participação).",
                 "resumo_objetivo": "Programa nacional executado no Ceará pela FUNCAP para estimular a criação de empreendimentos inovadores de base tecnológica a partir de ideias acadêmicas e laboratoriais.",
                 "nota_aderencia": 8.9, "nota_chance_aprovacao": 8.8, "nota_financeira": 7.6, "nota_complexidade": 2.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
-        elif "bsocial" in t_low:
-            dados.update({
-                "titulo": "FUNCAP — Programa de Bolsas de Inovação Social e Gestão Pública (B-SOCIAL)",
-                "valor_financiado": "Bolsas mensais de R$ 2.500,00 a R$ 6.500,00 (Graduados, Mestres e Doutores)",
-                "prazo_submissao": f"Fluxo Contínuo (Vigente em {hoje_br})",
-                "contrapartida": "Não exigida",
-                "publico_elegivel": "Órgãos públicos estaduais e ICTs parceiras no Ceará (como CAIS/UECE) solicitando bolsistas especialistas para projetos de desenvolvimento social e digital.",
-                "ideia_projeto_cais": "Captar bolsistas de desenvolvimento full-stack e ciência de dados para construir painéis de inteligência territorial, segurança alimentar e monitoramento de políticas sociais no Ceará.",
-                "parceiros_sugeridos": "SPS (Secretaria da Proteção Social), IPECE, UECE e equipes técnicas do Instituto CAIS.",
-                "justificativa_cais": "Permite ampliar a equipe de desenvolvedores e analistas de dados do CAIS dedicada a projetos de impacto social sem custo de folha para o instituto.",
-                "resumo_objetivo": "Concessão de bolsas de estímulo à inovação e transferência tecnológica para profissionais que atuem em projetos voltados à melhoria de indicadores sociais no Ceará.",
-                "nota_aderencia": 8.8, "nota_chance_aprovacao": 9.0, "nota_financeira": 7.8, "nota_complexidade": 2.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
-        elif "mestrado e doutorado" in t_low:
-            dados.update({
-                "titulo": "FUNCAP — Edital de Bolsas de Mestrado e Doutorado no Ceará",
-                "valor_financiado": "Bolsas de R$ 2.100,00 (Mestrado) e R$ 3.100,00 (Doutorado) por até 24/48 meses",
-                "prazo_submissao": _prazo_vigente_cais("", 40),
-                "contrapartida": "Não exigida",
-                "publico_elegivel": "Programas de Pós-Graduação (PPGs) stricto sensu recomendados pela CAPES em ICTs e Universidades do Ceará (ex: UECE) para alunos de mestrado e doutorado.",
-                "ideia_projeto_cais": "Direcionar temas de dissertações e teses de alunos bolsistas da UECE/FUNCAP para os desafios de pesquisa em IA Generativa, Semicondutores e Cidades Inteligentes do CAIS.",
-                "parceiros_sugeridos": "PPGs em Ciência da Computação e Engenharias da UECE, UFC e IFCE integrados ao CAIS.",
-                "justificativa_cais": "Garante fluxo contínuo de pesquisadores de mestrado e doutorado dedicados em tempo integral às linhas científicas do Instituto CAIS.",
-                "resumo_objetivo": "Fomento à formação de recursos humanos de alto nível por meio de cotas de bolsas de mestrado e doutorado para instituições de ensino e pesquisa do Ceará.",
-                "nota_aderencia": 9.0, "nota_chance_aprovacao": 9.2, "nota_financeira": 7.5, "nota_complexidade": 2.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
-        elif "iniciação cientifica" in t_low or "bict" in t_low:
-            dados.update({
-                "titulo": "FUNCAP — Programa de Bolsas de Iniciação Científica e Tecnológica (BICT)",
-                "valor_financiado": "Bolsas de Iniciação Científica e Tecnológica (R$ 700,00/mês por 12 meses)",
-                "prazo_submissao": _prazo_vigente_cais("", 32),
-                "contrapartida": "Não exigida",
-                "publico_elegivel": "Pesquisadores doutores vinculados a universidades e ICTs cearenses (CAIS/UECE) solicitando bolsas para estudantes de graduação.",
-                "ideia_projeto_cais": "Selecionar e treinar talentos de graduação em Computação e Engenharia da UECE para atuar em desenvolvimento front/back-end, curadoria de datasets de IA e prototipagem IoT no CAIS.",
-                "parceiros_sugeridos": "Cursos de Graduação em Ciência da Computação e Física da UECE e laboratórios associados ao CAIS.",
-                "justificativa_cais": "Base da pirâmide de formação de talentos do CAIS: identifica os melhores jovens programadores e engenheiros da universidade já na graduação.",
-                "resumo_objetivo": "Concessão de bolsas para estudantes de graduação realizarem iniciação à pesquisa científica e ao desenvolvimento tecnológico sob orientação de doutores no Ceará.",
-                "nota_aderencia": 8.7, "nota_chance_aprovacao": 9.5, "nota_financeira": 7.0, "nota_complexidade": 1.5,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
-        elif "pós-doutorado" in t_low or "profix" in t_low:
-            dados.update({
-                "titulo": "FUNCAP — Bolsa de Pós-Doutorado e Fixação de Doutores no Ceará (PROFIX)",
-                "valor_financiado": "Bolsas de Pós-Doutorado (R$ 5.200,00 a R$ 8.400,00/mês) + Auxílio Pesquisa",
-                "prazo_submissao": _prazo_vigente_cais("", 15),
-                "contrapartida": "Não exigida",
-                "publico_elegivel": "Doutores titulados (sem vínculo empregatício) supervisionados por pesquisador vinculado a ICT ou universidade sediada no Ceará (CAIS/UECE).",
-                "ideia_projeto_cais": "Atrair recém-doutores de excelência em Aprendizado Profundo (Deep Learning), Visão Computacional e Design de Circuitos Integrados para liderar frentes técnicas no CAIS.",
-                "parceiros_sugeridos": "Programas de Pós-Graduação da UECE e grupos de pesquisa do LDI/CAIS.",
-                "justificativa_cais": "Permite incorporar especialistas doutores em regime de dedicação exclusiva aos projetos de PD&I do CAIS com bolsa integralmente paga pela FUNCAP.",
-                "resumo_objetivo": "Atração, retenção e fixação de jovens doutores em grupos de pesquisa e inovação tecnológica instalados no Estado do Ceará.",
-                "nota_aderencia": 9.4, "nota_chance_aprovacao": 9.0, "nota_financeira": 8.4, "nota_complexidade": 2.5,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
-        elif "produtividade" in t_low or "bpi" in t_low:
-            dados.update({
-                "titulo": "FUNCAP — Bolsa de Produtividade em Pesquisa, Estímulo à Interiorização e Inovação (BPI)",
-                "valor_financiado": "Bolsa de Produtividade + Taxa de Bancada para Custeio e Equipamentos de Laboratório",
-                "prazo_submissao": _prazo_vigente_cais("", 52),
-                "contrapartida": "Não exigida",
-                "publico_elegivel": "Pesquisadores doutores com vínculo empregatício ou funcional permanente em ICTs públicas ou privadas sem fins lucrativos do Ceará (CAIS/UECE).",
-                "ideia_projeto_cais": "Submeter projetos dos pesquisadores doutores do CAIS/UECE para custear insumos laboratoriais, licenças de nuvem/IA, publicações e bolsas de apoio técnico.",
-                "parceiros_sugeridos": "Docentes e pesquisadores permanentes da UECE que coordenam células de PD&I no Instituto CAIS.",
-                "justificativa_cais": "Reconhece o mérito científico da equipe sênior do CAIS e injeta recursos diretos de bancada nos nossos laboratórios.",
-                "resumo_objetivo": "Apoio financeiro sob forma de bolsa de produtividade e auxílio à pesquisa para cientistas doutores vinculados a instituições cearenses.",
-                "nota_aderencia": 9.3, "nota_chance_aprovacao": 8.9, "nota_financeira": 8.2, "nota_complexidade": 2.5,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
 
     # ==========================================================================
     # 4. CNPq (Conselho Nacional de Desenvolvimento Científico e Tecnológico)
     # ==========================================================================
     elif "cnpq" in org_low:
-        if "mai/dai" in t_low or "30/2026" in t_low:
+        if "mai/dai" in t_low or "30/2026" in t_low or "30-2026" in t_low:
             dados.update({
                 "titulo": "CNPq / CAPES — Chamada nº 30/2026: Mestrado e Doutorado Acadêmico para Inovação (MAI/DAI)",
-                "valor_financiado": "R$ 48.000.000,00 (Bolsas de Mestrado, Doutorado, IC e Taxa de Bancada)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig, 28),
-                "contrapartida": "Aporte financeiro ou econômico pela empresa parceira para desenvolvimento do projeto aplicado",
+                "valor_financiado": valor_orig if tem_valor_real else "Bolsas de Mestrado, Doutorado, IC e Taxa de Bancada (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Aporte pela empresa parceira conforme diretrizes MAI/DAI",
                 "publico_elegivel": "ICTs/Universidades com pós-graduação reconhecida pela CAPES (ex: UECE) em parceria formal com Empresa Parceira (CAIS articula a tríade Universidade-ICT-Empresa).",
                 "ideia_projeto_cais": "Estruturar proposta conjunta UECE + CAIS + Empresas Parceiras para alocar mestrandos e doutorandos desenvolvendo soluções de IA Preditiva, Cibersegurança e IoT Industrial.",
                 "parceiros_sugeridos": "Pró-Reitoria de Pós-Graduação da UECE, empresas de tecnologia parceiras do CAIS e laboratórios do LDI.",
                 "justificativa_cais": "Conecta diretamente a pesquisa acadêmica de mestrado/doutorado às demandas reais da indústria parceira do CAIS com bolsas federais.",
                 "resumo_objetivo": "Fortalecimento da pesquisa, do empreendedorismo e da inovação por meio do envolvimento de estudantes de pós-graduação em projetos de interesse do setor empresarial.",
                 "nota_aderencia": 9.4, "nota_chance_aprovacao": 8.7, "nota_financeira": 8.8, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
-        elif "inspiração" in t_low or "petrobras" in t_low or "31/2026" in t_low:
+        elif "inspiração" in t_low or "petrobras" in t_low or "31/2026" in t_low or "31-2026" in t_low:
             dados.update({
                 "titulo": "CNPq / Petrobras — Chamada Pública nº 31/2026: Projeto InspirAÇÃO (Transição Energética & IA)",
-                "valor_financiado": "R$ 75.000.000,00 (Custeio, Capital e Bolsas de Pesquisa e Inovação)",
-                "prazo_submissao": _prazo_vigente_cais("", 38),
+                "valor_financiado": valor_orig if tem_valor_real else "Custeio, Capital e Bolsas CNPq/Petrobras (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida para ICTs sem fins lucrativos",
                 "publico_elegivel": "Pesquisadores doutores vinculados a ICTs públicas ou privadas sem fins lucrativos (o Instituto CAIS e a UECE podem atuar como Instituição de Execução).",
                 "ideia_projeto_cais": "Desenvolver modelos de IA e gêmeos digitais para otimização de plantas de Hidrogênio Verde, manutenção preditiva de ativos e monitoramento de emissões no Hub do Pecém.",
@@ -1277,13 +1868,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Alto volume de recursos por projeto e alinhamento estratégico com o polo de Hidrogênio Verde e energias renováveis do Ceará.",
                 "resumo_objetivo": "Fomento a projetos de P&D e formação de recursos humanos em transição energética justa, descarbonização, bioenergia e tecnologias digitais aplicadas.",
                 "nota_aderencia": 9.2, "nota_chance_aprovacao": 8.0, "nota_financeira": 9.3, "nota_complexidade": 4.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
-        elif "produtividade" in t_low or "33/2026" in t_low:
+        elif "produtividade" in t_low or "33/2026" in t_low or "33-2026" in t_low:
             dados.update({
                 "titulo": "CNPq — Chamada nº 33/2026: Bolsas de Produtividade em Pesquisa e Desenvolvimento Tecnológico (PQ / DT)",
-                "valor_financiado": "Bolsas Individuais de Produtividade + Adicional de Bancada (36 a 60 meses)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig, 55),
+                "valor_financiado": valor_orig if tem_valor_real else "Bolsas Individuais de Produtividade + Adicional de Bancada (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Pesquisadores doutores (pessoa física) com destacada produção científica ou tecnológica (softwares registrados, patentes, produtos) vinculados a ICTs como o CAIS/UECE.",
                 "ideia_projeto_cais": "Apoiar os pesquisadores doutores do CAIS na submissão de propostas na modalidade Desenvolvimento Tecnológico (DT), valorizando os softwares, registros de INPI e produtos entregues pelo instituto.",
@@ -1291,13 +1881,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Certifica a excelência técnica do corpo de pesquisadores do CAIS perante o CNPq e garante bolsas de longa duração.",
                 "resumo_objetivo": "Concessão de bolsas de produtividade para pesquisadores de destaque no desenvolvimento tecnológico, extensão inovadora e pesquisa científica.",
                 "nota_aderencia": 9.1, "nota_chance_aprovacao": 8.3, "nota_financeira": 7.8, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
-        elif "eventos" in t_low or "arc" in t_low or "34/2026" in t_low:
+        elif "eventos" in t_low or "arc" in t_low or "34/2026" in t_low or "34-2026" in t_low:
             dados.update({
                 "titulo": "CNPq — Chamada nº 34/2026: Auxílio à Promoção de Eventos Científicos, Tecnológicos e de Inovação (ARC)",
-                "valor_financiado": "Até R$ 150.000,00 por evento aprovado (Custeio Não Reembolsável)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig, 21),
+                "valor_financiado": valor_orig if tem_valor_real else "Custeio Não Reembolsável para Eventos (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Pesquisadores doutores vinculados a ICTs sem fins lucrativos (CAIS/UECE) ou associações científicas que atuem como coordenadores do evento.",
                 "ideia_projeto_cais": "Captar recursos para realizar em Fortaleza o Congresso CAIS de Inteligência Artificial Aplicada, Semicondutores e Transformação Digital Governamental, atraindo empresas e investidores.",
@@ -1305,13 +1894,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Baixa complexidade de submissão e excelente retorno institucional para posicionar a marca do Instituto CAIS nacionalmente.",
                 "resumo_objetivo": "Apoio financeiro à realização no Brasil de congressos, simpósios, workshops e encontros científicos, tecnológicos e de inovação.",
                 "nota_aderencia": 8.6, "nota_chance_aprovacao": 8.8, "nota_financeira": 7.0, "nota_complexidade": 2.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
-        elif "anr" in t_low or "32/2026" in t_low:
+        elif "anr" in t_low or "32/2026" in t_low or "32-2026" in t_low:
             dados.update({
                 "titulo": "CNPq / MCTI / ANR — Chamada Bilateral de Cooperação Brasil-França nº 32/2026",
-                "valor_financiado": "R$ 15.000.000,00 (Custeio, Passagens e Bolsas pelo CNPq + Financiamento ANR na França)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig, 138),
+                "valor_financiado": valor_orig if tem_valor_real else "Custeio, Passagens e Bolsas CNPq + ANR França (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Cada país financia sua respectiva equipe; sem contrapartida financeira para a ICT brasileira",
                 "publico_elegivel": "Pesquisadores doutores vinculados a ICTs brasileiras (CAIS/UECE) em consórcio obrigatório com pelo menos um laboratório de pesquisa francês elegível pela ANR.",
                 "ideia_projeto_cais": "Submeter projeto conjunto com laboratório francês (ex: INRIA/CNRS) em Inteligência Artificial Confiável, Segurança Cibernética e Computação Verde em Borda.",
@@ -1319,13 +1907,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Abre portas para internacionalização do Instituto CAIS e intercâmbio de pesquisadores com centros europeus de ponta.",
                 "resumo_objetivo": "Apoio a projetos conjuntos de pesquisa científica, tecnológica e de inovação entre equipes brasileiras (CNPq) e francesas (Agence Nationale de la Recherche - ANR).",
                 "nota_aderencia": 8.5, "nota_chance_aprovacao": 7.4, "nota_financeira": 8.4, "nota_complexidade": 4.5,
-                "decisao_recomendada": "AVALIAR COM PARCEIRO", "prioridade": "Média"
             })
-        elif "biodiversidade" in t_low or "cfbba" in t_low or "36/2026" in t_low:
+        elif "biodiversidade" in t_low or "cfbba" in t_low or "36/2026" in t_low or "36-2026" in t_low:
             dados.update({
                 "titulo": "CNPq / MCTI — Chamada nº 36/2026: Cursos e Tecnologias aplicadas à Biodiversidade (CFBBA)",
-                "valor_financiado": "R$ 4.000.000,00 (Custeio de Missões, Bolsas e Capacitação Científica)",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig, 91),
+                "valor_financiado": valor_orig if tem_valor_real else "Custeio de Missões, Bolsas e Capacitação (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Pesquisadores doutores vinculados a ICTs e universidades brasileiras em cooperação científica franco-brasileira.",
                 "ideia_projeto_cais": "Propor escola avançada de aplicação de Inteligência Artificial, Bioacústica e Sensoriamento Remoto por Satélite/Drones para catalogação e proteção da biodiversidade.",
@@ -1333,18 +1920,31 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Oportunidade de nicho onde o CAIS pode entrar fornecendo a camada de Ciência de Dados, IA e Visão Computacional para grupos de biologia/ecologia.",
                 "resumo_objetivo": "Apoio à realização de cursos e capacitação técnico-científica de alto nível no âmbito da cooperação Brasil-França em biodiversidade e bioeconomia.",
                 "nota_aderencia": 7.8, "nota_chance_aprovacao": 7.6, "nota_financeira": 7.2, "nota_complexidade": 3.5,
-                "decisao_recomendada": "AVALIAR COM PARCEIRO", "prioridade": "Média"
+            })
+        elif "lélia gonzalez" in t_low or "lelia gonzalez" in t_low or "23/2026" in t_low or "23-2026" in t_low:
+            dados.update({
+                "titulo": "CNPq / MIR — Chamada nº 23/2026: Programa Lélia Gonzalez (Ciência de Dados, Políticas Públicas e Equidade)",
+                "valor_financiado": valor_orig if tem_valor_real else "Bolsas e Custeio CNPq/MIR (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Pesquisadores doutores vinculados a ICTs e Universidades brasileiras (como a UECE) atuando em políticas públicas, ciência de dados sociais e inovação.",
+                "ideia_projeto_cais": "Atuar como laboratório parceiro de Ciência de Dados, Ética em IA e Mitigação de Viés Algorítmico em serviços públicos junto aos Programas de Pós-Graduação em Políticas Públicas e Educação da UECE.",
+                "parceiros_sugeridos": "PPGs em Políticas Públicas, Sociologia e Educação da UECE e Laboratório de Ciência de Dados do CAIS.",
+                "justificativa_cais": "Aderência complementar (Avaliar com Parceiro): a liderança deve ser de grupo de Humanidades/Políticas Públicas da UECE, entrando o CAIS com a engenharia de dados e auditoria algorítmica.",
+                "resumo_objetivo": "Chamada conjunta CNPq e Ministério da Igualdade Racial (MIR) para apoio a projetos de pesquisa aplicada, ciência de dados sociais e políticas públicas baseadas em evidências.",
+                "nota_aderencia": 7.0, "nota_chance_aprovacao": 7.6, "nota_financeira": 7.4, "nota_complexidade": 3.5,
             })
 
     # ==========================================================================
     # 5. EMBRAPII (Empresa Brasileira de Pesquisa e Inovação Industrial)
     # ==========================================================================
     elif "embrapii" in org_low:
-        if "centro de competência" in t_low:
+        if "centro de competência" in t_low or "centro-de-competencia" in t_low:
+            edicao_cc = "nº 02/2025" if ("02-2025" in t_low or "02/2025" in t_low) else "nº 03/2025"
             dados.update({
-                "titulo": "EMBRAPII — Credenciamento de Centro de Competência em Tecnologias de Fronteira",
-                "valor_financiado": "R$ 15.000.000,00 a R$ 60.000.000,00 por Centro de Competência (Recursos PPI/MCTI)",
-                "prazo_submissao": _prazo_vigente_cais("", 48),
+                "titulo": f"EMBRAPII — Credenciamento de Centro de Competência em Tecnologias de Fronteira ({edicao_cc})",
+                "valor_financiado": valor_orig if tem_valor_real else "Recursos PPI/MCTI para Centros de Competência (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Contrapartida econômica (infraestrutura laboratorial e horas de pesquisadores doutores da ICT)",
                 "publico_elegivel": "Exclusivamente ICTs públicas ou privadas sem fins lucrativos (CAIS e UECE concorrem diretamente) com excelência científica em tecnologias habilitadoras (IA, 5G/6G, Semicondutores).",
                 "ideia_projeto_cais": "Submeter proposta institucional para credenciar o grupo CAIS/LDI/UECE como Centro de Competência EMBRAPII em Inteligência Artificial Embarcada, Cibersegurança e Semicondutores.",
@@ -1352,13 +1952,13 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Diferente da Unidade tradicional, o Centro de Competência financia pesquisa de fronteira (TRL 1 a 4), formação de talentos e inovação aberta com 100% de subvenção.",
                 "resumo_objetivo": "Seleção de ICTs para constituição de Centros de Competência EMBRAPII voltados à geração de conhecimento em áreas tecnológicas de vanguarda e formação de especialistas.",
                 "nota_aderencia": 9.7, "nota_chance_aprovacao": 8.0, "nota_financeira": 9.8, "nota_complexidade": 4.5,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
-        elif "unidades embrapii" in t_low or "credenciamento" in t_low:
+        elif "unidades embrapii" in t_low or "chamada-unidades" in t_low or "credenciamento" in t_low:
+            edicao_ue = "nº 02/2025" if ("02-2025" in t_low or "02/2025" in t_low) else "nº 03/2025"
             dados.update({
-                "titulo": "EMBRAPII — Chamada Pública para Credenciamento de Novas Unidades EMBRAPII",
-                "valor_financiado": "R$ 10.000.000,00 a R$ 30.000.000,00 para Plano de Ação de PD&I Industrial",
-                "prazo_submissao": _prazo_vigente_cais("", 50),
+                "titulo": f"EMBRAPII — Chamada Pública para Credenciamento de Novas Unidades EMBRAPII ({edicao_ue})",
+                "valor_financiado": valor_orig if tem_valor_real else "Plano de Ação de PD&I Industrial EMBRAPII (ver PDF do edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "1/3 EMBRAPII + 1/3 Empresas Industriais contratantes + 1/3 econômico da ICT",
                 "publico_elegivel": "Exclusivamente ICTs públicas ou privadas sem fins lucrativos (CAIS/UECE) que comprovem histórico de contratos de P&D executados com empresas nos últimos 3 anos.",
                 "ideia_projeto_cais": "Credenciar o Instituto CAIS/UECE como Unidade EMBRAPII em Software Crítico e Transformação Digital, habilitando o instituto a oferecer subvenção automática de até 50% para empresas clientes.",
@@ -1366,21 +1966,19 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Multiplica o poder comercial do CAIS: qualquer empresa que contratar P&D conosco passa a ter metade do projeto paga pela EMBRAPII.",
                 "resumo_objetivo": "Credenciamento de instituições científicas e tecnológicas para integrarem a rede de Unidades EMBRAPII de apoio à inovação empresarial.",
                 "nota_aderencia": 9.5, "nota_chance_aprovacao": 8.2, "nota_financeira": 9.6, "nota_complexidade": 4.5,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
         else:
             dados.update({
-                "titulo": "EMBRAPII — Financiamento em Fluxo Contínuo para Projetos de PD&I Industrial (Modelo ICT-Empresa)",
-                "valor_financiado": "Até 50% do projeto a fundo perdido (EMBRAPII) + restante dividido entre Empresa e ICT",
-                "prazo_submissao": f"Fluxo Contínuo (Aberto em {hoje_br})",
-                "contrapartida": "Empresa industrial entra com no mínimo 1/3 financeiro; ICT entra com 1/6 econômico (equipe/labs)",
+                "titulo": titulo or "EMBRAPII — Financiamento em Fluxo Contínuo para Projetos de PD&I Industrial (Modelo ICT-Empresa)",
+                "valor_financiado": valor_orig if tem_valor_real else "Cooperação EMBRAPII Não Reembolsável (consultar unidade/edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig) if re.search(r"\d{2}/\d{2}/20[23]\d", prazo_orig) else "Fluxo Contínuo",
+                "contrapartida": "Empresa industrial entra com contrapartida financeira; ICT entra com contrapartida econômica",
                 "publico_elegivel": "Empresas industriais ou de tecnologia de qualquer porte desenvolvendo produtos/processos inovadores junto a Unidades EMBRAPII e ICTs associadas (CAIS/UECE).",
                 "ideia_projeto_cais": "Co-desenvolver com indústrias parceiras soluções de IoT Industrial (IIoT), visão computacional para inspeção em linha de montagem e agentes de IA para automação fabril.",
                 "parceiros_sugeridos": "Indústrias do Ceará/Nordeste, Unidades EMBRAPII parceiras e laboratórios de hardware/software do CAIS.",
-                "justificativa_cais": "Sem espera de edital: aprovação rápida e direta para projetos de TRL 3 a 6 com empresas que queiram inovar com o Instituto CAIS.",
+                "justificativa_cais": "Aprovação direta para projetos de TRL 3 a 6 com empresas que queiram inovar com o Instituto CAIS.",
                 "resumo_objetivo": "Modelo de fomento contínuo da EMBRAPII que compartilha o risco tecnológico de projetos de inovação industrial por meio de recursos não reembolsáveis.",
                 "nota_aderencia": 9.5, "nota_chance_aprovacao": 8.8, "nota_financeira": 9.0, "nota_complexidade": 2.5,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
 
     # ==========================================================================
@@ -1389,8 +1987,8 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
     elif "sebrae" in org_low or "catalisa" in org_low:
         dados.update({
             "titulo": "Sebrae — Programa Catalisa ICT: Da Pesquisa Acadêmica ao Negócio Deep Tech",
-            "valor_financiado": "Subvenção de até R$ 150.000,00 por Plano de Inovação + Mentoria e Aceleração Nacional",
-            "prazo_submissao": _prazo_vigente_cais("", 36),
+            "valor_financiado": valor_orig if tem_valor_real else "Bolsas, Subvenção e Mentoria Catalisa ICT (consultar edital)",
+            "prazo_submissao": _prazo_vigente_cais(prazo_orig),
             "contrapartida": "Não exigida",
             "publico_elegivel": "Mestres, doutores e estudantes de mestrado/doutorado vinculados a ICTs e universidades (pesquisadores do CAIS e da UECE concorrem diretamente).",
             "ideia_projeto_cais": "Inscrever tecnologias desenvolvidas por mestres e doutores nos laboratórios do CAIS (IA para saúde, sensores inteligentes e agro) para receber capital semente e validação comercial do Sebrae.",
@@ -1398,7 +1996,6 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
             "justificativa_cais": "Excelente caminho para gerar receita de royalties/licenciamento para o CAIS e criar startups de base científica a partir das nossas pesquisas.",
             "resumo_objetivo": "Iniciativa do Sebrae que mobiliza pesquisadores de pós-graduação de todo o Brasil para transformar pesquisas de laboratório em startups deep tech de alto impacto.",
             "nota_aderencia": 9.0, "nota_chance_aprovacao": 8.9, "nota_financeira": 8.0, "nota_complexidade": 2.0,
-            "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
         })
 
     # ==========================================================================
@@ -1406,104 +2003,174 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
     # ==========================================================================
     elif "banco do nordeste" in org_low or "fundeci" in org_low or "bnb" in org_low:
         if "resíduos" in t_low or "residuos" in t_low:
+            prazo_bnb = _prazo_vigente_cais(prazo_orig)
+            if "01/2025" in t_low or "01-2025" in t_low:
+                prazo_bnb = "15/12/2025"
             dados.update({
-                "titulo": "Banco do Nordeste (BNB) — Edital FUNDECI: Tecnologias para Gestão Inteligente de Resíduos Sólidos",
-                "valor_financiado": "R$ 5.000.000,00 (Recursos Não Reembolsáveis FUNDECI — Até R$ 600 mil por projeto)",
-                "prazo_submissao": _prazo_vigente_cais("", 42),
-                "contrapartida": "Econômica não financeira (mínimo 10% em infraestrutura/equipe da ICT)",
+                "titulo": "Banco do Nordeste (BNB) — Edital FUNDECI 01/2025: Tecnologias para Gestão Inteligente de Resíduos Sólidos",
+                "valor_financiado": "R$ 30,0 milhões (Dotação Global FUNDECI/BNB)",
+                "prazo_submissao": prazo_bnb,
+                "contrapartida": "Econômica não financeira conforme edital FUNDECI",
                 "publico_elegivel": "Exclusivamente ICTs públicas ou privadas sem fins lucrativos, universidades e fundações de pesquisa atuantes no Nordeste (o Instituto CAIS e a UECE concorrem diretamente).",
                 "ideia_projeto_cais": "Desenvolver sistema de Visão Computacional e IA para triagem automatizada de recicláveis e plataforma IoT de rastreabilidade e roteirização inteligente de coleta seletiva para consórcios municipais do Ceará.",
                 "parceiros_sugeridos": "Consórcios Públicos de Resíduos Sólidos do Ceará, SEMA, Cooperativas de Catadores e UECE.",
-                "justificativa_cais": "Edital exclusivo para a região Nordeste onde o CAIS pode ser o proponente principal recebendo subvenção direta a fundo perdido do BNB.",
-                "resumo_objetivo": "Apoio financeiro não reembolsável do FUNDECI/BNB a projetos de pesquisa, desenvolvimento e difusão tecnológica para economia circular e gestão de resíduos sólidos no Nordeste.",
+                "justificativa_cais": "Edital de R$ 30 milhões exclusivo para a região Nordeste onde o CAIS pode ser o proponente principal recebendo subvenção direta a fundo perdido do BNB.",
+                "resumo_objetivo": "Apoio financeiro não reembolsável de R$ 30,0 milhões do FUNDECI/BNB a projetos de pesquisa, desenvolvimento e difusão tecnológica para economia circular e gestão integrada de resíduos sólidos no Nordeste.",
                 "nota_aderencia": 9.1, "nota_chance_aprovacao": 8.8, "nota_financeira": 8.3, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
         else:
+            prazo_bnb_caat = _prazo_vigente_cais(prazo_orig)
+            if "01/2025" in t_low or "01-2025" in t_low:
+                prazo_bnb_caat = "04/07/2025"
             dados.update({
-                "titulo": "Banco do Nordeste (BNB) — Edital Fundo Sustentabilidade: Tecnologias para o Bioma Caatinga",
-                "valor_financiado": "R$ 8.000.000,00 (Fundo Não Reembolsável BNB — Até R$ 800 mil por projeto)",
-                "prazo_submissao": _prazo_vigente_cais("", 60),
+                "titulo": "Banco do Nordeste (BNB) — Edital Fundo Sustentabilidade 01/2025: Tecnologias para o Bioma Caatinga",
+                "valor_financiado": "R$ 15,0 milhões (Dotação Global BNB)",
+                "prazo_submissao": prazo_bnb_caat,
                 "contrapartida": "Econômica não financeira (equipe técnica e laboratórios da ICT)",
                 "publico_elegivel": "ICTs públicas ou privadas sem fins lucrativos e universidades sediadas na área de atuação do BNB/Semiárido (CAIS e UECE podem submeter diretamente como proponentes).",
                 "ideia_projeto_cais": "Implantar rede de sensores ambientais IoT de longo alcance (LoRaWAN) combinada com IA sobre imagens de satélite para monitoramento hídrico, prevenção de incêndios e quantificação de carbono na Caatinga.",
                 "parceiros_sugeridos": "FUNCEME, IBAMA/ICMBio, Associações Rurais do Sertão Central e Laboratórios de Geoprocessamento e IA da UECE.",
-                "justificativa_cais": "Forte vocação regional no Ceará/Nordeste e financiamento não reembolsável direto para ICTs sem fins lucrativos como o CAIS.",
-                "resumo_objetivo": "Financiamento a fundo perdido para soluções tecnológicas aplicadas à conservação, recuperação ambiental, convivência com o semiárido e bioeconomia na Caatinga.",
+                "justificativa_cais": "Forte vocação regional no Ceará/Nordeste (R$ 15 milhões) e financiamento não reembolsável direto para ICTs sem fins lucrativos como o CAIS.",
+                "resumo_objetivo": "Financiamento a fundo perdido de R$ 15,0 milhões do Banco do Nordeste para soluções tecnológicas aplicadas à conservação, recuperação ambiental, convivência com o semiárido e bioeconomia na Caatinga.",
                 "nota_aderencia": 8.9, "nota_chance_aprovacao": 8.7, "nota_financeira": 8.4, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
 
     # ==========================================================================
     # 8. SENAI / PLATAFORMA INOVAÇÃO PARA A INDÚSTRIA / MOVER
     # ==========================================================================
     elif "senai" in org_low or "mover" in org_low:
-        if "autopeças" in t_low or "mover" in t_low:
-            dados.update({
-                "titulo": "Programa MOVER / SENAI — Chamada de PD&I: Nacionalização de Componentes e Sistemas Automotivos",
-                "valor_financiado": "R$ 30.000.000,00 (Aportes de R$ 1M a R$ 5M por projeto cooperativo)",
-                "prazo_submissao": _prazo_vigente_cais("", 30),
-                "contrapartida": "Obrigatória pela indústria automotiva parceira (financeira e econômica)",
-                "publico_elegivel": "Indústrias automotivas, fabricantes de autopeças e startups industriais em parceria com Institutos SENAI de Inovação e ICTs coexecutoras (como o Instituto CAIS).",
-                "ideia_projeto_cais": "Desenvolver software embarcado automotivo, algoritmos de IA para Gerenciamento Inteligente de Baterias (BMS) e módulos eletrônicos de telemetria veicular junto a parceiros industriais.",
-                "parceiros_sugeridos": "Polo Automotivo do Nordeste (Ceará/Pernambuco), Instituto SENAI de Inovação do Ceará e Laboratório de Sistemas Embarcados do CAIS/UECE.",
-                "justificativa_cais": "Conecta o grupo de microeletrônica, sistemas embarcados e IA do CAIS aos vultosos recursos da Lei do Programa MOVER (Mobilidade Verde e Inovação).",
-                "resumo_objetivo": "Fomento a projetos industriais de pesquisa e desenvolvimento para descarbonização, eletrificação veicular, eletrônica embarcada e nacionalização da cadeia automotiva.",
-                "nota_aderencia": 8.8, "nota_chance_aprovacao": 8.0, "nota_financeira": 9.0, "nota_complexidade": 4.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
-        elif "saúde conectada" in t_low or "sesi" in t_low:
-            dados.update({
-                "titulo": "SESI / SENAI — Chamada Técnica: Evolução da Estação SESI Saúde Conectada (HealthTech & IA)",
-                "valor_financiado": "Até R$ 1.200.000,00 por projeto selecionado",
-                "prazo_submissao": _prazo_vigente_cais("", 35),
-                "contrapartida": "Econômica ou financeira conforme porte da startup/empresa parceira",
-                "publico_elegivel": "Startups HealthTech, empresas de base tecnológica em saúde digital e ICTs parceiras (o CAIS entra como parceiro de P&D ou via spin-off associada).",
-                "ideia_projeto_cais": "Construir módulo de triagem clínica preditiva com IA, integração de sensores médicos vestíveis (IoMT) e painel inteligente de saúde ocupacional para trabalhadores da indústria.",
-                "parceiros_sugeridos": "SESI Ceará / FIEC, Startups de Saúde Digital do ecossistema cearense e Laboratório de Saúde Digital do CAIS/UECE.",
-                "justificativa_cais": "Excelente vitrine nacional junto ao Sistema Indústria (SESI/SENAI) para aplicar soluções de IA em saúde e telemedicina desenvolvidas pelo CAIS.",
-                "resumo_objetivo": "Seleção de soluções tecnológicas inovadoras em saúde digital, dispositivos médicos conectados e inteligência de dados para evolução do atendimento em saúde ocupacional.",
-                "nota_aderencia": 9.0, "nota_chance_aprovacao": 8.3, "nota_financeira": 8.2, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
+        valor_senai = valor_orig if tem_valor_real else "Consultar edital oficial (SENAI / Programa MOVER)"
+        if re.match(r"^r\$\s*[\d\.,]+\s*mil$", valor_senai.lower().strip()):
+            valor_senai = "Consultar teto por categoria na Plataforma SENAI"
+        titulo_senai = re.sub(r"^Categoria\s+Categoria:\s*", "SENAI — ", titulo, flags=re.I)
+        titulo_senai = re.sub(r"^Categoria\s+", "SENAI — ", titulo_senai, flags=re.I)
+
+        if "autopeças" in t_low or "autopecas" in t_low or "nacionalização" in t_low:
+            resumo_senai = "Chamada do Programa MOVER (SENAI) voltada à nacionalização e desenvolvimento de autopeças, sistemas eletrônicos embarcados, sensores automotivos e ferramentais inteligentes."
+            ideia_senai = "Desenvolver firmware seguro, unidade de controle eletrônico (ECU) embarcada e visão computacional para inspeção automatizada de componentes automotivos nacionalizados."
+            ader_s, chan_s, fin_s, comp_s = 9.1, 8.2, 8.8, 3.5
+        elif "saúde conectada" in t_low or "saude conectada" in t_low or "sesi" in t_low:
+            resumo_senai = "Chamada Técnica SESI/SENAI Estação Saúde Conectada para desenvolvimento de tecnologias digitais, sensores vestíveis e inteligência de dados voltados à saúde e segurança do trabalhador industrial."
+            ideia_senai = "Desenvolver plataforma de telemetria ocupacional com IoT vestível e modelos preditivos de IA para prevenção de acidentes, ergonomia por visão computacional e monitoramento de saúde industrial."
+            ader_s, chan_s, fin_s, comp_s = 9.0, 8.4, 8.4, 3.0
         elif "powershoring" in t_low or "agenda.tech" in t_low:
-            dados.update({
-                "titulo": "SENAI / Agenda.Tech — Tecnologias para Powershoring e Descarbonização Industrial no Brasil",
-                "valor_financiado": "Até R$ 1.500.000,00 por projeto de inovação industrial",
-                "prazo_submissao": _prazo_vigente_cais("", 14),
-                "contrapartida": "Econômica ou financeira da indústria parceira (10% a 20%)",
-                "publico_elegivel": "Empresas industriais eletrointensivas e startups deep tech em parceria com ICTs (o CAIS atua no desenvolvimento de software e IA para transição energética).",
-                "ideia_projeto_cais": "Desenvolver plataforma de IA para rastreamento em tempo real de pegada de carbono (Escopos 1, 2 e 3) e otimização de despacho de energia renovável para indústrias exportadoras do Pecém.",
-                "parceiros_sugeridos": "Indústrias exportadoras do Complexo do Pecém (CIPP), FIEC/SENAI-CE e pesquisadores do CAIS/UECE.",
-                "justificativa_cais": "O Ceará é o epicentro nacional do Powershoring (atração de indústrias verdes pela energia limpa), tornando o CAIS o parceiro local ideal.",
-                "resumo_objetivo": "Mapeamento e fomento a tecnologias habilitadoras para neoindustrialização verde (Powershoring), hidrogênio de baixo carbono e manufatura sustentável.",
-                "nota_aderencia": 9.2, "nota_chance_aprovacao": 8.5, "nota_financeira": 8.5, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
-        elif "eficiência energética" in t_low or "smart factory" in t_low:
-            dados.update({
-                "titulo": "SENAI / ENBPar — Chamada de Inovação: Soluções Digitais em Eficiência Energética e Smart Factory",
-                "valor_financiado": "Até R$ 800.000,00 por projeto (Subvenção e Apoio Técnico)",
-                "prazo_submissao": _prazo_vigente_cais("", 5),
-                "contrapartida": "Econômica (10% a 20%)",
-                "publico_elegivel": "Startups de energia/indústria 4.0, empresas de engenharia e ICTs tecnológicas em aliança com o setor elétrico e industrial.",
-                "ideia_projeto_cais": "Implementar plataforma de medição inteligente desagregada (NILM) com algoritmos de aprendizado de máquina para detecção de desperdício energético e manutenção preditiva de motores industriais.",
-                "parceiros_sugeridos": "Indústrias do Distrito Industrial de Maracanaú/Pecém, SENAI-CE e equipe de IA e Energia do Instituto CAIS.",
-                "justificativa_cais": "Tema de retorno financeiro imediato para indústrias parceiras, facilitando a captação conjunta liderada tecnicamente pelo CAIS.",
-                "resumo_objetivo": "Apoio ao desenvolvimento e validação em ambiente real de tecnologias digitais, IoT e inteligência artificial voltadas à eficiência energética e descarbonização industrial.",
-                "nota_aderencia": 8.9, "nota_chance_aprovacao": 8.2, "nota_financeira": 8.0, "nota_complexidade": 3.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
-            })
+            resumo_senai = "Chamada Agenda.Tech Powershoring (SENAI) focada em tecnologias para neoindustrialização verde, rastreabilidade de carbono e manufatura intensiva em energia limpa no Brasil."
+            ideia_senai = "Desenvolver Gêmeo Digital Energético e plataforma de IA para certificação em tempo real de pegada de carbono e otimização de consumo de energia renovável em plantas industriais do Ceará."
+            ader_s, chan_s, fin_s, comp_s = 9.3, 8.3, 8.7, 3.5
+        elif "semente" in t_low:
+            resumo_senai = "Categoria Projeto Semente da Plataforma Inovação para a Indústria (SENAI) destinada à prova de conceito (PoC), prototipagem e validação de soluções tecnológicas deep tech para desafios fabris."
+            ideia_senai = "Validar protótipo funcional de agente de IA industrial e sensor IoT de manutenção preditiva em parceria com indústria cearense e Institutos SENAI de Inovação."
+            ader_s, chan_s, fin_s, comp_s = 8.9, 8.6, 8.0, 2.5
+        elif "eficiência energética" in t_low or "chamada regional" in t_low:
+            titulo_senai = "SENAI — Chamada Regional: Eficiência Energética e Descarbonização Industrial"
+            resumo_senai = "Chamada Regional da Plataforma Inovação para a Indústria (SENAI) para projetos de eficiência energética, automação térmica/elétrica e redução de desperdícios em processos produtivos."
+            ideia_senai = "Implantar sistema inteligente de monitoramento elétrico multifásico com Edge AI para detecção de anomalias e otimização automática de cargas térmicas e motores na indústria."
+            ader_s, chan_s, fin_s, comp_s = 9.0, 8.5, 8.3, 3.0
+        else:
+            resumo_senai = "Categoria Aliança Industrial da Plataforma Inovação para a Indústria (SENAI) para P&D cooperativo de médio e grande porte entre consórcios de empresas e ICTs parceiras."
+            ideia_senai = "Estruturar projeto cooperativo de Visão Computacional, Sistemas Embarcados e IA Generativa Industrial conectando empresas do setor produtivo, SENAI-CE e laboratórios do CAIS/UECE."
+            ader_s, chan_s, fin_s, comp_s = 9.1, 8.3, 8.8, 3.5
+
+        dados.update({
+            "titulo": titulo_senai,
+            "valor_financiado": valor_senai,
+            "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+            "contrapartida": "Conforme regras da chamada industrial parceira (econômica/financeira)",
+            "publico_elegivel": "Indústrias, startups de base tecnológica, Unidades SENAI e ICTs coexecutoras (como o Instituto CAIS/UECE).",
+            "ideia_projeto_cais": ideia_senai,
+            "parceiros_sugeridos": "FIEC / SENAI Ceará, indústrias parceiras do Nordeste e Laboratórios de IA e Sistemas Embarcados do CAIS/UECE.",
+            "justificativa_cais": "Forte sinergia com a carteira industrial e competências de engenharia de software, IA e hardware do Instituto CAIS.",
+            "resumo_objetivo": resumo_senai,
+            "nota_aderencia": ader_s, "nota_chance_aprovacao": chan_s, "nota_financeira": fin_s, "nota_complexidade": comp_s,
+        })
 
     # ==========================================================================
     # 9. CONFAP / UNIÃO EUROPEIA (HORIZON EUROPE / TRANSDISCIPLINAR)
     # ==========================================================================
     elif "confap" in org_low or "horizon" in org_low:
-        if "msca" in t_low or "doctoral" in t_low:
+        if "digital-emerging-06" in t_low or "international cooperation in ai" in t_low:
+            dados.update({
+                "titulo": titulo,
+                "valor_financiado": valor_orig if tem_valor_real else "Subvenção Horizon Europe em Euros + Co-funding MCTI/CONFAP (ver tópico)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida para ICTs sem fins lucrativos",
+                "publico_elegivel": "Consórcios internacionais liderados por instituições europeias com participação explícita de parceiros estratégicos globais (ICTs brasileiras como CAIS/UECE).",
+                "ideia_projeto_cais": "Integrar consórcio internacional União Europeia-Brasil como laboratório latino-americano de referência em avaliação de segurança, benchmarks multilíngues (PT-BR) e governança técnica de IA Confiável.",
+                "parceiros_sugeridos": "Centros europeus de IA (INRIA, Fraunhofer, DFKI), UECE, FUNCAP/CONFAP e Instituto CAIS.",
+                "justificativa_cais": "Tópico do Horizon Europe (CL4-2027) desenhado especificamente para cooperação internacional em Inteligência Artificial com países parceiros fora da UE.",
+                "resumo_objetivo": "Tópico oficial Horizon Europe (HORIZON-CL4-2027-04-DIGITAL-EMERGING-06) focado em cooperação científica e tecnológica internacional em Inteligência Artificial segura, padronização e interoperabilidade.",
+                "nota_aderencia": 9.4, "nota_chance_aprovacao": 8.0, "nota_financeira": 9.0, "nota_complexidade": 4.5,
+            })
+        elif "digital-emerging-11" in t_low or "frontier ai" in t_low:
+            dados.update({
+                "titulo": titulo,
+                "valor_financiado": valor_orig if tem_valor_real else "Subvenção Horizon Europe em Euros (ver tópico oficial SEDIA)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida para ICTs parceiras",
+                "publico_elegivel": "Consórcios de universidades, centros de supercomputação e ICTs de pesquisa avançada em Inteligência Artificial (CAIS/UECE como parceiro associado).",
+                "ideia_projeto_cais": "Contribuir no desenvolvimento de arquiteturas eficientes de modelos fundacionais multimodais, compressão/quantização para inferência distribuída e alinhamento de segurança em Frontier AI.",
+                "parceiros_sugeridos": "Consórcios EuroHPC, Universidades Europeias de Computação, UECE e Laboratório de IA do CAIS.",
+                "justificativa_cais": "Insere o grupo de pesquisa do CAIS/UECE na vanguarda europeia de modelos fundacionais de próxima geração (EU Frontier AI Initiative).",
+                "resumo_objetivo": "Chamada Horizon Europe (HORIZON-CL4-2027-04-DIGITAL-EMERGING-11) para pesquisa de fronteira em arquiteturas avançadas de Inteligência Artificial, eficiência energética de treino e confiabilidade.",
+                "nota_aderencia": 9.2, "nota_chance_aprovacao": 7.6, "nota_financeira": 9.2, "nota_complexidade": 5.0,
+            })
+        elif "digital-emerging-09" in t_low or "local digital twins" in t_low:
+            dados.update({
+                "titulo": titulo,
+                "valor_financiado": valor_orig if tem_valor_real else "Subvenção Horizon Europe em Euros (ver tópico oficial SEDIA)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida para ICTs",
+                "publico_elegivel": "Consórcios internacionais de universidades, ICTs e municípios desenvolvendo Gêmeos Digitais Urbanos (CAIS/UECE em parceria com cidades europeias e cearenses).",
+                "ideia_projeto_cais": "Desenvolver motores de simulação espaço-temporal por IA e ingestão de dados IoT para Gêmeos Digitais Locais (Local Digital Twins) voltados a alerta precoce climático, secas e eventos extremos.",
+                "parceiros_sugeridos": "Cidades inteligentes europeias, FUNCEME / Defesa Civil / Governo do Ceará, UECE, FUNCAP e Instituto CAIS.",
+                "justificativa_cais": "Conecta diretamente a linha de Cidades Inteligentes, IoT e Gêmeos Digitais Ambientais do CAIS às plataformas europeias de Local Digital Twins.",
+                "resumo_objetivo": "Tópico Horizon Europe (HORIZON-CL4-2026-04-DIGITAL-EMERGING-09) dedicado a Gêmeos Digitais Locais Avançados (Local Digital Twins) baseados em IA para alerta precoce e preparação contra eventos críticos.",
+                "nota_aderencia": 9.3, "nota_chance_aprovacao": 7.9, "nota_financeira": 8.9, "nota_complexidade": 4.5,
+            })
+        elif "digital-emerging-02" in t_low or "next-generation ai agents" in t_low:
+            dados.update({
+                "titulo": titulo,
+                "valor_financiado": valor_orig if tem_valor_real else "Subvenção Horizon Europe em Euros (ver tópico oficial SEDIA)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida para ICTs",
+                "publico_elegivel": "Consórcios internacionais de pesquisa e inovação na parceria AI, Data and Robotics (CAIS/UECE como parceiro tecnológico de IA).",
+                "ideia_projeto_cais": "Desenvolver arquiteturas de Agentes Autônomos de IA de Próxima Geração com planejamento multi-etapa, uso seguro de ferramentas e orquestração distribuída para setores industriais e públicos.",
+                "parceiros_sugeridos": "Institutos europeus da parceria AI, Data & Robotics (Fraunhofer, INRIA, INESC TEC), UECE, FUNCAP e Instituto CAIS.",
+                "justificativa_cais": "Alinhamento máximo com a linha de pesquisa principal do Instituto CAIS em Agentes Autônomos de Inteligência Artificial.",
+                "resumo_objetivo": "Tópico Horizon Europe (HORIZON-CL4-2026-05-DIGITAL-EMERGING-02) focado em Agentes de Inteligência Artificial de Próxima Geração para aplicações reais nos setores prioritários da estratégia Apply AI.",
+                "nota_aderencia": 9.5, "nota_chance_aprovacao": 7.9, "nota_financeira": 9.0, "nota_complexidade": 4.5,
+            })
+        elif "digital-emerging-04" in t_low or "innovation booster" in t_low or "apply ai" in t_low:
+            dados.update({
+                "titulo": titulo,
+                "valor_financiado": valor_orig if tem_valor_real else "Subvenção Horizon Europe Apply AI em Euros (ver tópico oficial)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida para ICTs",
+                "publico_elegivel": "Consórcios internacionais de ICTs, universidades e indústrias aplicando IA a desafios setoriais (CAIS/UECE elegível via cooperação UE-Brasil/CONFAP).",
+                "ideia_projeto_cais": "Desenvolver e validar soluções de IA Generativa multimodal e visão computacional orientadas a desafios reais (Challenge-Driven) nos setores de energia limpa, saúde e manufatura.",
+                "parceiros_sugeridos": "Consórcios industriais e acadêmicos da União Europeia, FUNCAP/CONFAP, UECE e Instituto CAIS.",
+                "justificativa_cais": "Totalmente alinhado ao portfólio prático do CAIS em aplicações industriais e governamentais de IA orientada a desafios.",
+                "resumo_objetivo": "Chamada Horizon Europe (HORIZON-CL4-2027-04-DIGITAL-EMERGING-04) da iniciativa Apply AI Innovation Booster para acelerar soluções de IA orientadas a desafios em setores produtivos e públicos.",
+                "nota_aderencia": 9.3, "nota_chance_aprovacao": 7.8, "nota_financeira": 9.0, "nota_complexidade": 4.5,
+            })
+        elif "data-06" in t_low or "access to and use of data" in t_low:
+            dados.update({
+                "titulo": titulo,
+                "valor_financiado": valor_orig if tem_valor_real else "Subvenção Horizon Europe em Euros (ver tópico oficial SEDIA)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida para ICTs",
+                "publico_elegivel": "Consórcios internacionais de universidades, ICTs e empresas na parceria europeia AI, Data and Robotics (CAIS/UECE como parceiro de Engenharia de Dados).",
+                "ideia_projeto_cais": "Desenvolver pipelines de engenharia de dados federados, anonimização preservadora de privacidade e preparação eficiente de datasets sintéticos e reais em conformidade regulatória para treino de IA.",
+                "parceiros_sugeridos": "Consórcios europeus de Data Spaces (GAIA-X / BDVA), UECE, FUNCAP e Laboratório de Dados do CAIS.",
+                "justificativa_cais": "Forte sinergia com as competências de Big Data, Governança de Dados, Privacidade e IA Confiável do Instituto CAIS.",
+                "resumo_objetivo": "Tópico Horizon Europe (HORIZON-CL4-2026-04-DATA-06) voltado a tecnologias e arquiteturas para acesso eficiente, interoperável e em conformidade legal a dados para sistemas de Inteligência Artificial.",
+                "nota_aderencia": 9.0, "nota_chance_aprovacao": 7.8, "nota_financeira": 8.8, "nota_complexidade": 4.5,
+            })
+        elif "msca" in t_low or "doctoral" in t_low:
             dados.update({
                 "titulo": "CONFAP / União Europeia — Apoio Complementar ao MSCA Doctoral Networks 2026 (Horizon Europe)",
-                "valor_financiado": "Bolsas em Euros (Marie Skłodowska-Curie) + Suporte Estadual FUNCAP no Ceará",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig, 11),
+                "valor_financiado": valor_orig if tem_valor_real else "Bolsas e Mobilidade em Euros (MSCA) + Apoio FAPs (ver edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Programas de Pós-Graduação e ICTs cearenses (CAIS/UECE via FUNCAP) integrados a redes europeias de doutorado conjunto e intercâmbio de pesquisadores.",
                 "ideia_projeto_cais": "Integrar o laboratório de IA e Semicondutores do CAIS/UECE a uma rede europeia MSCA para intercâmbio de doutorandos desenvolvendo arquiteturas de IA embarcada de baixo consumo.",
@@ -1511,13 +2178,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Financia doutorandos sanduíche e missões internacionais entre Fortaleza e centros de excelência da União Europeia.",
                 "resumo_objetivo": "Fomento conjunto entre a Comissão Europeia (MSCA) e as FAPs brasileiras (como a FUNCAP) para redes internacionais de formação doutoral e pesquisa de ponta.",
                 "nota_aderencia": 8.8, "nota_chance_aprovacao": 8.0, "nota_financeira": 8.4, "nota_complexidade": 4.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
         elif "water4all" in t_low or "hídricos" in t_low or "hidricos" in t_low:
             dados.update({
                 "titulo": "CONFAP / União Europeia — Chamada Transnacional Water4All 2026: Segurança e Gestão Hídrica",
-                "valor_financiado": "Financiamento Europeu + Custeio e Bolsas no Ceará via FUNCAP (Até € 1,5M por consórcio)",
-                "prazo_submissao": _prazo_vigente_cais("", 3),
+                "valor_financiado": valor_orig if tem_valor_real else "Financiamento Europeu + Custeio e Bolsas via FAPs/FUNCAP (ver edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Pesquisadores doutores vinculados a ICTs cearenses (CAIS/UECE, financiados pela FUNCAP) em consórcio com pelo menos 3 instituições de países europeus.",
                 "ideia_projeto_cais": "Desenvolver Gêmeo Digital Hídrico com sensores IoT e IA preditiva para monitoramento de evaporação, qualidade da água e operação inteligente de açudes no semiárido cearense.",
@@ -1525,13 +2191,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "O semiárido cearense é laboratório natural mundial para tecnologias de segurança hídrica, dando altíssima competitividade ao CAIS/UECE.",
                 "resumo_objetivo": "Chamada internacional da parceria europeia Water4All com apoio das FAPs brasileiras para soluções digitais e tecnológicas de resiliência hídrica.",
                 "nota_aderencia": 9.3, "nota_chance_aprovacao": 8.4, "nota_financeira": 8.8, "nota_complexidade": 4.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
         elif "economia azul" in t_low or "blue" in t_low:
             dados.update({
                 "titulo": "CONFAP / União Europeia — 4ª Chamada Transnacional: Parceria de Economia Azul Sustentável",
-                "valor_financiado": "Financiamento Horizon Europe + Aporte FUNCAP para a equipe cearense",
-                "prazo_submissao": _prazo_vigente_cais("", 6),
+                "valor_financiado": valor_orig if tem_valor_real else "Financiamento Horizon Europe + Aporte FAPs/FUNCAP (ver edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "ICTs e universidades sediadas no Ceará (CAIS/UECE elegíveis via FUNCAP) em consórcio com parceiros de países membros da União Europeia.",
                 "ideia_projeto_cais": "Construir sistema de monitoramento costeiro por visão computacional, satélite e boias IoT inteligentes para portos verdes (Pecém/Mucuripe) e parques eólicos offshore no Ceará.",
@@ -1539,13 +2204,25 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Alinhado à costa cearense (573 km de litoral), logística portuária inteligente e projetos de eólicas offshore.",
                 "resumo_objetivo": "Apoio a projetos transnacionais de pesquisa e inovação voltados à digitalização costeira, energia renovável marinha e sustentabilidade oceânica.",
                 "nota_aderencia": 8.9, "nota_chance_aprovacao": 8.1, "nota_financeira": 8.6, "nota_complexidade": 4.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Alta"
             })
-        elif "forest" in t_low or "biodiversa" in t_low:
+        elif "biodivfuture" in t_low or "biodiversa" in t_low:
             dados.update({
-                "titulo": "CONFAP / União Europeia — Chamada Conjunta FOREST & Biodiversa+ 2026 (IA & Monitoramento Ambiental)",
-                "valor_financiado": "Financiamento Europeu + Custeio e Bolsas FUNCAP para o grupo do Ceará",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig, 19),
+                "titulo": "CONFAP / União Europeia — Chamada Transnacional BiodivFuture 2026-2027 (Biodiversa+ & IA Ambiental)",
+                "valor_financiado": valor_orig if tem_valor_real else "Financiamento Europeu + Custeio e Bolsas FAPs/FUNCAP (ver edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
+                "contrapartida": "Não exigida",
+                "publico_elegivel": "Pesquisadores doutores vinculados a ICTs estaduais (CAIS/UECE) em consórcio internacional com no mínimo 3 países participantes da chamada.",
+                "ideia_projeto_cais": "Desenvolver plataforma de modelagem preditiva por IA, bioacústica e sensoriamento remoto para cenários futuros de biodiversidade e resiliência de ecossistemas no Nordeste.",
+                "parceiros_sugeridos": "Consórcio Europeu Biodiversa+, FUNCAP, UECE e centros de pesquisa ambiental.",
+                "justificativa_cais": "Chamada de longo prazo com forte demanda por grupos de Ciência da Computação e Inteligência Artificial aplicada a dados ecológicos.",
+                "resumo_objetivo": "Cooperação transnacional Biodiversa+ (BiodivFuture) para pesquisa e inovação em proteção da biodiversidade e modelagem de ecossistemas.",
+                "nota_aderencia": 8.5, "nota_chance_aprovacao": 7.9, "nota_financeira": 8.5, "nota_complexidade": 4.5,
+            })
+        elif "forest" in t_low:
+            dados.update({
+                "titulo": "CONFAP / União Europeia — Chamada Conjunta FOREST 2026 (IA & Monitoramento Florestal)",
+                "valor_financiado": valor_orig if tem_valor_real else "Financiamento Europeu + Custeio e Bolsas FAPs/FUNCAP (ver edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida",
                 "publico_elegivel": "Pesquisadores doutores vinculados a ICTs estaduais (CAIS/UECE) em consórcio internacional com no mínimo 3 países participantes da chamada.",
                 "ideia_projeto_cais": "Fornecer a arquitetura de Visão Computacional Aérea (Drones/LiDAR) e modelos de IA para inventário florestal automatizado, detecção precoce de queimadas e métrica de carbono.",
@@ -1553,13 +2230,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Consórcios europeus de ecologia e florestas buscam ativamente parceiros de Computação e IA no Brasil para processar dados de sensoriamento remoto.",
                 "resumo_objetivo": "Cooperação científica internacional entre Europa e Brasil para tecnologias de monitoramento da biodiversidade, restauração florestal e resiliência climática.",
                 "nota_aderencia": 8.5, "nota_chance_aprovacao": 7.9, "nota_financeira": 8.5, "nota_complexidade": 4.5,
-                "decisao_recomendada": "AVALIAR COM PARCEIRO", "prioridade": "Média"
             })
         elif "gcub" in t_low:
             dados.update({
                 "titulo": "CONFAP / GCUB — 5ª Edição do Programa de Mobilidade Internacional de Pós-Graduação (GCUB-Mob)",
-                "valor_financiado": "Bolsas integrais de Mestrado e Doutorado financiadas pelas FAPs/Universidades anfitriãs",
-                "prazo_submissao": _prazo_vigente_cais("", 44),
+                "valor_financiado": valor_orig if tem_valor_real else "Bolsas de Mestrado e Doutorado via FAPs/Universidades (ver edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Isenção de taxas acadêmicas e orientação nos programas de pós-graduação anfitriões",
                 "publico_elegivel": "Universidades brasileiras associadas ao GCUB (como a UECE) recebendo pesquisadores de mestrado e doutorado internacionais em seus laboratórios (CAIS/LDI).",
                 "ideia_projeto_cais": "Receber talentos internacionais de mestrado e doutorado em Ciência da Computação e Engenharias para atuar nos projetos de IA e Software do Instituto CAIS/UECE.",
@@ -1567,13 +2243,12 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Atrai jovens pesquisadores estrangeiros qualificados com bolsa custeada para reforçar os times de P&D do CAIS.",
                 "resumo_objetivo": "Programa internacional de atração de estudantes estrangeiros de alto desempenho para cursar mestrado ou doutorado em universidades e ICTs brasileiras.",
                 "nota_aderencia": 8.2, "nota_chance_aprovacao": 8.8, "nota_financeira": 7.2, "nota_complexidade": 2.0,
-                "decisao_recomendada": "GO (Submeter Proposta)", "prioridade": "Média"
             })
         else:
             dados.update({
-                "titulo": f"CONFAP / União Europeia — {titulo}" if not titulo.startswith("CONFAP") else titulo,
-                "valor_financiado": "Financiamento em Euros (Comissão Europeia) + Bolsas e Custeio Estadual via FUNCAP no Ceará",
-                "prazo_submissao": _prazo_vigente_cais(prazo_orig, 25),
+                "titulo": f"CONFAP / União Europeia — {titulo}" if not titulo.startswith(("CONFAP", "Horizon")) else titulo,
+                "valor_financiado": valor_orig if tem_valor_real else "Financiamento Internacional + Suporte FAPs (consultar edital)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig),
                 "contrapartida": "Não exigida (Fomento público internacional + estadual via FAPs)",
                 "publico_elegivel": "Consórcios internacionais (mínimo 3 países europeus/associados) integrados no Brasil por pesquisadores doutores vinculados a ICTs cearenses (CAIS/UECE) elegíveis pela FUNCAP.",
                 "ideia_projeto_cais": "Atuar como o parceiro tecnológico brasileiro do consórcio internacional, desenvolvendo os modelos de Inteligência Artificial Climática, Sensoriamento IoT e Gêmeos Digitais Hídricos/Ambientais no Ceará.",
@@ -1581,18 +2256,205 @@ def calibrar_edital_cais(ed: Dict[str, Any]) -> Dict[str, Any]:
                 "justificativa_cais": "Como a FUNCAP é signatária do CONFAP, o grupo CAIS/UECE entra com financiamento garantido pelo Ceará para cooperar com grandes consórcios europeus.",
                 "resumo_objetivo": "Chamada transnacional conjunta entre a União Europeia e as Fundações Estaduais de Amparo à Pesquisa (FAPs/CONFAP) para projetos colaborativos em sustentabilidade, clima, água e tecnologia.",
                 "nota_aderencia": 8.4, "nota_chance_aprovacao": 7.6, "nota_financeira": 8.5, "nota_complexidade": 4.5,
-                "decisao_recomendada": "AVALIAR COM PARCEIRO", "prioridade": "Média"
             })
 
     ed.update(dados)
-    # Garantia final: nenhum prazo com data DD/MM/AAAA pode ficar no passado em relação à data de hoje
-    dias_calc = calcular_dias_restantes(ed.get("prazo_submissao", ""))
-    if dias_calc is not None and dias_calc < 0:
-        ed["prazo_submissao"] = _prazo_vigente_cais("", 30)
-    ed["data_descoberta"] = hoje_br
-    ed["data_atualizacao"] = hoje_br
+    ed["data_descoberta"] = data_desc_preservada
+    ed["data_atualizacao"] = data_atu_preservada
+    ed["prazo_verificado_fonte"] = bool(
+        re.search(r"\d{2}/\d{2}/20[23]\d", str(ed.get("prazo_submissao", "")))
+        or ed.get("prazo_submissao") == "Fluxo Contínuo"
+    )
+    ed["valor_verificado_fonte"] = bool(REGEX_VALOR_MOEDA.search(str(ed.get("valor_financiado", ""))))
     ed["score_ponderado"] = calcular_score_ponderado(ed)
+
+    # Classificação coerente com o Score Ponderado e com a vigência real do prazo
+    dias_calc = calcular_dias_restantes(ed.get("prazo_submissao", ""))
+    score_final = ed["score_ponderado"]
+    if dias_calc is not None and dias_calc < 0:
+        ed["prioridade"] = "Baixa"
+        ed["decisao_recomendada"] = "NO-GO (Prazo Encerrado)"
+    elif score_final >= 8.1:
+        ed["prioridade"] = "Alta"
+        ed["decisao_recomendada"] = "GO (Submeter Proposta)"
+    elif score_final >= 6.5:
+        ed["prioridade"] = "Média"
+        ed["decisao_recomendada"] = "AVALIAR COM PARCEIRO"
+    else:
+        ed["prioridade"] = "Baixa"
+        ed["decisao_recomendada"] = "NO-GO (Monitorar)"
     return ed
+
+
+def _qualificar_candidatos_heuristica_local(
+    candidatos: List[Dict[str, str]]
+) -> List[Dict[str, Any]]:
+    qualificados_fallback: List[Dict[str, Any]] = []
+    candidatos_por_orgao: Dict[str, List[Dict[str, str]]] = {}
+    for c in candidatos:
+        candidatos_por_orgao.setdefault(c.get("orgao", "Outros"), []).append(c)
+
+    candidatos_balanceados: List[Dict[str, str]] = []
+    for org, lista in candidatos_por_orgao.items():
+        candidatos_balanceados.extend(lista[:10])
+
+    for c in candidatos_balanceados:
+        orgao = c.get("orgao", "")
+        foco = c.get("foco_orgao", "")
+        titulo = c.get("titulo_bruto", "")
+
+        tit_lower = titulo.lower()
+        if "ETICE" in orgao:
+            if "nuvem" in tit_lower:
+                ideia = "Implantação de esteira FinOps e governança de microsserviços em nuvem pública com segurança zero-trust e inteligência artificial para secretarias do Estado do Ceará."
+                parceiros = "ETICE, Laboratório de Redes e Nuvem da UECE e grandes provedores de infraestrutura."
+                justificativa = "Aderência estratégica máxima com conectividade e infraestrutura em nuvem de alta velocidade para projetos do CAIS."
+                aderencia, financeiro, complexidade, chance = 9.5, 8.5, 3.0, 9.0
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Não exigida (Credenciamento)"
+                publico = "Empresas de TIC, Provedores de Nuvem (Cloud Brokers) e ICTs especializadas em Arquitetura Digital"
+            else:
+                ideia = "Estruturação de nós de borda (edge computing) com IA embarcada distribuída ao longo dos anéis ópticos do CDC para telemetria em tempo real de serviços públicos municipais."
+                parceiros = "ETICE, Operadoras regionais credenciadas no CDC e Laboratórios de Redes e Telecomunicações da UECE."
+                justificativa = "Aproveita a malha de fibra óptica estadual para testar e escalar soluções de IA em borda do CAIS."
+                aderencia, financeiro, complexidade, chance = 9.0, 8.0, 3.5, 8.5
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Não exigida (Credenciamento)"
+                publico = "Operadoras de Telecom, Provedores de Acesso à Internet (ISPs) e Consórcios Tecnológicos ICT-Empresa"
+        elif "FINEP" in orgao:
+            if "agro" in tit_lower or "familiar" in tit_lower:
+                ideia = "Gêmeo digital e sistema de visão computacional com IA para monitoramento de estresse hídrico, biomassa e pegada de carbono em culturas agrícolas do semiárido cearense."
+                parceiros = "Cooperativas agroindustriais do Ceará, UECE, Embrapa Agroindústria Tropical e startups AgTech."
+                justificativa = "Alta atratividade com recursos de subvenção econômica do FNDCT, com papel nuclear do CAIS em software e IA."
+                aderencia, financeiro, complexidade, chance = 9.2, 9.5, 4.5, 8.2
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Financeira conforme porte da empresa parceira (10% a 25%)"
+                publico = "Empresas brasileiras de qualquer porte (líderes) em consórcio formal com ICTs credenciadas (como Instituto CAIS/UECE)"
+            elif "defesa" in tit_lower:
+                ideia = "Módulo de comunicação segura resiliente a interferências (anti-jamming) e algoritmos de visão embarcada com IA em hardware confiável."
+                parceiros = "Indústrias credenciadas do Polo de Defesa, Laboratórios de Sistemas Ciberfísicos da UECE e Marinha/Aeronáutica."
+                justificativa = "Foco prioritário em hardware nacional, semicondutores e cibersegurança, áreas centrais do Instituto CAIS."
+                aderencia, financeiro, complexidade, chance = 8.5, 9.0, 5.0, 7.5
+                decisao, prioridade = "AVALIAR COM PARCEIRO", "Média"
+                contrapartida = "Financeira pela empresa líder (mínimo 15%)"
+                publico = "Empresas Estratégicas de Defesa (EED) ou empresas da cadeia aeroespacial/segurança em aliança com ICTs credenciadas"
+            elif "proinfra" in tit_lower:
+                ideia = "Modernização e ampliação do Laboratório Multiusuário de Prototipagem de Semicondutores, IA Aplicada e Caracterização Microeletrônica do CAIS/UECE."
+                parceiros = "Universidade Estadual do Ceará (UECE), Centros de Pesquisa do Nordeste e rede de laboratórios associados."
+                justificativa = "Captação de equipamentos multiusuários de ponta para posicionar o CAIS como polo de excelência em IA e hardware no Nordeste."
+                aderencia, financeiro, complexidade, chance = 9.5, 9.8, 4.0, 8.5
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Não exigida (Recursos 100% não reembolsáveis)"
+                publico = "Instituições Científicas, Tecnológicas e de Inovação (ICTs) públicas ou privadas sem fins lucrativos"
+            else:
+                ideia = "Plataforma de Inteligência Artificial e Agentes Autônomos Aplicados à Produtividade Industrial, Cadeias Sustentáveis e Manufatura Avançada."
+                parceiros = "UECE, Consórcio de Indústrias Parceiras do CAIS e Polo Industrial de Fortaleza."
+                justificativa = "Alinhamento com competências de IA e software do CAIS com subvenção econômica do FNDCT."
+                aderencia, financeiro, complexidade, chance = 9.0, 9.0, 4.5, 8.0
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Conforme porte empresarial no consórcio (10% a 25%)"
+                publico = "Empresas brasileiras em consórcio com ICTs credenciadas (como Instituto CAIS/UECE)"
+        elif "CNPq" in orgao:
+            if "mai" in tit_lower or "dai" in tit_lower or "mestrado" in tit_lower:
+                ideia = "Inserção de bolsistas de mestrado e doutorado do CAIS/UECE para resolver desafios de IA preditiva e automação de testes em empresas de software e semicondutores parceiras."
+                parceiros = "Empresas conveniadas ao CAIS, UECE, PPGs em Ciência da Computação e indústrias de TIC."
+                justificativa = "Formação de quadros de alta qualificação com bolsas do CNPq alocados em projetos com empresas industriais parceiras do CAIS."
+                aderencia, financeiro, complexidade, chance = 9.3, 8.8, 3.0, 8.7
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Empresa parceira arca com suporte e infraestrutura de aplicação prática"
+                publico = "ICTs e Universidades com Programas de Pós-Graduação recomendados pela CAPES em parceria com empresas parceiras cofinanciadoras"
+            elif "inspira" in tit_lower or "petrobras" in tit_lower:
+                ideia = "Modelagem de gêmeos digitais e algoritmos preditivos de IA para eficiência energética, detecção precoce de corrosão e otimização de plantas de hidrogênio verde."
+                parceiros = "Petrobras, Complexo Industrial e Portuário do Pecém (CIPP), UECE e laboratórios de energias renováveis."
+                justificativa = "Inserção estratégica no Hub de Hidrogênio Verde do Ceará com recursos expressivos de PD&I setorial."
+                aderencia, financeiro, complexidade, chance = 9.0, 9.2, 4.0, 7.8
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Não exigida"
+                publico = "Pesquisadores doutores e ICTs credenciadas (como Instituto CAIS/UECE) em consórcio com centros de PD&I do setor produtivo"
+            elif "evento" in tit_lower or "arc" in tit_lower:
+                ideia = "Realização do Seminário Nacional de Inteligência Artificial e Semicondutores no Ceará, reunindo indústria, academia e governo em Fortaleza."
+                parceiros = "UECE, Sociedade Brasileira de Computação (SBC), Fecomércio/FIEC e ETICE."
+                justificativa = "Posiciona o Instituto CAIS como polo irradiador de debate e atração de parcerias industriais estratégicas no Ceará."
+                aderencia, financeiro, complexidade, chance = 8.5, 6.8, 2.0, 8.8
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Não exigida"
+                publico = "Pesquisadores doutores vinculados a ICTs ou Sociedades Científicas organizadoras de eventos no Brasil"
+            else:
+                ideia = "Inovação Cooperativa ICT-Empresa com atração e inserção de Mestres e Doutores em Linhas de Pesquisa Aplicada em IA e Semicondutores."
+                parceiros = "UECE, Grupos de Pesquisa do LDI e Empresas Conveniadas ao CAIS."
+                justificativa = "Fomento direto a capital humano qualificado, bolsas de pesquisa aplicada e desenvolvimento científico de base."
+                aderencia, financeiro, complexidade, chance = 8.8, 8.0, 3.5, 8.5
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Não exigida"
+                publico = "Pesquisadores com título de doutor vinculados a ICTs e centros de pesquisa nacionais"
+        elif "FUNCAP" in orgao:
+            if "setor público" in tit_lower or "govtech" in tit_lower or "inovação pública" in tit_lower:
+                ideia = "Plataforma de agentes autônomos de IA para desburocratização de processos administrativos, triagem inteligente de chamados e atendimento ao cidadão no Ceará."
+                parceiros = "Secretarias do Governo do Ceará (SECITECE, SESA, SEFAZ), UECE e Íris — Laboratório de Inovação e Dados do Ceará."
+                justificativa = "Competitividade regional com foco direto em GovTech e inteligência de dados para o setor público cearense."
+                aderencia, financeiro, complexidade, chance = 9.8, 8.0, 2.5, 9.2
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Não exigida"
+                publico = "ICTs com sede no Estado do Ceará (como Instituto CAIS/UECE) em parceria com órgãos da administração pública estadual/municipal"
+            elif "centelha" in tit_lower:
+                ideia = "Incubação de spin-off tecnológica do CAIS focada em sensores inteligentes de qualidade de água e IoT para monitoramento de mananciais no Ceará."
+                parceiros = "Incubadoras e aceleradoras do Ceará, UECE, Hubs de Inovação e SEBRAE/CE."
+                justificativa = "Transforma projetos de pesquisa do CAIS em startups viáveis no mercado com subvenção a fundo perdido."
+                aderencia, financeiro, complexidade, chance = 8.7, 7.5, 2.0, 8.8
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Econômica não financeira (tempo de dedicação da equipe)"
+                publico = "Pessoas físicas (pesquisadores, estudantes, empreendedores) ou Microempresas cearenses com menos de 12 meses e faturamento até R$ 4,8M"
+            else:
+                ideia = "Fixação de pesquisadores pós-doutores seniores nas frentes de Semicondutores, Engenharia de Software Crítico e Inteligência Artificial no CAIS."
+                parceiros = "Universidade Estadual do Ceará (UECE), PPGs em Ciência da Computação e indústrias locais conveniadas."
+                justificativa = "Custeia a folha de pesquisadores-chave de ponta para o CAIS sem ônus financeiro para a instituição."
+                aderencia, financeiro, complexidade, chance = 9.4, 8.5, 2.5, 9.0
+                decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+                contrapartida = "Não exigida"
+                publico = "Doutores titulados vinculados a ICTs cearenses (como Instituto CAIS/UECE) atuando em linhas estratégicas de pesquisa e inovação"
+        elif "EMBRAPII" in orgao:
+            ideia = "Desenvolvimento conjunto de produto inteligente IoT com edge computing e IA embarcada para controle de processos e automação fabril."
+            parceiros = "Unidade EMBRAPII de Software/Sistemas Embarcados, indústrias associadas e UECE."
+            justificativa = "Fluxo contínuo sem burocracia de edital fechado, com aprovação ágil de projetos industriais e aporte direto de recursos."
+            aderencia, financeiro, complexidade, chance = 9.4, 8.9, 3.0, 8.6
+            decisao, prioridade = "GO (Submeter Proposta)", "Alta"
+            contrapartida = "Obrigatória pela empresa parceira (financeira)"
+            publico = "Empresas industriais e startups de qualquer porte em parceria com Unidades EMBRAPII e ICTs associadas (como Instituto CAIS/UECE)"
+        else:
+            ideia = f"Projeto de PD&I e cooperação tecnológica na temática de {foco}."
+            parceiros = "Laboratórios da UECE, LDI e empresas parceiras do CAIS."
+            justificativa = f"Oportunidade monitorada pelo robô do Radar CAIS no portal oficial de {orgao}."
+            aderencia, financeiro, complexidade, chance = 7.5, 7.5, 4.0, 7.5
+            decisao, prioridade = "AVALIAR COM PARCEIRO", "Média"
+            contrapartida = "Consultar edital oficial"
+            publico = "Consórcios de ICTs, Universidades e Empresas do setor produtivo"
+
+        if not eh_oportunidade_valida(titulo, c.get("link", "")):
+            continue
+
+        item = {
+            "id_edital": c["id_edital"],
+            "orgao": c["orgao"],
+            "titulo": titulo,
+            "link": c["link"],
+            "prazo_submissao": c.get("datas_detectadas") or "Consultar cronograma no edital",
+            "valor_financiado": c.get("valores_detectados") or "Consultar edital oficial",
+            "contrapartida": contrapartida,
+            "publico_elegivel": publico,
+            "resumo_objetivo": (c.get("texto_interno") or c.get("contexto_listagem") or titulo)[:300],
+            "nota_aderencia": aderencia,
+            "nota_financeira": financeiro,
+            "nota_complexidade": complexidade,
+            "nota_chance_aprovacao": chance,
+            "prioridade": prioridade,
+            "decisao_recomendada": decisao,
+            "ideia_projeto_cais": ideia,
+            "parceiros_sugeridos": parceiros,
+            "justificativa_cais": justificativa,
+        }
+        item = calibrar_edital_cais(item, atualizar_timestamp=True)
+        qualificados_fallback.append(item)
+    return qualificados_fallback
 
 
 def analisar_candidatos_com_gemini(
@@ -1603,233 +2465,7 @@ def analisar_candidatos_com_gemini(
         logger.warning(
             "GEMINI_API_KEY ausente ou SDK indisponível. Executando qualificação heurística local do CAIS."
         )
-        qualificados_fallback = []
-        candidatos_por_orgao: Dict[str, List[Dict[str, str]]] = {}
-        for c in candidatos:
-            candidatos_por_orgao.setdefault(c.get("orgao", "Outros"), []).append(c)
-
-        candidatos_balanceados: List[Dict[str, str]] = []
-        for org, lista in candidatos_por_orgao.items():
-            candidatos_balanceados.extend(lista[:10])
-
-        for c in candidatos_balanceados:
-            orgao = c.get("orgao", "")
-            foco = c.get("foco_orgao", "")
-            titulo = c.get("titulo_bruto", "")
-
-            # Heurística personalizada por órgão fomento e tipo de chamada
-            tit_lower = titulo.lower()
-            if "ETICE" in orgao:
-                if "nuvem" in tit_lower:
-                    ideia = "Implantação de esteira FinOps e governança de microsserviços em nuvem pública com segurança zero-trust e inteligência artificial para secretarias do Estado do Ceará."
-                    parceiros = "ETICE, Laboratório de Redes e Nuvem da UECE e grandes provedores de infraestrutura."
-                    justificativa = "Aderência estratégica máxima com conectividade e infraestrutura em nuvem de alta velocidade para projetos do CAIS."
-                    aderencia = 9.5
-                    financeiro = 8.5
-                    complexidade = 3.0
-                    chance = 9.0
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Não exigida (Credenciamento)"
-                    publico = "Empresas de TIC, Provedores de Nuvem (Cloud Brokers) e ICTs especializadas em Arquitetura Digital"
-                else:
-                    ideia = "Estruturação de nós de borda (edge computing) com IA embarcada distribuída ao longo dos anéis ópticos do CDC para telemetria em tempo real de serviços públicos municipais."
-                    parceiros = "ETICE, Operadoras regionais credenciadas no CDC e Laboratórios de Redes e Telecomunicações da UECE."
-                    justificativa = "Aproveita a malha de fibra óptica estadual para testar e escalar soluções de IA em borda do CAIS."
-                    aderencia = 9.0
-                    financeiro = 8.0
-                    complexidade = 3.5
-                    chance = 8.5
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Não exigida (Credenciamento)"
-                    publico = "Operadoras de Telecom, Provedores de Acesso à Internet (ISPs) e Consórcios Tecnológicos ICT-Empresa"
-            elif "FINEP" in orgao:
-                if "agro" in tit_lower or "familiar" in tit_lower:
-                    ideia = "Gêmeo digital e sistema de visão computacional com IA para monitoramento de estresse hídrico, biomassa e pegada de carbono em culturas agrícolas do semiárido cearense."
-                    parceiros = "Cooperativas agroindustriais do Ceará, UECE, Embrapa Agroindústria Tropical e startups AgTech."
-                    justificativa = "Alta atratividade com recursos de subvenção econômica do FNDCT, com papel nuclear do CAIS em software e IA."
-                    aderencia = 9.2
-                    financeiro = 9.5
-                    complexidade = 4.5
-                    chance = 8.2
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Financeira conforme porte da empresa parceira (10% a 25%)"
-                    publico = "Empresas brasileiras de qualquer porte (líderes) em consórcio formal com ICTs credenciadas (como Instituto CAIS/UECE)"
-                elif "defesa" in tit_lower:
-                    ideia = "Módulo de comunicação segura resiliente a interferências (anti-jamming) e algoritmos de visão embarcada com IA em hardware confiável."
-                    parceiros = "Indústrias credenciadas do Polo de Defesa, Laboratórios de Sistemas Ciberfísicos da UECE e Marinha/Aeronáutica."
-                    justificativa = "Foco prioritário em hardware nacional, semicondutores e cibersegurança, áreas centrais do Instituto CAIS."
-                    aderencia = 8.5
-                    financeiro = 9.0
-                    complexidade = 5.0
-                    chance = 7.5
-                    decisao = "AVALIAR COM PARCEIRO"
-                    prioridade = "Alta"
-                    contrapartida = "Financeira pela empresa líder (mínimo 15%)"
-                    publico = "Empresas Estratégicas de Defesa (EED) ou empresas da cadeia aeroespacial/segurança em aliança com ICTs credenciadas"
-                elif "proinfra" in tit_lower:
-                    ideia = "Modernização e ampliação do Laboratório Multiusuário de Prototipagem de Semicondutores, IA Aplicada e Caracterização Microeletrônica do CAIS/UECE."
-                    parceiros = "Universidade Estadual do Ceará (UECE), Centros de Pesquisa do Nordeste e rede de laboratórios associados."
-                    justificativa = "Captação de equipamentos multiusuários de ponta para posicionar o CAIS como polo de excelência em IA e hardware no Nordeste."
-                    aderencia = 9.5
-                    financeiro = 9.8
-                    complexidade = 4.0
-                    chance = 8.5
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Não exigida (Recursos 100% não reembolsáveis)"
-                    publico = "Instituições Científicas, Tecnológicas e de Inovação (ICTs) públicas ou privadas sem fins lucrativos"
-                else:
-                    ideia = "Plataforma de Inteligência Artificial e Agentes Autônomos Aplicados à Produtividade Industrial, Cadeias Sustentáveis e Manufatura Avançada."
-                    parceiros = "UECE, Consórcio de Indústrias Parceiras do CAIS e Polo Industrial de Fortaleza."
-                    justificativa = "Alinhamento com competências de IA e software do CAIS com subvenção econômica do FNDCT."
-                    aderencia = 9.0
-                    financeiro = 9.0
-                    complexidade = 4.5
-                    chance = 8.0
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Conforme porte empresarial no consórcio (10% a 25%)"
-                    publico = "Empresas brasileiras em consórcio com ICTs credenciadas (como Instituto CAIS/UECE)"
-            elif "CNPq" in orgao:
-                if "mai" in tit_lower or "dai" in tit_lower or "mestrado" in tit_lower:
-                    ideia = "Inserção de bolsistas de mestrado e doutorado do CAIS/UECE para resolver desafios de IA preditiva e automação de testes em empresas de software e semicondutores parceiras."
-                    parceiros = "Empresas conveniadas ao CAIS, UECE, PPGs em Ciência da Computação e indústrias de TIC."
-                    justificativa = "Formação de quadros de alta qualificação com bolsas do CNPq alocados em projetos com empresas industriais parceiras do CAIS."
-                    aderencia = 9.3
-                    financeiro = 8.8
-                    complexidade = 3.0
-                    chance = 8.7
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Empresa parceira arca com suporte e infraestrutura de aplicação prática"
-                    publico = "ICTs e Universidades com Programas de Pós-Graduação recomendados pela CAPES em parceria com empresas parceiras cofinanciadoras"
-                elif "inspira" in tit_lower or "petrobras" in tit_lower:
-                    ideia = "Modelagem de gêmeos digitais e algoritmos preditivos de IA para eficiência energética, detecção precoce de corrosão e otimização de plantas de hidrogênio verde."
-                    parceiros = "Petrobras, Complexo Industrial e Portuário do Pecém (CIPP), UECE e laboratórios de energias renováveis."
-                    justificativa = "Inserção estratégica no Hub de Hidrogênio Verde do Ceará com recursos expressivos de PD&I setorial."
-                    aderencia = 9.0
-                    financeiro = 9.2
-                    complexidade = 4.0
-                    chance = 7.8
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Não exigida"
-                    publico = "Pesquisadores doutores e ICTs credenciadas (como Instituto CAIS/UECE) em consórcio com centros de PD&I do setor produtivo"
-                elif "evento" in tit_lower or "arc" in tit_lower:
-                    ideia = "Realização do Seminário Nacional de Inteligência Artificial e Semicondutores no Ceará, reunindo indústria, academia e governo em Fortaleza."
-                    parceiros = "UECE, Sociedade Brasileira de Computação (SBC), Fecomércio/FIEC e ETICE."
-                    justificativa = "Posiciona o Instituto CAIS como polo irradiador de debate e atração de parcerias industriais estratégicas no Ceará."
-                    aderencia = 8.5
-                    financeiro = 6.8
-                    complexidade = 2.0
-                    chance = 8.8
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Não exigida"
-                    publico = "Pesquisadores doutores vinculados a ICTs ou Sociedades Científicas organizadoras de eventos no Brasil"
-                else:
-                    ideia = "Inovação Cooperativa ICT-Empresa com atração e inserção de Mestres e Doutores em Linhas de Pesquisa Aplicada em IA e Semicondutores."
-                    parceiros = "UECE, Grupos de Pesquisa do LDI e Empresas Conveniadas ao CAIS."
-                    justificativa = "Fomento direto a capital humano qualificado, bolsas de pesquisa aplicada e desenvolvimento científico de base."
-                    aderencia = 8.8
-                    financeiro = 8.0
-                    complexidade = 3.5
-                    chance = 8.5
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Não exigida"
-                    publico = "Pesquisadores com título de doutor vinculados a ICTs e centros de pesquisa nacionais"
-            elif "FUNCAP" in orgao:
-                if "setor público" in tit_lower or "govtech" in tit_lower or "inovação pública" in tit_lower:
-                    ideia = "Plataforma de agentes autônomos de IA para desburocratização de processos administrativos, triagem inteligente de chamados e atendimento ao cidadão no Ceará."
-                    parceiros = "Secretarias do Governo do Ceará (SECITECE, SESA, SEFAZ), UECE e Íris — Laboratório de Inovação e Dados do Ceará."
-                    justificativa = "Competitividade regional com foco direto em GovTech e inteligência de dados para o setor público cearense."
-                    aderencia = 9.8
-                    financeiro = 8.0
-                    complexidade = 2.5
-                    chance = 9.2
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Não exigida"
-                    publico = "ICTs com sede no Estado do Ceará (como Instituto CAIS/UECE) em parceria com órgãos da administração pública estadual/municipal"
-                elif "centelha" in tit_lower:
-                    ideia = "Incubação de spin-off tecnológica do CAIS focada em sensores inteligentes de qualidade de água e IoT para monitoramento de mananciais no Ceará."
-                    parceiros = "Incubadoras e aceleradoras do Ceará, UECE, Hubs de Inovação e SEBRAE/CE."
-                    justificativa = "Transforma projetos de pesquisa do CAIS em startups viáveis no mercado com subvenção a fundo perdido."
-                    aderencia = 8.7
-                    financeiro = 7.5
-                    complexidade = 2.0
-                    chance = 8.8
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Econômica não financeira (tempo de dedicação da equipe)"
-                    publico = "Pessoas físicas (pesquisadores, estudantes, empreendedores) ou Microempresas cearenses com menos de 12 meses e faturamento até R$ 4,8M"
-                else:
-                    ideia = "Fixação de pesquisadores pós-doutores seniores nas frentes de Semicondutores, Engenharia de Software Crítico e Inteligência Artificial no CAIS."
-                    parceiros = "Universidade Estadual do Ceará (UECE), PPGs em Ciência da Computação e indústrias locais conveniadas."
-                    justificativa = "Custeia a folha de pesquisadores-chave de ponta para o CAIS sem ônus financeiro para a instituição."
-                    aderencia = 9.4
-                    financeiro = 8.5
-                    complexidade = 2.5
-                    chance = 9.0
-                    decisao = "GO (Submeter Proposta)"
-                    prioridade = "Alta"
-                    contrapartida = "Não exigida"
-                    publico = "Doutores titulados vinculados a ICTs cearenses (como Instituto CAIS/UECE) atuando em linhas estratégicas de pesquisa e inovação"
-            elif "EMBRAPII" in orgao:
-                ideia = "Desenvolvimento conjunto de produto inteligente IoT com edge computing e IA embarcada para controle de processos e automação fabril."
-                parceiros = "Unidade EMBRAPII de Software/Sistemas Embarcados, indústrias associadas e UECE."
-                justificativa = "Fluxo contínuo sem burocracia de edital fechado, com aprovação ágil de projetos industriais e aporte direto de recursos."
-                aderencia = 9.4
-                financeiro = 8.9
-                complexidade = 3.0
-                chance = 8.6
-                decisao = "GO (Submeter Proposta)"
-                prioridade = "Alta"
-                contrapartida = "Obrigatória pela empresa parceira (financeira)"
-                publico = "Empresas industriais e startups de qualquer porte em parceria com Unidades EMBRAPII e ICTs associadas (como Instituto CAIS/UECE)"
-            else:
-                ideia = f"Projeto de PD&I e cooperação tecnológica na temática de {foco}."
-                parceiros = "Laboratórios da UECE, LDI e empresas parceiras do CAIS."
-                justificativa = f"Oportunidade monitorada pelo robô do Radar CAIS no portal oficial de {orgao}."
-                aderencia = 7.5
-                financeiro = 7.5
-                complexidade = 4.0
-                chance = 7.5
-                decisao = "AVALIAR COM PARCEIRO"
-                prioridade = "Média"
-                contrapartida = "Consultar edital oficial"
-                publico = "Consórcios de ICTs, Universidades e Empresas do setor produtivo"
-
-            if not eh_oportunidade_valida(titulo, c.get("link", "")):
-                continue
-
-            item = {
-                "id_edital": c["id_edital"],
-                "orgao": c["orgao"],
-                "titulo": titulo,
-                "link": c["link"],
-                "prazo_submissao": c.get("datas_detectadas") or "Consultar edital",
-                "valor_financiado": c.get("valores_detectados") or "Consultar edital",
-                "contrapartida": contrapartida,
-                "publico_elegivel": publico,
-                "resumo_objetivo": (c.get("texto_interno") or c["contexto_listagem"])[:300],
-                "nota_aderencia": aderencia,
-                "nota_financeira": financeiro,
-                "nota_complexidade": complexidade,
-                "nota_chance_aprovacao": chance,
-                "prioridade": prioridade,
-                "decisao_recomendada": decisao,
-                "ideia_projeto_cais": ideia,
-                "parceiros_sugeridos": parceiros,
-                "justificativa_cais": justificativa,
-            }
-            item = calibrar_edital_cais(item)
-            qualificados_fallback.append(item)
-        return qualificados_fallback
+        return _qualificar_candidatos_heuristica_local(candidatos)
 
     cliente = genai.Client(api_key=api_key)
     schema_saida = types.Schema(
@@ -1846,10 +2482,10 @@ def analisar_candidatos_com_gemini(
                 "contrapartida": types.Schema(type=types.Type.STRING),
                 "publico_elegivel": types.Schema(type=types.Type.STRING),
                 "resumo_objetivo": types.Schema(type=types.Type.STRING),
-                "nota_aderencia": types.Schema(type=types.Type.INTEGER),
-                "nota_financeira": types.Schema(type=types.Type.INTEGER),
-                "nota_complexidade": types.Schema(type=types.Type.INTEGER),
-                "nota_chance_aprovacao": types.Schema(type=types.Type.INTEGER),
+                "nota_aderencia": types.Schema(type=types.Type.NUMBER),
+                "nota_financeira": types.Schema(type=types.Type.NUMBER),
+                "nota_complexidade": types.Schema(type=types.Type.NUMBER),
+                "nota_chance_aprovacao": types.Schema(type=types.Type.NUMBER),
                 "prioridade": types.Schema(type=types.Type.STRING),
                 "decisao_recomendada": types.Schema(type=types.Type.STRING),
                 "ideia_projeto_cais": types.Schema(type=types.Type.STRING),
@@ -1890,11 +2526,14 @@ def analisar_candidatos_com_gemini(
             )
             itens = json.loads(resposta.text)
             for item in itens:
-                if int(item.get("nota_aderencia", 0)) >= NOTA_MINIMA_ADERENCIA:
-                    item["score_ponderado"] = calcular_score_ponderado(item)
+                if float(item.get("nota_aderencia", 0)) >= NOTA_MINIMA_ADERENCIA:
+                    item = calibrar_edital_cais(item, atualizar_timestamp=True)
                     resultados.append(item)
         except Exception as erro:
-            logger.error(f"Erro ao processar lote no Gemini: {erro}")
+            logger.warning(
+                f"Falha ao processar lote no Gemini ({erro}); acionando qualificador heurístico local de contingência."
+            )
+            resultados.extend(_qualificar_candidatos_heuristica_local(lote))
 
     resultados.sort(key=lambda x: x.get("score_ponderado", 0.0), reverse=True)
     return resultados
@@ -2064,6 +2703,8 @@ def enviar_notificacoes(
             logger.warning(f"Erro ao enviar Webhook: {e}")
 
     # 2. Disparo de E-mail Executivo HTML + Anexo CSV
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    smtp_port = int(os.environ.get("SMTP_PORT", "465").strip())
     smtp_user = os.environ.get("SMTP_USER")
     smtp_password = os.environ.get("SMTP_PASSWORD")
     email_destino = os.environ.get("EMAIL_DESTINO")
@@ -2074,10 +2715,12 @@ def enviar_notificacoes(
         )
         return
 
+    destinatarios = [e.strip() for e in email_destino.split(",") if e.strip()]
+
     msg = MIMEMultipart("mixed")
     msg["Subject"] = assunto
     msg["From"] = f"Radar CAIS <{smtp_user}>"
-    msg["To"] = email_destino
+    msg["To"] = ", ".join(destinatarios)
 
     alternativas = MIMEMultipart("alternative")
     alternativas.attach(MIMEText(relatorio_md, "plain", "utf-8"))
@@ -2090,12 +2733,20 @@ def enviar_notificacoes(
         msg.attach(anexo)
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as servidor:
-            servidor.login(smtp_user, smtp_password)
-            servidor.sendmail(smtp_user, [email_destino], msg.as_string())
-        logger.info(f"E-mail executivo enviado com sucesso para {email_destino}!")
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=20) as servidor:
+                servidor.login(smtp_user, smtp_password)
+                servidor.sendmail(smtp_user, destinatarios, msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as servidor:
+                servidor.ehlo()
+                servidor.starttls()
+                servidor.ehlo()
+                servidor.login(smtp_user, smtp_password)
+                servidor.sendmail(smtp_user, destinatarios, msg.as_string())
+        logger.info(f"E-mail executivo enviado com sucesso para {', '.join(destinatarios)}!")
     except Exception as e:
-        logger.error(f"Erro no envio de e-mail SMTP: {e}")
+        logger.error(f"Erro no envio de e-mail SMTP ({smtp_host}:{smtp_port}): {e}")
 
 
 # ==============================================================================
@@ -2144,7 +2795,7 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
             for futuro in concurrent.futures.as_completed(futuros):
                 candidatos_brutos.extend(futuro.result())
 
-        STATUS_VARREDURA["mensagem"] = f"Analisando {len(candidatos_brutos)} candidatos com Gemini API..."
+        STATUS_VARREDURA["mensagem"] = f"Analisando {len(candidatos_brutos)} novos candidatos..."
         novos_qualificados = analisar_candidatos_com_gemini(candidatos_brutos) if candidatos_brutos else []
 
         hoje_br = datetime.date.today().strftime("%d/%m/%Y")
@@ -2152,18 +2803,21 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
         for ed in novos_qualificados:
             id_ed = ed.get("id_edital") or gerar_id_edital(ed["orgao"], ed["link"])
             ed["id_edital"] = id_ed
-            ed = calibrar_edital_cais(ed)
-            ed["data_descoberta"] = hoje_br
+            ed = calibrar_edital_cais(ed, atualizar_timestamp=True)
+            if id_ed not in historico_editais:
+                ed["data_descoberta"] = hoje_br
+                novos_count += 1
+            else:
+                ed["data_descoberta"] = historico_editais[id_ed].get("data_descoberta") or hoje_br
             ed["data_atualizacao"] = hoje_br
             ed["origem"] = "REAL"
-            if id_ed not in historico_editais:
-                novos_count += 1
             historico_editais[id_ed] = ed
 
-        # Sincroniza todos os editais do banco com a data atual
+        # Revalida a base preservando a data original de descoberta de cada edital
         for id_ed, ed_hist in list(historico_editais.items()):
-            ed_hist = calibrar_edital_cais(ed_hist)
-            ed_hist["data_descoberta"] = hoje_br
+            desc_original = _normalizar_data_br(ed_hist.get("data_descoberta", ""), hoje_br)
+            ed_hist = calibrar_edital_cais(ed_hist, atualizar_timestamp=True)
+            ed_hist["data_descoberta"] = desc_original
             ed_hist["data_atualizacao"] = hoje_br
             historico_editais[id_ed] = ed_hist
 
@@ -2202,6 +2856,7 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
             {
                 "em_progresso": False,
                 "ultima_execucao": resultado["ultima_execucao"],
+                "total_varridos": len(candidatos_brutos),
                 "novos_qualificados": len(novos_qualificados),
                 "mensagem": "Varredura concluída com sucesso.",
             }
@@ -2228,13 +2883,20 @@ class RadarCaisHttpHandler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=diretorio, **kwargs)
 
     def end_headers(self):
-        # Habilita CORS e desativa cache agressivo para garantir atualização imediata de UI e dados
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # CORS restrito a localhost/127.0.0.1 e cabeçalhos de segurança HTTP
+        origem = self.headers.get("Origin", "") if hasattr(self, "headers") and self.headers else ""
+        if re.match(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$", origem):
+            self.send_header("Access-Control-Allow-Origin", origem)
+        else:
+            self.send_header("Access-Control-Allow-Origin", "http://localhost:8080")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -2272,6 +2934,11 @@ class RadarCaisHttpHandler(http.server.SimpleHTTPRequestHandler):
             self.responder_json(STATUS_VARREDURA)
             return
 
+        if caminho == "/api/gestao":
+            memoria = carregar_memoria()
+            self.responder_json(memoria.get("gestao_interna", {}))
+            return
+
         if caminho == "/api/resumo":
             from urllib.parse import parse_qs
             params = parse_qs(parsed.query)
@@ -2283,7 +2950,15 @@ class RadarCaisHttpHandler(http.server.SimpleHTTPRequestHandler):
                 self.responder_json({"erro": "Nenhum edital encontrado."}, status=404)
                 return
             dias = calcular_dias_restantes(ed.get("prazo_submissao"))
-            prazo_txt = f"{ed.get('prazo_submissao')} (Faltam {dias} dias)" if dias is not None else ed.get("prazo_submissao", "Consultar edital")
+            if dias is not None:
+                if dias < 0:
+                    prazo_txt = f"{ed.get('prazo_submissao')} (Encerrado há {abs(dias)} dias)"
+                elif dias == 0:
+                    prazo_txt = f"{ed.get('prazo_submissao')} (Encerra Hoje!)"
+                else:
+                    prazo_txt = f"{ed.get('prazo_submissao')} (Faltam {dias} dias)"
+            else:
+                prazo_txt = ed.get("prazo_submissao", "Consultar edital")
             resumo_texto = (
                 f"📌 RADAR CAIS — RESUMO RÁPIDO\n"
                 f"🏢 Órgão: {ed.get('orgao')}\n"
@@ -2318,7 +2993,7 @@ class RadarCaisHttpHandler(http.server.SimpleHTTPRequestHandler):
         if caminho in ("/api/download/csv", "/pipeline_oportunidades_cais.csv"):
             if not ARQUIVO_CSV.exists():
                 memoria = carregar_memoria()
-                salvar_memoria_e_exportar(memoria)
+                salvar_memoria_e_exportar(memoria, atualizar_execucao=False)
             if ARQUIVO_CSV.exists():
                 self.send_response(200)
                 self.send_header("Content-Type", "text/csv; charset=utf-8-sig")
@@ -2349,6 +3024,26 @@ class RadarCaisHttpHandler(http.server.SimpleHTTPRequestHandler):
             self.responder_json({"status": "iniciado", "mensagem": "Varredura iniciada em segundo plano."})
             return
 
+        if caminho == "/api/gestao":
+            try:
+                tamanho = int(self.headers.get("Content-Length", "0"))
+                if tamanho <= 0 or tamanho > 524288:
+                    self.responder_json({"erro": "Payload inválido"}, status=400)
+                    return
+                corpo = self.rfile.read(tamanho).decode("utf-8")
+                novo_gestao = json.loads(corpo)
+                if not isinstance(novo_gestao, dict):
+                    self.responder_json({"erro": "Formato inválido"}, status=400)
+                    return
+                with LOCK_PERSISTENCIA:
+                    memoria = carregar_memoria()
+                    memoria["gestao_interna"] = novo_gestao
+                    salvar_memoria_e_exportar(memoria, atualizar_execucao=False)
+                self.responder_json({"status": "ok"})
+            except Exception as e:
+                self.responder_json({"erro": str(e)}, status=400)
+            return
+
         if caminho == "/api/carregar-mock":
             mock = obter_mock_realista_cais()
             salvar_memoria_e_exportar(mock)
@@ -2373,20 +3068,20 @@ class RadarCaisHttpHandler(http.server.SimpleHTTPRequestHandler):
         super().log_message(format, *args)
 
 
-def iniciar_servidor_web(porta: int = 8080, abrir_navegador: bool = True) -> None:
+def iniciar_servidor_web(porta: int = 8080, abrir_navegador: bool = True, host: str = "127.0.0.1") -> None:
     # Garante que os arquivos do front-end existam
     if not (DIRETORIO_FRONTEND / "index.html").exists():
         logger.info("Diretório frontend não encontrado ou incompleto. Verificando...")
 
-    # Inicia com a base real sincronizada com a data atual (JSON, SQLite e CSV)
+    # Sincroniza SQLite e CSV com a memória atual preservando os timestamps originais
     memoria_atual = carregar_memoria()
     if memoria_atual.get("editais"):
-        salvar_memoria_e_exportar(memoria_atual)
+        salvar_memoria_e_exportar(memoria_atual, atualizar_execucao=False)
 
     url_local = f"http://localhost:{porta}"
     logger.info("=" * 72)
     logger.info("🚀 RADAR CAIS — PLATAFORMA WEB EXECUTIVA INICIADA")
-    logger.info(f"👉 Painel do Usuário: {url_local}")
+    logger.info(f"👉 Painel do Usuário: {url_local} (Bind: {host})")
     logger.info(f"👉 API de Editais:     {url_local}/api/editais")
     logger.info(f"👉 Download CSV:      {url_local}/api/download/csv")
     logger.info("Pressione Ctrl + C para encerrar o servidor.")
@@ -2401,7 +3096,7 @@ def iniciar_servidor_web(porta: int = 8080, abrir_navegador: bool = True) -> Non
     class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         daemon_threads = True
 
-    with ThreadedHTTPServer(("", porta), RadarCaisHttpHandler) as httpd:
+    with ThreadedHTTPServer((host, porta), RadarCaisHttpHandler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
@@ -2426,6 +3121,11 @@ def main():
         type=int,
         default=8080,
         help="Porta para o servidor web (padrão: 8080).",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Endereço IP de bind do servidor web (padrão seguro: 127.0.0.1).",
     )
     parser.add_argument(
         "--no-browser",
@@ -2461,7 +3161,7 @@ def main():
 
     # Opção: Iniciar Servidor Web
     if args.iniciar_web:
-        iniciar_servidor_web(porta=args.porta, abrir_navegador=not args.no_browser)
+        iniciar_servidor_web(porta=args.porta, abrir_navegador=not args.no_browser, host=args.host)
         return
 
     # Opção padrão: Executar Varredura

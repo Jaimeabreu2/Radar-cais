@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Radar CAIS — Encontrador Inteligente de Editais Oficiais</title>
+  <title>Radar CAIS — Sistema de Inteligência de Editais e Fomento</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261113_v9">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20261125_didatico">
 </head>
 <body>
 
@@ -16,16 +16,16 @@
     <div class="container header-flex">
       <div class="logo-area">
         <div class="logo-icone">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="#0284C7" stroke-width="2.5" />
-            <path d="M12 2a10 10 0 0 1 10 10" stroke="#38BDF8" stroke-width="3" stroke-linecap="round" />
-            <circle cx="12" cy="12" r="3" fill="#0284C7" />
-            <path d="M12 9v-3M15 12h3M12 15v3M9 12H6" stroke="#0B2545" stroke-width="2" stroke-linecap="round" />
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="#38BDF8" stroke-width="1.75" />
+            <circle cx="12" cy="12" r="5" stroke="#0284C7" stroke-width="1.5" stroke-dasharray="3 2" />
+            <circle cx="12" cy="12" r="2" fill="#38BDF8" />
+            <path d="M12 3v3M21 12h-3M12 21v-3M3 12h3" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" />
           </svg>
         </div>
         <div>
-          <div class="logo-titulo">Radar CAIS <span class="tag-versao">Fontes Oficiais</span></div>
-          <div class="logo-subtitulo">Inteligência de Editais & Recursos de Fomento • Instituto CAIS</div>
+          <div class="logo-titulo">Radar CAIS <span class="tag-versao">Base Auditada</span></div>
+          <div class="logo-subtitulo">Inteligência de Editais e Captação de Fomento em PD&amp;I • Instituto CAIS</div>
         </div>
       </div>
 
@@ -33,52 +33,60 @@
         <!-- Indicador de Status -->
         <div class="badge-status-conexao" id="badgeStatus">
           <span class="ponto-status verde" id="pontoStatus"></span>
-          <span id="textoStatus">Radar Pronto</span>
+          <span id="textoStatus">Base Sincronizada</span>
         </div>
 
+        <!-- Botão Relatório Executivo PDF -->
+        <button class="botao botao-secundario" id="btnRelatorioExecutivo" title="Gerar relatório executivo formatado para reunião de diretoria (Impressão / PDF)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Relatório PDF</span>
+        </button>
+
         <!-- Botão Baixar Planilha -->
-        <button class="botao botao-secundario" id="btnExportarCsv" title="Baixar planilha para Excel">
-          📥 Baixar no Excel
+        <button class="botao botao-secundario" id="btnExportarCsv" title="Exportar pipeline completo em formato CSV compatível com Excel">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Exportar CSV</span>
         </button>
 
         <!-- Botão Principal de Varredura -->
-        <button class="botao botao-primario" id="btnVarreduraTopo" title="O robô visita os sites do governo agora mesmo">
-          <span class="icone-giratorio" id="iconeGirar">🔄</span>
-          <span id="labelVarredura">Buscar Editais na Web</span>
+        <button class="botao botao-primario" id="btnVarreduraTopo" title="Executar coleta em tempo real nos portais governamentais">
+          <svg class="icone-giratorio" id="iconeGirar" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+          <span id="labelVarredura">Atualizar Varredura</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- BANNER EXPLICATIVO: "COMO FUNCIONA O RADAR?" (TÃO SIMPLES QUE UMA CRIANÇA ENTENDE) -->
+  <!-- PAINEL DE GOVERNANÇA E METODOLOGIA -->
   <section class="banner-didatico" id="bannerDidatico">
     <div class="container">
       <div class="caixa-passo-a-passo">
         <div class="titulo-passos">
           <div class="titulo-passos-esquerda">
-            <span class="icone-guia">💡</span>
-            <strong>Como o Radar CAIS funciona? É tão fácil quanto 1, 2, 3:</strong>
+            <span class="indicador-secao">COMO FUNCIONA</span>
+            <strong>Triagem Inteligente em 19 Portais Oficiais • Decisão Rápida (Go / Avaliar)</strong>
           </div>
-          <button class="btn-toggle-guia" id="btnToggleGuia" title="Ocultar ou mostrar guia">
-            <span id="textoToggleGuia">Mostrar Guia Rápido</span>
-          </button>
+          <div class="legenda-semaforo-topo">
+            <span class="semaforo-mini verde" title="Alta aderência técnica e financeira: priorizar submissão">● GO: Priorizar</span>
+            <span class="semaforo-mini amarelo" title="Bom potencial, mas exige parceria ou avaliação de escopo">● AVALIAR: Articular</span>
+            <span class="semaforo-mini vermelho" title="Prazo encerrando em até 7 dias">● URGENTE: &le; 7 dias</span>
+            <button class="btn-toggle-guia" id="btnToggleGuia" title="Exibir ou ocultar critérios de nota">
+              <span id="textoToggleGuia">Entender Nota</span>
+            </button>
+          </div>
         </div>
         <div class="grid-passos" id="gridPassos" style="display:none;">
           <div class="card-passo">
-            <div class="numero-passo">1️⃣ O Robô Procura</div>
-            <p>Vigia <strong>19 portais oficiais</strong> do governo (ETICE, FINEP, FUNCAP, CNPq, EMBRAPII, etc.) procurando chamadas abertas com verba para projetos.</p>
+            <div class="numero-passo">01. Coleta Oficial Verificada</div>
+            <p>Monitoramento direto em <strong>19 fontes</strong> (FINEP, CNPq, FUNCAP, ETICE, EMBRAPII, CONFAP, MDIC, BNDES e Horizon Europe) com link original auditado.</p>
           </div>
           <div class="card-passo">
-            <div class="numero-passo">2️⃣ A IA Lê e Avalia</div>
-            <p>Nossa inteligência artificial lê todo o edital oficial, calcula o prazo final e dá uma <strong>nota de 0 a 10</strong> indicando se combina com o CAIS.</p>
+            <div class="numero-passo">02. Cálculo da Nota (0 a 10)</div>
+            <p>Média ponderada entre <strong>Aderência ao CAIS (40%)</strong>, <strong>Chance de Aprovação (25%)</strong>, <strong>Atratividade Financeira (20%)</strong> e <strong>Facilidade Operacional (15%)</strong>.</p>
           </div>
           <div class="card-passo">
-            <div class="numero-passo">3️⃣ O Semáforo Avisa</div>
-            <p>
-              <span class="semaforo-mini verde">🟢 GO = Vale Inscrever!</span>
-              <span class="semaforo-mini amarelo">🟡 AVALIAR = Chamar parceiro</span>
-              <span class="semaforo-mini vermelho">🔴 URGENTE = Falta pouco tempo</span>
-            </p>
+            <div class="numero-passo">03. Plano Prático por Edital</div>
+            <p>Clique em qualquer edital para ver <strong>o que é</strong>, <strong>quem pode participar</strong>, <strong>qual projeto propor</strong> e <strong>quais parceiros convidar</strong>.</p>
           </div>
         </div>
       </div>
@@ -88,70 +96,77 @@
   <!-- CONTEÚDO PRINCIPAL -->
   <main class="container">
 
-    <!-- CARDS DE RESUMO (KPIS) -->
+    <!-- CARDS DE RESUMO (KPIS EXECUTIVOS CLICÁVEIS) -->
     <section class="grid-kpis">
+      <div class="card-kpi kpi-clicavel" id="cardKpiTotal" role="button" tabindex="0" title="Clique para exibir todos os editais mapeados">
+        <div class="kpi-topo">
+          <span class="kpi-rotulo">Total de Editais</span>
+          <span class="kpi-icone">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          </span>
+        </div>
+        <div class="kpi-numero font-mono" id="kpiTotal">0</div>
+        <div class="kpi-legenda" id="kpiOrgaos">Fontes governamentais verificadas</div>
+      </div>
+
+      <div class="card-kpi kpi-verde kpi-clicavel" id="cardKpiGo" role="button" tabindex="0" title="Clique para filtrar apenas oportunidades recomendadas (GO)">
+        <div class="kpi-topo">
+          <span class="kpi-rotulo">Recomendados (GO)</span>
+          <span class="kpi-icone icone-verde">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </span>
+        </div>
+        <div class="kpi-numero font-mono cor-verde" id="kpiGo">0</div>
+        <div class="kpi-legenda">Alta aderência • Clique para filtrar</div>
+      </div>
+
+      <div class="card-kpi kpi-vermelho kpi-clicavel" id="cardKpiUrgentes" role="button" tabindex="0" title="Clique para filtrar editais que vencem em até 7 dias">
+        <div class="kpi-topo">
+          <span class="kpi-rotulo">Prazo Crítico (&le; 7 dias)</span>
+          <span class="kpi-icone icone-vermelho">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </span>
+        </div>
+        <div class="kpi-numero font-mono cor-vermelho" id="kpiUrgentes">0</div>
+        <div class="kpi-legenda">Atenção imediata • Clique para filtrar</div>
+      </div>
+
       <div class="card-kpi">
         <div class="kpi-topo">
-          <span class="kpi-rotulo">Editais Ativos no Radar</span>
-          <span class="kpi-emoji">📦</span>
-        </div>
-        <div class="kpi-numero" id="kpiTotal">0</div>
-        <div class="kpi-legenda" id="kpiOrgaos">Nenhuma simulação: apenas fontes reais</div>
-      </div>
-
-      <div class="card-kpi kpi-verde">
-        <div class="kpi-topo">
-          <span class="kpi-rotulo">Recomendados (GO!)</span>
-          <span class="kpi-emoji">🟢</span>
-        </div>
-        <div class="kpi-numero cor-verde" id="kpiGo">0</div>
-        <div class="kpi-legenda">Alta chance de aprovação</div>
-      </div>
-
-      <div class="card-kpi kpi-vermelho">
-        <div class="kpi-topo">
-          <span class="kpi-rotulo">Urgentes (&le; 7 dias)</span>
-          <span class="kpi-emoji">⏰</span>
-        </div>
-        <div class="kpi-numero cor-vermelho" id="kpiUrgentes">0</div>
-        <div class="kpi-legenda">Prazos prestes a encerrar</div>
-      </div>
-
-      <div class="card-kpi">
-        <div class="kpi-topo">
-          <span class="kpi-rotulo">Nota Média</span>
-          <span class="kpi-emoji">⭐</span>
+          <span class="kpi-rotulo">Nota Média CAIS</span>
+          <span class="kpi-icone">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
         </div>
         <div class="kpi-numero font-mono" id="kpiMediaScore">0.0<span class="kpi-max">/10</span></div>
-        <div class="kpi-legenda">Calculada pelo Framework CAIS</div>
+        <div class="kpi-legenda">Aderência média da carteira atual</div>
       </div>
     </section>
 
-    <!-- ESTADO INICIAL VAZIO CONVIDATIVO (QUANDO INICIA LIMPO) -->
+    <!-- ESTADO INICIAL VAZIO -->
     <section class="painel-inicial-limpo" id="painelInicialLimpo">
       <div class="cartao-decolagem">
-        <div class="icone-radar-grande">🛰️</div>
-        <h2>Seu Radar CAIS está pronto para varrer a internet!</h2>
+        <h2>Base de Inteligência Pronta para Coleta</h2>
         <p class="sub-decolagem">
-          O sistema iniciou 100% limpo, sem editais de teste ou simulações. Todas as informações exibidas virão <strong>diretamente das páginas governamentais oficiais</strong>.
+          O sistema opera exclusivamente com dados extraídos das páginas oficiais de fomento. Inicie a varredura para consultar os portais governamentais.
         </p>
 
         <div class="caixa-acao-central">
           <button class="botao botao-primario botao-gigante" id="btnIniciarVarreduraCentral">
-            <span class="icone-btn-grande">🔍</span>
-            <span>Buscar Oportunidades Reais nos Portais Oficiais</span>
+            <span>Executar Varredura nos Portais Oficiais</span>
           </button>
-          <div class="texto-dica-botao">Clique para o robô navegar por 19 portais e extrair as chamadas abertas hoje.</div>
+          <div class="texto-dica-botao">Inspeção concorrente em 19 fontes nacionais e internacionais de PD&amp;I.</div>
         </div>
 
         <div class="portais-mapeados-lista">
-          <div class="portais-titulo">Portais oficiais monitorados em tempo real:</div>
+          <div class="portais-titulo">Instituições Monitoradas:</div>
           <div class="tags-portais">
             <span class="tag-portal">FINEP</span>
             <span class="tag-portal">ETICE (Ceará)</span>
             <span class="tag-portal">FUNCAP (Ceará)</span>
             <span class="tag-portal">CNPq</span>
             <span class="tag-portal">EMBRAPII</span>
+            <span class="tag-portal">CONFAP</span>
             <span class="tag-portal">Programa Mover (MDIC)</span>
             <span class="tag-portal">Sebrae (Catalisa ICT)</span>
             <span class="tag-portal">BNDES Funtec</span>
@@ -163,83 +178,123 @@
       </div>
     </section>
 
-    <!-- PAINEL DE FILTROS (EXIBIDO QUANDO HÁ EDITAIS CARREGADOS) -->
+    <!-- PAINEL DE FILTROS -->
     <section class="painel-filtros" id="painelFiltros" style="display:none;">
       <div class="busca-amigavel">
-        <span class="icone-lupa">🔍</span>
-        <input type="text" id="campoBusca" placeholder="Pesquise por palavra-chave (Ex: Inteligência Artificial, Semicondutores, Nuvem, Bolsas, Ceará)...">
-        <button id="btnLimparBusca" class="btn-limpar" style="display:none;">&times; Limpar</button>
+        <span class="icone-lupa">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input type="text" id="campoBusca" placeholder="Buscar por tema, palavra-chave ou órgão (ex: IA, Bolsas, Subvenção, Hidrogênio, CNPq)...">
+        <kbd class="atalho-teclado" id="dicaAtalhoBusca" title="Pressione / para focar na busca">/</kbd>
+        <button id="btnLimparBusca" class="btn-limpar" style="display:none;">Limpar</button>
       </div>
 
-      <!-- CHIPS DE FILTRO RÁPIDO (DIDÁTICOS EM 1 CLIQUE) -->
+      <!-- CHIPS DE FILTRO RÁPIDO -->
       <div class="barra-chips-atalhos">
         <span class="label-chips">Atalhos:</span>
         <div class="chips-container" id="chipsContainer">
-          <button class="chip-filtro ativo" data-tipo="todos">✨ Todos</button>
-          <button class="chip-filtro chip-go" data-tipo="go">🟢 Só GO! (Recomendados)</button>
-          <button class="chip-filtro chip-urgente" data-tipo="urgente">⏰ Urgentes (&le; 7 dias)</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="ETICE">🏛️ ETICE (Ceará)</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="FINEP">🏛️ FINEP</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="FUNCAP">🏛️ FUNCAP</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="CNPq">🏛️ CNPq</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="EMBRAPII">🏛️ EMBRAPII</button>
+          <button class="chip-filtro ativo" data-tipo="todos">Todos</button>
+          <button class="chip-filtro chip-go" data-tipo="go">● Recomendados (GO)</button>
+          <button class="chip-filtro chip-urgente" data-tipo="urgente">Prazo Crítico (&le; 7d)</button>
+          <button class="chip-filtro chip-favoritos" data-tipo="favoritos" title="Filtrar editais marcados com estrela pela equipe de prospecção CAIS">★ Favoritos</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="ETICE">ETICE</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="FINEP">FINEP</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="FUNCAP">FUNCAP</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="CNPq">CNPq</button>
+          <button class="chip-filtro" data-tipo="orgao" data-valor="EMBRAPII">EMBRAPII</button>
         </div>
       </div>
 
       <div class="linha-filtros">
         <!-- Filtro de Semáforo -->
         <div class="item-filtro">
-          <label>O que fazer? (Decisão):</label>
+          <label for="filtroDecisao">Recomendação</label>
           <select id="filtroDecisao">
-            <option value="">Todas as Recomendações</option>
-            <option value="GO">🟢 GO — Vale a pena submeter proposta</option>
-            <option value="AVALIAR">🟡 AVALIAR — Estudar com parceiros (UECE, etc)</option>
-            <option value="NO-GO">⚪ NO-GO — Não recomendado agora</option>
+            <option value="">Todas as recomendações</option>
+            <option value="GO">● GO — Priorizar submissão</option>
+            <option value="AVALIAR">● AVALIAR — Articular parceiros</option>
+            <option value="NO-GO">● NO-GO / Encerrados</option>
           </select>
         </div>
 
         <!-- Filtro de Órgão -->
         <div class="item-filtro">
-          <label>Quem financia? (Órgão):</label>
+          <label for="filtroOrgao">Órgão Fomentador</label>
           <select id="filtroOrgao">
-            <option value="">Todos os Órgãos</option>
+            <option value="">Todas as instituições</option>
           </select>
         </div>
 
         <!-- Filtro de Urgência de Prazo -->
         <div class="item-filtro">
-          <label>Prazo limite:</label>
+          <label for="filtroPrazo">Prazo Restante</label>
           <select id="filtroPrazo">
-            <option value="">Qualquer data</option>
-            <option value="urgente">🚨 Menos de 7 dias (Urgente!)</option>
-            <option value="quinzena">⏳ Menos de 15 dias</option>
-            <option value="mes">📅 Menos de 30 dias</option>
+            <option value="">Qualquer prazo</option>
+            <option value="urgente">Até 7 dias (Urgente)</option>
+            <option value="quinzena">Até 15 dias</option>
+            <option value="mes">Até 30 dias</option>
           </select>
         </div>
 
-        <!-- Alternar Cards vs Tabela -->
-        <div class="modo-visualizacao">
-          <button class="btn-modo ativo" id="btnModoCards">
-            <span>🃏</span> Cartões
-          </button>
-          <button class="btn-modo" id="btnModoTabela">
-            <span>📋</span> Planilha
-          </button>
+        <!-- Filtro por Laboratório / Núcleo CAIS -->
+        <div class="item-filtro">
+          <label for="filtroLaboratorio">Núcleo / Lab CAIS</label>
+          <select id="filtroLaboratorio">
+            <option value="">Todos os núcleos técnicos</option>
+            <option value="Lab IA & Ciência de Dados">Lab IA &amp; Ciência de Dados</option>
+            <option value="Lab Semicondutores & Embarcados">Lab Semicondutores &amp; Embarcados</option>
+            <option value="Lab Nuvem, Redes & Cibersegurança">Lab Nuvem, Redes &amp; Cibersegurança</option>
+            <option value="Lab Transição Energética & Clima">Lab Transição Energética &amp; Clima</option>
+            <option value="Núcleo de Inovação & Spin-offs">Núcleo de Inovação &amp; Spin-offs</option>
+          </select>
+        </div>
+
+        <button type="button" class="btn-limpar-filtros-inline" id="btnLimparFiltrosTopo" style="display:none;" title="Restaurar visualização de todos os editais">
+          Limpar filtros
+        </button>
+
+        <!-- Alternar Cards vs Tabela vs Cronograma vs Pipeline -->
+        <div class="bloco-modo-visualizacao">
+          <span class="label-modo-visao">Formato de Exibição</span>
+          <div class="modo-visualizacao">
+            <button class="btn-modo ativo" id="btnModoCards" title="Visualizar em cartões executivos">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <span>Cartões</span>
+            </button>
+            <button class="btn-modo" id="btnModoTabela" title="Visualizar em formato de planilha compacta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              <span>Tabela</span>
+            </button>
+            <button class="btn-modo" id="btnModoCronograma" title="Linha do tempo de prazos e exportação para Agenda (.ics)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Cronograma</span>
+            </button>
+            <button class="btn-modo" id="btnModoPipeline" title="Funil de gestão interna de submissões do Instituto CAIS">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+              <span>Funil CAIS</span>
+            </button>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- LISTA DE OPORTUNIDADES (QUANDO HÁ EDITAIS) -->
+    <!-- LISTA DE OPORTUNIDADES -->
     <section class="area-resultados" id="areaResultados" style="display:none;">
       <div class="cabecalho-resultados">
-        <div class="contador-editais" id="contadorResultados">Exibindo oportunidades...</div>
-        <div class="ordenador-simples">
-          <label>Organizar por:</label>
-          <select id="selectOrdenacao">
-            <option value="score_desc">⭐ Maiores Notas Primeiro</option>
-            <option value="prazo_asc">⏰ Prazos Mais Próximos de Vencer</option>
-            <option value="orgao_asc">🏢 Ordem Alfabética do Órgão</option>
-          </select>
+        <div class="contador-editais" id="contadorResultados">Carregando oportunidades...</div>
+        <div class="controles-resultados-direita">
+          <label class="toggle-ocultar-encerrados" title="Ocultar chamadas cujo prazo de submissão já encerrou (desmarque para ver o histórico completo)">
+            <input type="checkbox" id="chkOcultarEncerrados" checked>
+            <span id="labelOcultarEncerrados">Ocultar encerrados</span>
+          </label>
+          <div class="ordenador-simples">
+            <label for="selectOrdenacao">Ordenação:</label>
+            <select id="selectOrdenacao">
+              <option value="score_desc">Maior Score Ponderado</option>
+              <option value="prazo_asc">Prazo de Submissão Mais Próximo</option>
+              <option value="orgao_asc">Órgão Fomentador (A–Z)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -251,124 +306,143 @@
         <table class="tabela-didatica">
           <thead>
             <tr>
-              <th>Semáforo</th>
-              <th>Quem Paga</th>
-              <th>Qual é a Oportunidade?</th>
-              <th>Até Quando?</th>
-              <th>Quanto Dinheiro?</th>
-              <th>Nota</th>
-              <th>Ação</th>
+              <th>Status</th>
+              <th>Órgão</th>
+              <th>Chamada Pública / Edital</th>
+              <th>Prazo Final</th>
+              <th>Dotação / Teto</th>
+              <th>Score</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody id="corpoTabela"></tbody>
         </table>
       </div>
 
+      <!-- MODO CRONOGRAMA DE PRAZOS -->
+      <div class="wrapper-cronograma" id="wrapperCronograma" style="display:none;"></div>
+
+      <!-- MODO FUNIL DE SUBMISSÃO CAIS (PIPELINE) -->
+      <div class="wrapper-pipeline" id="wrapperPipeline" style="display:none;"></div>
+
       <!-- ESTADO DE BUSCA VAZIA -->
       <div class="estado-vazio" id="estadoVazio" style="display:none;">
-        <div class="emoji-vazio">🔎</div>
-        <h3>Nenhum edital encontrado com essas palavras</h3>
-        <p>Tente limpar os filtros para ver todas as oportunidades oficiais coletadas.</p>
-        <button class="botao botao-primario" id="btnResetarFiltros">Mostrar Todos os Editais</button>
+        <h3>Nenhum registro corresponde aos critérios selecionados</h3>
+        <p>Ajuste os parâmetros de busca ou restaure a listagem completa.</p>
+        <button class="botao botao-primario" id="btnResetarFiltros">Restaurar Filtros</button>
       </div>
     </section>
 
   </main>
 
-  <!-- MASTER MODAL: DETALHES COMPLETOS, ESTRATÉGIA CAIS & NOTAS -->
+  <!-- MASTER MODAL: DETALHES COMPLETOS, ESTRATÉGIA CAIS & SCORECARD -->
   <div class="fundo-modal" id="fundoModal">
     <div class="painel-modal" id="painelModal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
       
-      <!-- TOPO FIXO E COMPACTO DO MODAL -->
+      <!-- TOPO FIXO DO MODAL -->
       <div class="topo-modal">
         <div class="topo-modal-textos">
           <div class="tags-modal" id="tagsModal"></div>
           <h2 class="titulo-modal" id="modalTitulo">Título do Edital</h2>
           <div class="meta-modal" id="modalSubtitulo">Órgão Oficial • Identificador CAIS</div>
         </div>
-        <button class="btn-fechar-modal" id="btnFecharModal" type="button" title="Fechar janela (ESC)">&times;</button>
+        <div class="topo-modal-acoes">
+          <button class="btn-favorito-modal" id="btnFavoritoModal" type="button" title="Adicionar ou remover dos Favoritos da equipe CAIS">☆ Favoritar</button>
+          <div class="navegacao-modal-setas">
+            <button class="btn-nav-modal" id="btnEditalAnterior" type="button" title="Edital anterior (Seta Esquerda)">&larr;</button>
+            <span class="indice-nav-modal font-mono" id="indiceNavModal">1/1</span>
+            <button class="btn-nav-modal" id="btnEditalProximo" type="button" title="Próximo edital (Seta Direita)">&rarr;</button>
+          </div>
+          <button class="btn-fechar-modal" id="btnFecharModal" type="button" title="Fechar (ESC)">&times;</button>
+        </div>
       </div>
 
-      <!-- SELETOR DE ABAS FIXO -->
+      <!-- SELETOR DE ABAS -->
       <div class="abas-navegacao-modal">
         <button class="aba-item ativa" id="abaBtnEstrategia" type="button">
-          💡 Plano de Ação CAIS & Detalhes
+          Visão Geral &amp; Plano de Ação CAIS
         </button>
         <button class="aba-item" id="abaBtnNotas" type="button">
-          📊 Termômetro de Notas (5 Etapas)
+          Detalhamento da Nota (Scorecard)
+        </button>
+        <button class="aba-item" id="abaBtnChecklist" type="button">
+          Checklist &amp; Gestão da Submissão
         </button>
       </div>
 
-      <!-- CORPO DO MODAL ROLÁVEL E 100% RESPONSIVO -->
+      <!-- CORPO DO MODAL -->
       <div class="corpo-modal" id="corpoModal">
         
         <!-- ABA 1: PLANO DE AÇÃO CAIS & DETALHES -->
         <div class="painel-aba ativo" id="painelAbaEstrategia">
           
-          <!-- FAIXA DE 3 MÉTRICAS-CHAVE (DENTRO DA ÁREA ROLÁVEL PARA NUNCA ESMAGAR O CONTEÚDO) -->
+          <!-- SÍNTESE DIDÁTICA DE DECISÃO EM 1 LINHA -->
+          <div class="faixa-sintese-decisao" id="faixaSinteseModal"></div>
+
+          <!-- FAIXA DE 3 MÉTRICAS-CHAVE -->
           <div class="faixa-metricas-modal">
             <div class="metrica-modal-card">
-              <span class="metrica-modal-label">💰 Quanto Dinheiro?</span>
+              <span class="metrica-modal-label">Recurso / Financiamento</span>
               <span class="metrica-modal-valor valor-grana font-mono" id="modalValor">—</span>
             </div>
             <div class="metrica-modal-card">
-              <span class="metrica-modal-label">⏰ Prazo Fatal de Submissão</span>
+              <span class="metrica-modal-label">Prazo Final de Submissão</span>
               <span class="metrica-modal-valor font-mono" id="modalPrazo">—</span>
             </div>
             <div class="metrica-modal-card">
-              <span class="metrica-modal-label">🤝 Exige Contrapartida?</span>
+              <span class="metrica-modal-label">Contrapartida Exigida</span>
               <span class="metrica-modal-valor" id="modalContrapartida">—</span>
             </div>
           </div>
 
-          <!-- PASSO 1 DO PLANO DE AÇÃO: ELEGIBILIDADE -->
-          <div class="balao-elegibilidade">
-            <div class="balao-cabecalho">
-              <span class="passo-badge-modal azul">1. ELEGIBILIDADE</span>
-              <span class="balao-titulo">👥 Quem Pode Concorrer e Como o CAIS Entra?</span>
-            </div>
-            <p class="balao-texto" id="modalPublicoDetalhado">—</p>
-          </div>
-
-          <!-- PASSO 2 DO PLANO DE AÇÃO: IDEIA DE PROJETO CAIS -->
-          <div class="balao-ideia">
-            <div class="balao-cabecalho">
-              <span class="passo-badge-modal verde">2. PLANO DE AÇÃO</span>
-              <span class="balao-titulo">💡 O que o Instituto CAIS pode fazer aqui? (Proposta Técnica)</span>
-            </div>
-            <p class="balao-texto" id="modalIdeiaProjeto">—</p>
-          </div>
-
-          <!-- PASSO 3 DO PLANO DE AÇÃO: CONSÓRCIO E PARCERIAS -->
-          <div class="balao-parceiros">
-            <div class="balao-cabecalho">
-              <span class="passo-badge-modal ambar">3. CONSÓRCIO SUGERIDO</span>
-              <span class="balao-titulo">🤝 Parceiros Estratégicos Recomendados</span>
-            </div>
-            <p class="balao-texto" id="modalParceiros">—</p>
-          </div>
-
-          <!-- GRADE DUPLA RESPONSIVA: RESUMO + JUSTIFICATIVA -->
+          <!-- GRADE DUPLA NO TOPO: RESUMO OBJETIVO + POR QUE VALE A PENA -->
           <div class="grid-resumo-justificativa">
             <div class="bloco-info-didatico">
-              <span class="bloco-label">📄 Resumo do Edital:</span>
+              <span class="bloco-label">O que o edital financia (Resumo)</span>
               <p id="modalResumo">—</p>
             </div>
 
-            <div class="bloco-info-didatico">
-              <span class="bloco-label">🎯 Por que vale a pena para o CAIS?</span>
+            <div class="bloco-info-didatico bloco-parecer-destaque">
+              <span class="bloco-label">Por que vale a pena para o CAIS</span>
               <p id="modalJustificativa">—</p>
             </div>
           </div>
 
+          <!-- PASSO 1: ELEGIBILIDADE -->
+          <div class="balao-elegibilidade">
+            <div class="balao-cabecalho">
+              <span class="passo-badge-modal azul">1. QUEM PODE SUBMETER</span>
+              <span class="balao-titulo">Elegibilidade e Enquadramento</span>
+            </div>
+            <p class="balao-texto" id="modalPublicoDetalhado">—</p>
+          </div>
+
+          <!-- PASSO 2: IDEIA DE PROJETO CAIS -->
+          <div class="balao-ideia">
+            <div class="balao-cabecalho">
+              <span class="passo-badge-modal verde">2. O QUE PROPOR</span>
+              <span class="balao-titulo">Sugestão de Projeto para o Instituto CAIS</span>
+            </div>
+            <p class="balao-texto" id="modalIdeiaProjeto">—</p>
+          </div>
+
+          <!-- PASSO 3: CONSÓRCIO E PARCERIAS -->
+          <div class="balao-parceiros">
+            <div class="balao-cabecalho">
+              <span class="passo-badge-modal ambar">3. COM QUEM ARTICULAR</span>
+              <span class="balao-titulo">Parceiros e Consórcio Recomendado</span>
+            </div>
+            <p class="balao-texto" id="modalParceiros">—</p>
+          </div>
+
         </div>
 
-        <!-- ABA 2: TERMÔMETRO DE NOTAS & SCORECARD -->
+        <!-- ABA 2: SCORECARD -->
         <div class="painel-aba" id="painelAbaNotas">
           <div class="barras-notas">
             <div class="linha-nota">
               <div class="info-nota">
-                <span>🎯 Combina com as linhas do CAIS? (Aderência Temática • Peso 40%)</span>
+                <span>1. Aderência Temática e Tecnológica (Peso: 40%)</span>
                 <strong class="font-mono" id="notaAderencia">0/10</strong>
               </div>
               <div class="trilho-barra"><div class="preenchimento-barra" id="barraAderencia" style="width:0%"></div></div>
@@ -376,7 +450,7 @@
 
             <div class="linha-nota">
               <div class="info-nota">
-                <span>🏆 Temos chance de aprovação? (Competitividade • Peso 25%)</span>
+                <span>2. Competitividade e Chance de Aprovação (Peso: 25%)</span>
                 <strong class="font-mono" id="notaChance">0/10</strong>
               </div>
               <div class="trilho-barra"><div class="preenchimento-barra" id="barraChance" style="width:0%"></div></div>
@@ -384,7 +458,7 @@
 
             <div class="linha-nota">
               <div class="info-nota">
-                <span>💵 O valor compensa o esforço? (Atratividade Financeira • Peso 20%)</span>
+                <span>3. Atratividade Financeira e Escala (Peso: 20%)</span>
                 <strong class="font-mono" id="notaFinanceira">0/10</strong>
               </div>
               <div class="trilho-barra"><div class="preenchimento-barra" id="barraFinanceira" style="width:0%"></div></div>
@@ -392,7 +466,7 @@
 
             <div class="linha-nota">
               <div class="info-nota">
-                <span>🧗 É fácil ou burocrático? (Viabilidade Operacional • Peso 15%)</span>
+                <span>4. Viabilidade Operacional e Administrativa (Peso: 15%)</span>
                 <strong class="font-mono" id="notaViabilidade">0/10</strong>
               </div>
               <div class="trilho-barra"><div class="preenchimento-barra" id="barraViabilidade" style="width:0%"></div></div>
@@ -401,10 +475,62 @@
 
           <div class="caixa-veredito-final">
             <div>
-              <div class="veredito-sub">Nota Final Ponderada (Framework CAIS):</div>
+              <div class="veredito-sub">Índice Ponderado Final (Framework CAIS)</div>
               <div class="veredito-nota font-mono" id="modalScoreFinal">0.0 <span class="max-nota">/ 10</span></div>
             </div>
-            <div class="veredito-badge-grande" id="modalDecisaoFinal">AVALIAR COM PARCEIRO</div>
+            <div class="veredito-badge-grande" id="modalDecisaoFinal">AVALIAR COM PARCEIROS</div>
+          </div>
+        </div>
+
+        <!-- ABA 3: CHECKLIST DE DOCUMENTOS & GESTÃO INTERNA CAIS -->
+        <div class="painel-aba" id="painelAbaChecklist">
+          <div class="box-gestao-interna">
+            <div class="box-gestao-topo">
+              <div>
+                <span class="bloco-label">Controle Interno de Captação • Instituto CAIS</span>
+                <h4 class="box-gestao-titulo">Status no Funil &amp; Alocação de Equipe</h4>
+              </div>
+              <button type="button" class="botao botao-secundario btn-agenda-modal" id="btnAdicionarAgendaModal" title="Baixar evento de calendário (.ics) compatível com Outlook e Google Agenda">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>Salvar Prazo na Agenda (.ics)</span>
+              </button>
+            </div>
+
+            <div class="grid-campos-gestao">
+              <div class="item-filtro">
+                <label for="selectEtapaFunilModal">Etapa no Funil CAIS</label>
+                <select id="selectEtapaFunilModal">
+                  <option value="triagem">1. Em Triagem / Radar</option>
+                  <option value="articulacao">2. Em Articulação de Parceiros</option>
+                  <option value="redacao">3. Redigindo Proposta Técnica</option>
+                  <option value="submetido">4. Proposta Submetida ao Órgão</option>
+                </select>
+              </div>
+
+              <div class="item-filtro">
+                <label for="inputResponsavelModal">Líder / Pesquisador Responsável (CAIS / UECE)</label>
+                <input type="text" id="inputResponsavelModal" class="input-gestao" placeholder="Ex: Prof. Coordenador IA / Equipe Sistemas Embarcados...">
+              </div>
+            </div>
+
+            <div class="item-filtro" style="margin-top:10px;">
+              <label for="inputNotasInternasModal">Anotações Executivas / Próximos Passos</label>
+              <div class="linha-notas-salvar">
+                <input type="text" id="inputNotasInternasModal" class="input-gestao" placeholder="Ex: Agendar reunião com empresa parceira e solicitar carta de anuência...">
+                <button type="button" class="botao botao-primario" id="btnSalvarGestaoModal">Salvar Status</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="box-checklist-orgao">
+            <div class="checklist-cabecalho">
+              <div>
+                <span class="bloco-label" id="labelChecklistOrgao">Requisitos de Submissão</span>
+                <h4 class="box-gestao-titulo">Checklist Institucional &amp; Documentação Obrigatória</h4>
+              </div>
+              <span class="progresso-checklist-badge font-mono" id="badgeProgressoChecklist">0/6 concluídos</span>
+            </div>
+            <div class="lista-itens-checklist" id="listaItensChecklist"></div>
           </div>
         </div>
 
@@ -412,11 +538,16 @@
 
       <!-- RODAPÉ FIXO DO MODAL -->
       <div class="rodape-modal">
-        <button class="botao botao-primario botao-grande" id="btnCopiarResumo" type="button">
-          📋 Copiar Resumo para WhatsApp
-        </button>
-        <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-secundario botao-grande" id="btnLinkOficial">
-          🌐 Abrir Edital Oficial no Site do Governo
+        <div class="rodape-modal-esquerda">
+          <button class="botao botao-secundario botao-grande" id="btnCopiarResumo" type="button" title="Copiar resumo executivo rápido para WhatsApp ou E-mail">
+            Copiar Sumário Executivo
+          </button>
+          <button class="botao botao-secundario botao-grande btn-minuta-tecnica" id="btnGerarMinuta" type="button" title="Gerar Minuta Técnica de Pré-Projeto (Concept Note 1-Page) estruturada com Pacotes de Trabalho (Work Packages) para iniciar a escrita">
+            Copiar Minuta Técnica (1-Page)
+          </button>
+        </div>
+        <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-primario botao-grande" id="btnLinkOficial">
+          Acessar Página Oficial do Órgão &rarr;
         </a>
       </div>
 
@@ -431,14 +562,14 @@
     <div class="container rodape-flex">
       <div>
         <strong>Radar CAIS</strong> — Instituto CAIS (Centro Ágil de Inovação e Saber)
-        <p class="rodape-sub">Sistema de Inteligência de Editais e Captação de Recursos Oficiais de PD&I.</p>
+        <p class="rodape-sub">Plataforma de Inteligência e Monitoramento de Fomento à Pesquisa, Desenvolvimento e Inovação.</p>
       </div>
       <div class="rodape-links">
-        <span>FINEP • FUNCAP Ceará • CNPq • EMBRAPII • Mover • BNDES • Horizon Europe</span>
+        <span>FINEP • FUNCAP • ETICE • CNPq • EMBRAPII • CONFAP • MDIC • BNDES • Horizon Europe</span>
       </div>
     </div>
   </footer>
 
-  <script src="app.js?v=20261113_v9"></script>
+  <script src="app.js?v=20261125_didatico"></script>
 </body>
 </html>
