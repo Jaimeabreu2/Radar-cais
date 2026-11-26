@@ -117,6 +117,8 @@ class TestRadarCais(unittest.TestCase):
         self.assertIn("painelCopilotoRagMl", html_txt, "Painel do Copiloto RAG + ML ausente no index.html")
         self.assertIn("montarTextoConviteParceiro", js_txt, "Gerador de Convite para Parceiro ausente no app.js")
         self.assertIn("btnCopiarConviteParceiro", html_txt, "Botão de Convite para Parceiro ausente no index.html")
+        self.assertIn("btnMapaBolso", html_txt, "Botão discreto Mapa Top 5 ausente no index.html")
+        self.assertIn("abrirMapaBolsoTop5", js_txt, "Tela executiva Mapa Top 5 ausente no app.js")
         self.assertIn("DTEND;VALUE=DATE:${dtFim}", js_txt, "Evento .ics deve usar DTEND exclusivo (dia seguinte, RFC 5545)")
         self.assertTrue(hasattr(ag, "io"), "Módulo padrão 'io' deve estar importado em agente_editais_cais.py para leitura de PDF")
         self.assertEqual(ag._extrair_texto_pdf_bytes(b"not-a-pdf"), "", "Extrator de PDF deve falhar de forma controlada sem NameError")

@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnIniciarVarreduraCentral = document.getElementById('btnIniciarVarreduraCentral');
   const btnExportarCsv = document.getElementById('btnExportarCsv');
   const btnRelatorioExecutivo = document.getElementById('btnRelatorioExecutivo');
+  const btnMapaBolso = document.getElementById('btnMapaBolso');
 
   // Cards de Métricas (KPIs)
   const kpiTotal = document.getElementById('kpiTotal');
@@ -320,9 +321,12 @@ document.addEventListener('DOMContentLoaded', () => {
       btnModoPipeline.addEventListener('click', () => alternarModo('pipeline'));
     }
 
-    // Relatório Executivo para Reunião (Impressão / PDF)
+    // Relatório Executivo para Reunião (Impressão / PDF) e Mapa de Bolso Top 5
     if (btnRelatorioExecutivo) {
       btnRelatorioExecutivo.addEventListener('click', gerarRelatorioExecutivoImpressao);
+    }
+    if (btnMapaBolso) {
+      btnMapaBolso.addEventListener('click', abrirMapaBolsoTop5);
     }
 
     // Botões de Varredura Web Oficial
@@ -2331,6 +2335,496 @@ ${ed.parceiros_sugeridos}
       </html>
     `);
     janelaPrint.document.close();
+  }
+
+  function montarMensagemChefeTop5(top5, totalVigentes) {
+    const hojeBR = obterDataHojeBR();
+    const linhas = [
+      'Olá! Tudo bem?',
+      '',
+      `Preparei um resumo atualizado da nossa prospecção de editais (${hojeBR}). Monitoramos ${editais.length} chamadas oficiais e hoje temos ${totalVigentes} oportunidades abertas. Separei os 5 editais com maior aderência para o Instituto CAIS:`,
+      ''
+    ];
+
+    top5.forEach((ed, idx) => {
+      const dias = calcularDiasRestantes(ed.prazo_submissao);
+      const prazoLimpo = String(ed.prazo_submissao || '').toLowerCase().includes('fluxo')
+        ? 'Fluxo Contínuo'
+        : (dias !== null && dias >= 0 ? `até ${ed.prazo_submissao} (${dias}d)` : (ed.prazo_submissao || 'Consultar edital'));
+      const ideiaCurta = truncarTexto(String(ed.ideia_projeto_cais || ed.resumo_objetivo || '').replace(/\s+/g, ' ').trim(), 165);
+      const tituloLimpo = String(ed.titulo || '').toLowerCase().startsWith(String(ed.orgao || '').toLowerCase())
+        ? ed.titulo
+        : `${ed.orgao} — ${ed.titulo}`;
+      linhas.push(`${idx + 1}. ${tituloLimpo} (Nota ${Number(ed.score_ponderado || 0).toFixed(1)}/10)`);
+      linhas.push(`   • Recurso: ${ed.valor_financiado || 'Conforme edital'} | Prazo: ${prazoLimpo}`);
+      linhas.push(`   • O que podemos propor: ${ideiaCurta}`);
+      linhas.push('');
+    });
+
+    linhas.push('Já deixei mapeado o escopo inicial e os parceiros recomendados para cada um deles. Qual dessas frentes faz mais sentido priorizarmos primeiro?');
+    return linhas.join('\n');
+  }
+
+  function abrirMapaBolsoTop5() {
+    if (editais.length === 0) {
+      exibirToast('Carregue os editais antes de abrir o Mapa Top 5.', 'info');
+      return;
+    }
+
+    const hojeBR = obterDataHojeBR();
+    const vigentes = editais.filter(ed => {
+      const dias = calcularDiasRestantes(ed.prazo_submissao);
+      const dec = (ed.decisao_recomendada || '').toUpperCase();
+      return !((dias !== null && dias < 0) || dec.includes('ENCERRADO'));
+    });
+
+    const ordenados = [...vigentes].sort((a, b) => {
+      const diffScore = (Number(b.score_ponderado) || 0) - (Number(a.score_ponderado) || 0);
+      if (Math.abs(diffScore) > 0.001) return diffScore;
+      const diffAder = (Number(b.nota_aderencia) || 0) - (Number(a.nota_aderencia) || 0);
+      if (Math.abs(diffAder) > 0.001) return diffAder;
+      return (Number(b.nota_chance_aprovacao) || 0) - (Number(a.nota_chance_aprovacao) || 0);
+    });
+
+    const top5 = ordenados.slice(0, 5);
+    if (top5.length === 0) {
+      exibirToast('Nenhum edital vigente encontrado no momento.', 'info');
+      return;
+    }
+
+    const mensagemChefe = montarMensagemChefeTop5(top5, vigentes.length);
+
+    const cardsTop5Html = top5.map((ed, idx) => {
+      const dias = calcularDiasRestantes(ed.prazo_submissao);
+      const prazoTxt = formatarPrazoDidatico(ed.prazo_submissao, dias);
+      const lab = obterLaboratorioCais(ed);
+      const score = Number(ed.score_ponderado || 0).toFixed(1);
+      const passosChecklist = obterChecklistPorOrgao(ed).slice(0, 3);
+      const contrapartida = ed.contrapartida || 'Não exigida';
+      const pontosFortes = [
+        `Alta compatibilidade técnica com o CAIS (${ed.nota_aderencia || 0}/10) — núcleo indicado: ${lab}.`,
+        ed.justificativa_cais || 'Forte aderência ao portfólio de PD&I do Instituto CAIS.',
+        `Chance estimada de aprovação: ${ed.nota_chance_aprovacao || 0}/10 • Contrapartida: ${contrapartida}.`
+      ];
+
+      const tituloIndividual = String(ed.titulo || '').toLowerCase().startsWith(String(ed.orgao || '').toLowerCase())
+        ? ed.titulo
+        : `${ed.orgao} — ${ed.titulo}`;
+      const textoIndividual = [
+        `Olá! Segue o resumo do edital #${idx + 1} do nosso Mapa Top 5 CAIS:`,
+        '',
+        `• Edital: ${tituloIndividual}`,
+        `• Compatibilidade CAIS: ${score}/10`,
+        `• Recurso: ${ed.valor_financiado || 'Conforme edital'}`,
+        `• Prazo: ${prazoTxt}`,
+        `• Contrapartida: ${contrapartida}`,
+        '',
+        `Por que vale a pena: ${ed.justificativa_cais || 'Alta aderência ao Instituto CAIS.'}`,
+        `Escopo sugerido: ${ed.ideia_projeto_cais || ed.resumo_objetivo || ''}`,
+        `Parceiros sugeridos: ${ed.parceiros_sugeridos || 'UECE / Parceiros CAIS'}`,
+        `Link oficial: ${ed.link || ''}`
+      ].join('\n');
+
+      return `
+        <article class="card-top5">
+          <div class="card-topo">
+            <div class="card-topo-esq">
+              <span class="pos-badge">${idx + 1}º lugar</span>
+              <span class="orgao-badge">${escapeHtml(ed.orgao)}</span>
+              <span class="lab-badge">${escapeHtml(lab)}</span>
+            </div>
+            <div class="nota-destaque">Nota ${score}<span>/10</span></div>
+          </div>
+
+          <h2 class="card-titulo">${escapeHtml(ed.titulo)}</h2>
+
+          <div class="metricas-linha">
+            <div class="metrica-item">
+              <span class="metrica-label">Recurso disponível</span>
+              <strong class="metrica-valor destaque-azul">${escapeHtml(ed.valor_financiado || 'Consultar edital')}</strong>
+            </div>
+            <div class="metrica-item">
+              <span class="metrica-label">Prazo de submissão</span>
+              <strong class="metrica-valor">${escapeHtml(prazoTxt)}</strong>
+            </div>
+            <div class="metrica-item">
+              <span class="metrica-label">Contrapartida</span>
+              <strong class="metrica-valor">${escapeHtml(contrapartida)}</strong>
+            </div>
+          </div>
+
+          <div class="secao-card">
+            <span class="secao-label">Resumo objetivo</span>
+            <p>${escapeHtml(ed.resumo_objetivo || 'Chamada oficial de fomento à pesquisa e inovação.')}</p>
+          </div>
+
+          <div class="grade-dupla">
+            <div class="box-suave box-verde">
+              <span class="secao-label verde">Pontos fortes deste edital</span>
+              <ul>
+                ${pontosFortes.map(p => `<li>${escapeHtml(p)}</li>`).join('')}
+              </ul>
+            </div>
+
+            <div class="box-suave box-azul">
+              <span class="secao-label azul">Escopo sugerido para o CAIS</span>
+              <p>${escapeHtml(ed.ideia_projeto_cais || 'Estruturar proposta aplicada com equipe de PD&I do CAIS.')}</p>
+              <p class="parceiro-linha"><strong>Com quem articular:</strong> ${escapeHtml(ed.parceiros_sugeridos || 'UECE e parceiros do ecossistema CAIS.')}</p>
+            </div>
+          </div>
+
+          <div class="box-suave box-passos">
+            <span class="secao-label">Como submeter (primeiros passos práticos)</span>
+            <ol>
+              ${passosChecklist.map(st => `<li>${escapeHtml(st.texto)}</li>`).join('')}
+            </ol>
+          </div>
+
+          <div class="card-rodape">
+            <a href="${escapeHtml(ed.link || '#')}" target="_blank" rel="noopener noreferrer" class="link-oficial">Abrir página oficial do edital &rarr;</a>
+            <button type="button" class="btn-copiar-item" data-texto="${escapeHtml(textoIndividual)}">Copiar resumo deste edital</button>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    const janelaMapa = window.open('', '_blank');
+    if (!janelaMapa) {
+      exibirToast('Permita pop-ups no navegador para abrir a tela do Mapa Top 5.', 'error');
+      return;
+    }
+
+    janelaMapa.document.write(`
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mapa de Bolso CAIS — Top 5 Editais Prioritários (${hojeBR})</title>
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #F1F5F9;
+            color: #0F172A;
+            line-height: 1.55;
+            padding: 24px 16px 48px 16px;
+          }
+          .container { max-width: 920px; margin: 0 auto; }
+          .topo-pagina {
+            background: #0B2545;
+            color: #FFFFFF;
+            border-radius: 12px;
+            padding: 22px 24px;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+          }
+          .eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #7DD3FC;
+            margin-bottom: 4px;
+          }
+          h1 { margin: 0; font-size: 21px; line-height: 1.3; }
+          .sub { margin: 6px 0 0 0; font-size: 13.5px; color: #CBD5E1; max-width: 580px; }
+          .acoes-topo { display: flex; gap: 8px; flex-wrap: wrap; }
+          .btn {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 9px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+          }
+          .btn-primario { background: #0284C7; color: #FFFFFF; }
+          .btn-primario:hover { background: #0369A1; }
+          .btn-claro { background: rgba(255,255,255,0.12); color: #FFFFFF; border-color: rgba(255,255,255,0.24); }
+          .btn-claro:hover { background: rgba(255,255,255,0.2); }
+
+          .box-mensagem-chefe {
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-left: 5px solid #0284C7;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 22px;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+          }
+          .topo-box-msg {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+          }
+          .topo-box-msg h2 { margin: 0; font-size: 15.5px; color: #0B2545; }
+          .dica-msg { font-size: 12.5px; color: #475569; margin: 2px 0 0 0; }
+          .area-msg {
+            width: 100%;
+            min-height: 185px;
+            font-family: inherit;
+            font-size: 13.5px;
+            line-height: 1.5;
+            color: #0F172A;
+            background: #F8FAFC;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            padding: 12px;
+            resize: vertical;
+          }
+
+          .card-top5 {
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-radius: 12px;
+            padding: 20px 22px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+            page-break-inside: avoid;
+          }
+          .card-topo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+          }
+          .card-topo-esq { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+          .pos-badge {
+            background: #0B2545;
+            color: #FFFFFF;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 999px;
+          }
+          .orgao-badge {
+            background: #E0F2FE;
+            color: #0369A1;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 6px;
+          }
+          .lab-badge {
+            background: #F1F5F9;
+            color: #334155;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 6px;
+          }
+          .nota-destaque {
+            font-size: 16px;
+            font-weight: 800;
+            color: #065F46;
+            background: #ECFDF5;
+            border: 1px solid #A7F3D0;
+            padding: 4px 11px;
+            border-radius: 8px;
+          }
+          .nota-destaque span { font-size: 12px; font-weight: 600; color: #047857; }
+          .card-titulo { margin: 0 0 14px 0; font-size: 17px; color: #0B2545; line-height: 1.35; }
+
+          .metricas-linha {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+          }
+          .metrica-item {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 10px 12px;
+          }
+          .metrica-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748B;
+            margin-bottom: 3px;
+          }
+          .metrica-valor { font-size: 13px; color: #0F172A; }
+          .destaque-azul { color: #0369A1; }
+
+          .secao-card { margin-bottom: 12px; }
+          .secao-card p { margin: 4px 0 0 0; font-size: 13.5px; color: #1E293B; }
+          .secao-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #475569;
+            margin-bottom: 6px;
+          }
+          .secao-label.verde { color: #065F46; }
+          .secao-label.azul { color: #0369A1; }
+
+          .grade-dupla {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+          }
+          .box-suave {
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #1E293B;
+          }
+          .box-verde { background: #F0FDF4; border: 1px solid #BBF7D0; }
+          .box-azul { background: #F0F9FF; border: 1px solid #BAE6FD; }
+          .box-passos { background: #F8FAFC; border: 1px solid #E2E8F0; margin-bottom: 14px; }
+          .box-suave ul, .box-suave ol { margin: 0; padding-left: 18px; }
+          .box-suave li { margin-bottom: 4px; }
+          .box-suave p { margin: 0 0 8px 0; }
+          .parceiro-linha { margin-bottom: 0 !important; font-size: 12.5px; color: #334155; }
+
+          .card-rodape {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding-top: 10px;
+            border-top: 1px solid #E2E8F0;
+          }
+          .link-oficial {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0284C7;
+            text-decoration: none;
+          }
+          .link-oficial:hover { text-decoration: underline; }
+          .btn-copiar-item {
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #0B2545;
+            background: #F1F5F9;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+          }
+          .btn-copiar-item:hover { background: #E2E8F0; }
+
+          .aviso-copia {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #065F46;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 10px 16px;
+            border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+            display: none;
+          }
+
+          @media (max-width: 720px) {
+            .metricas-linha, .grade-dupla { grid-template-columns: 1fr; }
+            .area-msg { font-size: 16px; }
+          }
+          @media print {
+            body { background: #FFFFFF; padding: 0; }
+            .acoes-topo, .box-mensagem-chefe, .btn-copiar-item { display: none !important; }
+            .card-top5 { box-shadow: none; border-color: #CBD5E1; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <header class="topo-pagina">
+            <div>
+              <div class="eyebrow">Mapa de Bolso • Radar CAIS (${hojeBR})</div>
+              <h1>Top 5 Editais Prioritários para o Instituto CAIS</h1>
+              <p class="sub">
+                Seleção automática dos 5 editais abertos com maior aderência técnica e institucional
+                (de ${editais.length} monitorados • ${vigentes.length} vigentes hoje), prontos para apresentação à diretoria.
+              </p>
+            </div>
+            <div class="acoes-topo">
+              <button type="button" class="btn btn-primario" id="btnCopiarChefeTopo">Copiar Mensagem para o Chefe</button>
+              <button type="button" class="btn btn-claro" onclick="window.print()">Imprimir / Salvar PDF</button>
+            </div>
+          </header>
+
+          <section class="box-mensagem-chefe">
+            <div class="topo-box-msg">
+              <div>
+                <h2>Mensagem pronta para enviar ao seu gestor</h2>
+                <p class="dica-msg">Texto direto, respeitoso e objetivo — você pode ajustar antes de copiar para WhatsApp, Teams ou E-mail.</p>
+              </div>
+              <button type="button" class="btn btn-primario" id="btnCopiarChefeBox">Copiar Mensagem</button>
+            </div>
+            <textarea id="textoMensagemChefe" class="area-msg">${escapeHtml(mensagemChefe)}</textarea>
+          </section>
+
+          <section>
+            ${cardsTop5Html}
+          </section>
+        </div>
+
+        <div id="avisoCopia" class="aviso-copia">Copiado para a área de transferência!</div>
+
+        <script>
+          function copiarTexto(texto, rotulo) {
+            const mostrar = () => {
+              const el = document.querySelector('#avisoCopia');
+              el.textContent = rotulo || 'Copiado!';
+              el.style.display = 'block';
+              clearTimeout(window._tAviso);
+              window._tAviso = setTimeout(() => { el.style.display = 'none'; }, 2800);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(texto).then(mostrar).catch(() => fallback(texto, mostrar));
+            } else {
+              fallback(texto, mostrar);
+            }
+          }
+          function fallback(texto, cb) {
+            const ta = document.createElement('textarea');
+            ta.value = texto;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            cb();
+          }
+          const copiarChefe = () => {
+            const txt = document.querySelector('#textoMensagemChefe').value.trim();
+            copiarTexto(txt, 'Mensagem pronta para o gestor copiada!');
+          };
+          document.querySelector('#btnCopiarChefeTopo').addEventListener('click', copiarChefe);
+          document.querySelector('#btnCopiarChefeBox').addEventListener('click', copiarChefe);
+          document.querySelectorAll('.btn-copiar-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+              copiarTexto(btn.getAttribute('data-texto') || '', 'Resumo do edital copiado!');
+            });
+          });
+        </script>
+      </body>
+      </html>
+    `);
+    janelaMapa.document.close();
   }
 
   function escapeHtml(str) {
