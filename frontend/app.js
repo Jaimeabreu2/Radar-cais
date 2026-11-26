@@ -779,6 +779,12 @@ document.addEventListener('DOMContentLoaded', () => {
     pontoStatus.className = 'ponto-status verde';
   }
 
+  function editalEnvolvePetrobras(ed) {
+    if (!ed) return false;
+    const texto = `${ed.orgao || ''} ${ed.titulo || ''} ${ed.resumo_objetivo || ''} ${ed.parceiros_sugeridos || ''} ${ed.justificativa_cais || ''}`.toLowerCase();
+    return texto.includes('petrobras') || texto.includes('cenpes');
+  }
+
   function atualizarContadoresChips(total, gos, urgentes) {
     if (!chipsContainer) return;
     chipsContainer.querySelectorAll('.chip-filtro').forEach(chip => {
@@ -798,7 +804,11 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (tipo === 'favoritos') {
         qtd = editais.filter(e => Boolean(obterGestaoEdital(e.id_edital).favorito)).length;
       } else if (tipo === 'orgao' && valor) {
-        qtd = editais.filter(e => e.orgao === valor).length;
+        if (valor.toLowerCase() === 'petrobras') {
+          qtd = editais.filter(e => editalEnvolvePetrobras(e)).length;
+        } else {
+          qtd = editais.filter(e => e.orgao === valor).length;
+        }
       }
 
       chip.innerHTML = `${escapeHtml(base)}<span class="chip-contador">${qtd}</span>`;
@@ -856,8 +866,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (decisao === 'NO-GO' && !dec.includes('NO-GO')) return false;
       }
 
-      // Órgão
-      if (orgao && ed.orgao !== orgao) return false;
+      // Órgão (para Petrobras, inclui também editais em parceria/colaboração com FINEP, CNPq, Sebrae etc.)
+      if (orgao) {
+        if (orgao.toLowerCase() === 'petrobras') {
+          if (!editalEnvolvePetrobras(ed)) return false;
+        } else if (ed.orgao !== orgao) {
+          return false;
+        }
+      }
 
       // Prazo / Urgência
       if (prazo) {

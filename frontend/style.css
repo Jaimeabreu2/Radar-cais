@@ -2849,6 +2849,18 @@ mark.grifo-busca {
   color: #FDE047;
 }
 
+#btnCopiarLinkEdital {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #E0F2FE;
+}
+
+#btnCopiarLinkEdital:hover {
+  background: rgba(56, 189, 248, 0.30);
+  border-color: #38BDF8;
+  color: #FFFFFF;
+}
+
 /* ==============================================================================
    COPILOTO CAIS (RAG + LLM) & MOTOR PREDITIVO DE CAPTAÇÃO (MACHINE LEARNING)
    ============================================================================== */
