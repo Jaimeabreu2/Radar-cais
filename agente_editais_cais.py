@@ -189,7 +189,13 @@ FONTES_FOMENTO: Dict[str, List[Dict[str, str]]] = {
             "orgao": "FINEP",
             "esfera": "Federal",
             "foco": "Subvenção econômica, infraestrutura para ICTs e chamadas do FNDCT (Mais Inovação Brasil)",
-            "url": "http://legacy.finep.gov.br/chamadas-publicas/chamadas-publicas?situacao=aberta",
+            "url": "https://www.finep.gov.br/chamadas-publicas/chamadas-publicas?situacao=aberta",
+        },
+        {
+            "orgao": "Petrobras",
+            "esfera": "Nacional / Energia & PD&I",
+            "foco": "Conexões para Inovação (CENPES): Parcerias Tecnológicas com ICTs (Cláusula ANP), Radar de Soluções, IA, Robótica e Transição Energética",
+            "url": "https://conexoes-inovacao.petrobras.com.br/s/?language=pt_BR",
         },
         {
             "orgao": "FUNCAP",
@@ -403,6 +409,8 @@ def carregar_memoria() -> Dict[str, Any]:
 
                     parsed_link = urlparse(str(ed_calibrado.get("link", "")).strip())
                     chave_link = f"{parsed_link.netloc}{parsed_link.path}".rstrip("/").lower()
+                    if parsed_link.fragment:
+                        chave_link = f"{chave_link}#{parsed_link.fragment.lower()}"
                     chave_unica = (
                         f"{ed_calibrado.get('orgao', '').strip().lower()}::{chave_link}"
                         if chave_link
@@ -2422,7 +2430,56 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "nota_aderencia": 8.4, "nota_chance_aprovacao": 7.6, "nota_financeira": 8.5, "nota_complexidade": 4.5,
             })
 
+    # ==========================================================================
+    # 10. PETROBRAS (CONEXÕES PARA INOVAÇÃO / CENPES / CLÁUSULA ANP)
+    # ==========================================================================
+    elif "petrobras" in org_low:
+        if "startup" in t_low or "sebrae" in t_low:
+            dados.update({
+                "titulo": "Petrobras / Sebrae — Conexões para Inovação: Módulo Startups (Soft Techs & Deep Techs)",
+                "valor_financiado": "R$ 500.000,00 a R$ 2.000.000,00 por projeto (Subvenção / Aporte PD&I)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig) if re.search(r"\d{2}/\d{2}/20[23]\d", prazo_orig) else "Fluxo Contínuo",
+                "cronograma_etapas": "Ciclos periódicos no Portal Conexões para Inovação (Petrobras + Sebrae) — Cadastro contínuo de propostas Soft Tech e Deep Tech",
+                "contrapartida": "Não exigida para ICTs parceiras (foco em spin-offs, startups e micro/pequenas empresas deep tech)",
+                "publico_elegivel": "Startups, spin-offs acadêmicas (pesquisadores do CAIS/UECE) e empresas de base tecnológica com soluções em IA, robótica, sensores e transição energética.",
+                "ideia_projeto_cais": "Estruturar spin-off tecnológica do CAIS ou parceria com startup cearense para soluções de IA aplicada, visão computacional em inspeção de ativos, IoT industrial e otimização energética.",
+                "parceiros_sugeridos": "Petrobras (CENPES), Sebrae Ceará, Incubadora da UECE e startups do ecossistema CAIS.",
+                "justificativa_cais": "Combina aporte expressivo (R$ 500 mil a R$ 2 milhões), mentoria técnica do CENPES e validação em ambiente real da Petrobras.",
+                "resumo_objetivo": "Módulo Startups do Programa Petrobras Conexões para Inovação voltado ao desenvolvimento e validação em campo de tecnologias digitais (Soft Techs) e hardware/robótica (Deep Techs).",
+                "nota_aderencia": 9.2, "nota_chance_aprovacao": 8.4, "nota_financeira": 9.3, "nota_complexidade": 3.0,
+            })
+        elif "radar" in t_low or "desafios" in t_low:
+            dados.update({
+                "titulo": "Petrobras — Conexões para Inovação: Radar de Soluções & Desafios Tecnológicos (IA, IoT e Baixo Carbono)",
+                "valor_financiado": "Fomento PD&I Petrobras + Teste Piloto em Operação Real (ver desafio no portal)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig) if re.search(r"\d{2}/\d{2}/20[23]\d", prazo_orig) else "Fluxo Contínuo",
+                "cronograma_etapas": "Submissão contínua no Banco de Desafios e Radar de Soluções (conexoes-inovacao.petrobras.com.br)",
+                "contrapartida": "Não exigida para ICTs; contratação ou cooperação tecnológica direta conforme módulo",
+                "publico_elegivel": "ICTs, universidades (UECE/CAIS), startups e empresas tecnológicas com soluções aderentes aos desafios abertos de IA, automação, integridade e descarbonização.",
+                "ideia_projeto_cais": "Submeter soluções do CAIS em Agentes de IA/LLMs para operação segura, Gêmeos Digitais, visão computacional para inspeção e sensores IoT para monitoramento ambiental e eficiência energética.",
+                "parceiros_sugeridos": "Petrobras (CENPES / Unidades Operacionais), UECE e Laboratórios de IA e Sistemas Embarcados do CAIS.",
+                "justificativa_cais": "Canal direto de demanda tecnológica real da Petrobras com alta aderência às competências de IA, dados, embarcados e transição energética do CAIS.",
+                "resumo_objetivo": "Plataforma contínua de inovação aberta da Petrobras que publica desafios reais de inteligência artificial, robótica, integridade de ativos, eficiência energética e transição para baixo carbono.",
+                "nota_aderencia": 9.5, "nota_chance_aprovacao": 8.5, "nota_financeira": 9.1, "nota_complexidade": 3.0,
+            })
+        else:
+            dados.update({
+                "titulo": "Petrobras — Conexões para Inovação: Parcerias Tecnológicas e Cooperações com ICTs (Cláusula de PD&I ANP)",
+                "valor_financiado": "Recursos da Cláusula de PD&I da ANP (Projetos Cooperativos ICT-Petrobras)",
+                "prazo_submissao": _prazo_vigente_cais(prazo_orig) if re.search(r"\d{2}/\d{2}/20[23]\d", prazo_orig) else "Fluxo Contínuo",
+                "cronograma_etapas": "Fluxo permanente de cooperação tecnológica com o CENPES/Petrobras via credenciamento de ICTs (ANP) e chamadas temáticas",
+                "contrapartida": "Não exigida (100% financiado com recursos obrigatórios de PD&I da Cláusula ANP)",
+                "publico_elegivel": "ICTs públicas e privadas sem fins lucrativos e universidades credenciadas na ANP (UECE em parceria com o Instituto CAIS/LDI).",
+                "ideia_projeto_cais": "Apresentar carteira de projetos de P&D cooperativo com o CENPES em Inteligência Artificial aplicada, Computação de Alto Desempenho, Sensores Embarcados, Hidrogênio de Baixo Carbono e Descarbonização.",
+                "parceiros_sugeridos": "Petrobras (CENPES), Universidade Estadual do Ceará (UECE — credenciamento ANP) e Instituto CAIS.",
+                "justificativa_cais": "A Petrobras investe bilhões anuais por obrigação regulatória da Cláusula de PD&I da ANP em projetos com universidades e ICTs brasileiras, sem exigir contrapartida financeira.",
+                "resumo_objetivo": "Cooperação tecnológica direta entre a Petrobras (CENPES) e ICTs/Universidades brasileiras financiada por recursos da Cláusula de PD&I da ANP em tecnologias digitais, transição energética e engenharia avançada.",
+                "nota_aderencia": 9.6, "nota_chance_aprovacao": 8.6, "nota_financeira": 9.6, "nota_complexidade": 3.5,
+            })
+
     ed.update(dados)
+    if "legacy.finep.gov.br" in str(ed.get("link", "")):
+        ed["link"] = str(ed["link"]).replace("http://legacy.finep.gov.br", "https://www.finep.gov.br").replace("https://legacy.finep.gov.br", "https://www.finep.gov.br")
     dias_calc = calcular_dias_restantes(ed.get("prazo_submissao", ""))
     if not ed.get("cronograma_etapas"):
         p_sub = str(ed.get("prazo_submissao", "")).strip()

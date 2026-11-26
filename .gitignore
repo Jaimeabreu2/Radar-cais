@@ -22,3 +22,7 @@ env/
 Thumbs.db
 .vscode/
 .idea/
+
+# Roteiro pessoal local (nunca subir para o GitHub)
+ROTEIRO_APRESENTACAO_LIDERANCA.md
+ROTEIRO_APRESENTACAO_LIDERANCA.docx

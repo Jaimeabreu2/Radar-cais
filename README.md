@@ -6,7 +6,7 @@
 
 O **Radar CAIS** é a plataforma de inteligência, triagem e gestão de oportunidades de financiamento à Pesquisa, Desenvolvimento e Inovação (PD&I) do **Instituto CAIS (Centro Ágil de Inovação e Saber)**.
 
-Ele monitora automaticamente **19 portais oficiais de fomento** (nacionais, estaduais e internacionais), calcula uma **Nota de Aderência (0 a 10)** para cada chamada pública e entrega um plano prático de submissão em um painel web responsivo (computador e celular).
+Ele monitora automaticamente **20 portais oficiais de fomento** (nacionais, estaduais e internacionais — incluindo **Petrobras Conexões para Inovação**), calcula uma **Nota de Aderência (0 a 10)** para cada chamada pública e entrega um plano prático de submissão em um painel web responsivo (computador e celular).
 
 ---
 
@@ -54,7 +54,7 @@ $$\text{Nota Final} = (\text{Aderência} \times 0{,}40) + (\text{Chance} \times 
 
 | Ciclo | Frequência | Fontes Oficiais Auditadas (19 Portais) |
 | :--- | :--- | :--- |
-| **Diário** | Todos os dias às 08h00 | **FINEP**, **FUNCAP (Ceará)**, **ETICE (Ceará)**, **CNPq**, **EMBRAPII**, **CAPES** e **Programa Mover (MDIC/FUNDEP)** |
+| **Diário** | Todos os dias às 08h00 | **FINEP**, **Petrobras (Conexões para Inovação)**, **FUNCAP (Ceará)**, **ETICE (Ceará)**, **CNPq**, **EMBRAPII**, **CAPES** e **Programa Mover (MDIC/FUNDEP)** |
 | **Semanal** | Segundas-feiras | **Sebrae (Catalisa ICT)**, **SENAI (Plataforma Inovação)**, **ABDI**, **BNDES Funtec** e **Banco do Nordeste (FUNDECI)** |
 | **Quinzenal** | Dias 1 e 15 do mês | **MCTI** e **CONFAP** (Chamadas Internacionais) |
 | **Mensal** | Dia 1 de cada mês | **Horizon Europe (União Europeia)**, **BID Lab**, **Fundação Lemann**, **Fundação Telefônica Vivo**, **Itaú Social** e **Fundação Grupo Boticário** |

@@ -1589,8 +1589,11 @@ document.addEventListener('DOMContentLoaded', () => {
       badgeDecisao.style.borderColor = 'var(--semaforo-vermelho-border)';
     }
 
-    // Link oficial governamental
-    btnLinkOficial.href = ed.link || '#';
+    // Link oficial governamental (normaliza links legados da FINEP para HTTPS oficial)
+    const linkOficialLimpo = String(ed.link || '#')
+      .replace('http://legacy.finep.gov.br', 'https://www.finep.gov.br')
+      .replace('https://legacy.finep.gov.br', 'https://www.finep.gov.br');
+    btnLinkOficial.href = linkOficialLimpo;
 
     // Atualiza botão Favoritar do Topo do Modal
     atualizarEstadoBotaoFavoritoModal(ed);
@@ -2196,6 +2199,16 @@ ${ed.parceiros_sugeridos}
         { id: 'et_4', cat: 'EQUIPE', texto: 'Comprovar certificações técnicas e titulação da equipe de engenheiros de software, dados e redes do CAIS' },
         { id: 'et_5', cat: 'CONFORMIDADE', texto: 'Validar requisitos de LGPD, segurança cibernética e soberania de dados exigidos pelo termo da ETICE' },
         { id: 'et_6', cat: 'PROTOCOLO', texto: 'Protocolar dossiê de pré-qualificação / credenciamento permanente junto à comissão da ETICE' },
+      ];
+    }
+    if (org.includes('PETROBRAS')) {
+      return [
+        { id: 'pb_1', cat: 'PORTAL', texto: 'Realizar ou atualizar cadastro da instituição/equipe no Portal Petrobras Conexões para Inovação (conexoes-inovacao.petrobras.com.br)' },
+        { id: 'pb_2', cat: 'ANP / ICT', texto: 'Confirmar enquadramento da unidade parceira (UECE / Instituto CAIS) no credenciamento de ICTs da Cláusula de PD&I da ANP' },
+        { id: 'pb_3', cat: 'DESAFIO', texto: 'Selecionar o desafio aberto ou módulo aderente (Parcerias Tecnológicas, Radar de Soluções ou Módulo Startups) e validar requisitos' },
+        { id: 'pb_4', cat: 'TÉCNICO', texto: 'Estruturar proposta técnica com entregas, maturidade tecnológica (TRL), equipe de pesquisadores e aplicabilidade operacional' },
+        { id: 'pb_5', cat: 'PI / JURÍDICO', texto: 'Alinhar minuta de confidencialidade (NDA), propriedade intelectual e plano de trabalho conforme diretrizes do CENPES/Petrobras' },
+        { id: 'pb_6', cat: 'SUBMISSÃO', texto: 'Submeter a proposta oficial na plataforma Conexões para Inovação e acompanhar o retorno da banca técnica do CENPES' },
       ];
     }
     if (org.includes('CONFAP') || org.includes('HORIZON')) {
