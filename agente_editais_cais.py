@@ -2775,6 +2775,124 @@ def analisar_candidatos_com_gemini(
 URL_PAINEL_ONLINE = "https://jaimeabreu2.github.io/radar-cais/"
 
 
+def verificar_saude_sistema_online(
+    resultados_saude: Optional[Dict[str, Dict[str, Any]]] = None,
+    historico_editais: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Executa health-check real no site publicado (GitHub Pages), na base JSON online
+    e consolida todas as falhas/problemas detectados no ciclo diário.
+    """
+    resultados_saude = resultados_saude or {}
+    historico_editais = historico_editais or {}
+    sess = criar_sessao_http()
+
+    site_ok = False
+    site_status = "Indisponível"
+    site_ms = 0
+    json_ok = False
+    json_qtd = 0
+    problemas: List[str] = []
+
+    # 1. Testa se o painel HTML está no ar (HTTP 200)
+    t0 = datetime.datetime.now()
+    try:
+        r_site = _requisicao_get_resiliente(sess, URL_PAINEL_ONLINE, timeout=15)
+        site_ms = int((datetime.datetime.now() - t0).total_seconds() * 1000)
+        if r_site and r_site.status_code == 200 and "Radar CAIS" in r_site.text:
+            site_ok = True
+            site_status = f"200 OK ({site_ms} ms)"
+        else:
+            code = r_site.status_code if r_site else "Sem resposta"
+            site_status = f"ERRO HTTP {code}"
+            problemas.append(f"Site online retornou status inesperado: {code} ({URL_PAINEL_ONLINE})")
+    except Exception as e:
+        site_status = f"ERRO ({str(e)[:80]})"
+        problemas.append(f"Falha ao acessar o painel online: {str(e)[:120]}")
+
+    # 2. Testa se o JSON público está acessível e íntegro
+    try:
+        r_json = _requisicao_get_resiliente(sess, f"{URL_PAINEL_ONLINE}historico_editais.json", timeout=15)
+        if r_json and r_json.status_code == 200:
+            dados_pub = r_json.json()
+            json_qtd = len(dados_pub.get("editais", {}))
+            json_ok = json_qtd > 0
+            if not json_ok:
+                problemas.append("Base JSON online carregou vazia (0 editais).")
+        else:
+            code_j = r_json.status_code if r_json else "Sem resposta"
+            problemas.append(f"Base JSON online indisponível (HTTP {code_j}).")
+    except Exception as e:
+        problemas.append(f"Erro ao validar historico_editais.json online: {str(e)[:120]}")
+
+    # 3. Consolida portais que falharam na coleta de hoje
+    fontes_total = len(resultados_saude)
+    fontes_falhas = [info for info in resultados_saude.values() if not info.get("ok")]
+    fontes_ok = fontes_total - len(fontes_falhas)
+    for f_err in fontes_falhas:
+        problemas.append(f"Portal externo indisponível hoje: {f_err.get('orgao')} ({f_err.get('erro', 'Falha HTTP')[:90]})")
+
+    # 4. Resumo da carteira local
+    total_base = len(historico_editais)
+    vigentes = 0
+    for ed in historico_editais.values():
+        d = calcular_dias_restantes(ed.get("prazo_submissao", ""))
+        dec = str(ed.get("decisao_recomendada", "")).upper()
+        if not ((d is not None and d < 0) or "ENCERRADO" in dec):
+            vigentes += 1
+
+    # 5. Veredito executivo
+    if not site_ok or not json_ok:
+        nivel = "CRITICO"
+        rotulo = "🔴 ALERTA: FORA DO AR OU COM FALHA CRÍTICA"
+    elif fontes_falhas:
+        nivel = "AVISO"
+        rotulo = "🟡 ONLINE COM AVISOS (Portal externo instável)"
+    else:
+        nivel = "OK"
+        rotulo = "🟢 100% FUNCIONAL E ONLINE"
+
+    return {
+        "nivel": nivel,
+        "rotulo": rotulo,
+        "site_ok": site_ok,
+        "site_status": site_status,
+        "json_ok": json_ok,
+        "json_qtd": json_qtd,
+        "fontes_ok": fontes_ok,
+        "fontes_total": fontes_total,
+        "total_base": total_base,
+        "vigentes": vigentes,
+        "problemas": problemas,
+    }
+
+
+def enviar_alerta_falha_pipeline(detalhe_erro: str = "") -> None:
+    """Dispara e-mail de emergência caso o pipeline diário (coleta ou testes) falhe no GitHub Actions."""
+    hoje_br = datetime.date.today().strftime("%d/%m/%Y")
+    run_url = os.environ.get("GITHUB_RUN_URL", "https://github.com/Jaimeabreu2/radar-cais/actions")
+    saude = verificar_saude_sistema_online()
+    assunto = f"🔴 [Radar CAIS] ALERTA: Falha na execução automática ({hoje_br})"
+    md = (
+        f"# 🔴 ALERTA — Falha no Pipeline Diário do Radar CAIS ({hoje_br})\n\n"
+        f"- **Status do site online agora:** {saude['rotulo']} ({saude['site_status']})\n"
+        f"- **Motivo:** Uma etapa da rotina automática (coleta ou Quality Gate de testes) falhou e a publicação foi travada por segurança.\n"
+        f"- **Log completo no GitHub Actions:** {run_url}\n"
+        + (f"- **Detalhes:** {detalhe_erro}\n" if detalhe_erro else "")
+    )
+    html_alerta = f"""
+    <!DOCTYPE html><html lang="pt-BR"><body style="font-family:Segoe UI,Arial,sans-serif;background:#FFF1F2;padding:24px;color:#0F172A;">
+      <div style="max-width:700px;margin:0 auto;background:#FFFFFF;border:1px solid #FB7185;border-left:6px solid #BE123C;border-radius:8px;padding:22px;">
+        <h2 style="margin:0 0 10px 0;color:#9F1239;">🔴 ALERTA — Falha na Execução Diária do Radar CAIS ({hoje_br})</h2>
+        <p><strong>Status do site publicado agora:</strong> {html.escape(saude['rotulo'])} ({html.escape(saude['site_status'])})</p>
+        <p>Uma etapa da coleta ou dos testes automatizados (<em>Quality Gate</em>) falhou às 08h. Por segurança, o painel online anterior foi mantido intacto.</p>
+        <p><a href="{html.escape(run_url)}" style="display:inline-block;background:#BE123C;color:#FFFFFF;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:bold;">Abrir Log da Falha no GitHub Actions &rarr;</a></p>
+      </div>
+    </body></html>
+    """
+    enviar_notificacoes(assunto, md, html_alerta)
+
+
 def obter_top5_vigentes_cais(historico_editais: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Retorna os 5 editais vigentes com maior score ponderado para o resumo executivo semanal."""
     vigentes = []
@@ -2850,6 +2968,7 @@ def montar_relatorio_markdown(
     retificacoes: Optional[List[Dict[str, Any]]] = None,
     top5_semanal: Optional[List[Dict[str, Any]]] = None,
     alertas_saude: Optional[List[Dict[str, Any]]] = None,
+    saude_sistema: Optional[Dict[str, Any]] = None,
 ) -> str:
     hoje_str = datetime.date.today().strftime("%d/%m/%Y")
     ciclos_str = ", ".join(c.capitalize() for c in ciclos)
@@ -2862,6 +2981,20 @@ def montar_relatorio_markdown(
         f"**Ciclos executados:** {ciclos_str} | **Novos editais:** {len(novos)} | **Retificações:** {len(retificacoes)} | **Alertas (<= 7 dias):** {len(urgentes)}",
         "",
     ]
+
+    if saude_sistema:
+        md.append(f"## 🩺 Status Diário do Projeto: {saude_sistema['rotulo']}")
+        md.append(f"- **Site Online ({URL_PAINEL_ONLINE}):** {saude_sistema['site_status']}")
+        md.append(f"- **Base JSON Pública:** {'OK' if saude_sistema['json_ok'] else 'FALHA'} ({saude_sistema['json_qtd']} editais publicados | {saude_sistema['vigentes']} vigentes)")
+        if saude_sistema["fontes_total"] > 0:
+            md.append(f"- **Portais consultados hoje:** {saude_sistema['fontes_ok']}/{saude_sistema['fontes_total']} responderam normalmente")
+        if saude_sistema["problemas"]:
+            md.append("- **Relatório de Problemas / Falhas:**")
+            for prob in saude_sistema["problemas"]:
+                md.append(f"  - ⚠️ {prob}")
+        else:
+            md.append("- **Relatório de Problemas / Falhas:** Nenhum problema ou falha detectada hoje. Tudo 100% operacional.")
+        md.append("")
 
     if top5_semanal:
         md.append("## 🏆 Mapa Top 5 da Semana — Maiores Aderências CAIS")
@@ -2952,12 +3085,50 @@ def montar_relatorio_html(
     retificacoes: Optional[List[Dict[str, Any]]] = None,
     top5_semanal: Optional[List[Dict[str, Any]]] = None,
     alertas_saude: Optional[List[Dict[str, Any]]] = None,
+    saude_sistema: Optional[Dict[str, Any]] = None,
 ) -> str:
     hoje_str = datetime.date.today().strftime("%d/%m/%Y")
     ciclos_str = ", ".join(c.capitalize() for c in ciclos)
     retificacoes = retificacoes or []
     top5_semanal = top5_semanal or []
     alertas_saude = alertas_saude or []
+
+    bloco_status_diario_html = ""
+    if saude_sistema:
+        nivel = saude_sistema.get("nivel", "OK")
+        if nivel == "OK":
+            bg_s, bd_s, ac_s, txt_s = "#ECFDF5", "#34D399", "#047857", "#064E3B"
+        elif nivel == "AVISO":
+            bg_s, bd_s, ac_s, txt_s = "#FFFBEB", "#F59E0B", "#D97706", "#78350F"
+        else:
+            bg_s, bd_s, ac_s, txt_s = "#FFF1F2", "#FB7185", "#BE123C", "#881337"
+
+        probs = saude_sistema.get("problemas", [])
+        if probs:
+            lista_probs_html = "<ul style='margin:6px 0 0 0;padding-left:18px;'>" + "".join(
+                f"<li style='margin-bottom:4px;'>⚠️ {html.escape(p)}</li>" for p in probs
+            ) + "</ul>"
+        else:
+            lista_probs_html = "<div style='margin-top:6px;'>✅ <strong>Nenhuma falha ou problema detectado hoje.</strong> Site, base de dados e coleta 100% operacionais.</div>"
+
+        fontes_linha = (
+            f" &nbsp;|&nbsp; <strong>Portais hoje:</strong> {saude_sistema['fontes_ok']}/{saude_sistema['fontes_total']} OK"
+            if saude_sistema.get("fontes_total", 0) > 0
+            else ""
+        )
+        bloco_status_diario_html = f"""
+        <div style="background:{bg_s}; border:1px solid {bd_s}; border-left:5px solid {ac_s}; border-radius:8px; padding:14px 16px; margin:14px 0; color:{txt_s}; font-size:13px;">
+          <div style="font-size:15px; font-weight:bold; margin-bottom:6px;">{html.escape(saude_sistema['rotulo'])}</div>
+          <div>
+            <strong>Site Online:</strong> <a href="{html.escape(URL_PAINEL_ONLINE)}" style="color:{txt_s};">{html.escape(saude_sistema['site_status'])}</a>
+            &nbsp;|&nbsp; <strong>Base Pública:</strong> {saude_sistema['json_qtd']} editais ({saude_sistema['vigentes']} vigentes){fontes_linha}
+          </div>
+          <div style="margin-top:8px; padding-top:8px; border-top:1px dashed {bd_s};">
+            <strong>Relatório de Problemas / Falhas:</strong>
+            {lista_probs_html}
+          </div>
+        </div>
+        """
 
     bloco_top5_html = ""
     if top5_semanal:
@@ -3078,6 +3249,7 @@ def montar_relatorio_html(
           <strong>Retificações:</strong> {len(retificacoes)} &nbsp;|&nbsp;
           <strong>Alertas (&le; 7 dias):</strong> {len(urgentes)}
         </p>
+        {bloco_status_diario_html}
         {bloco_retif_html}
         {bloco_top5_html}
         {bloco_saude_html}
@@ -3251,26 +3423,33 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
 
         is_segunda_feira = datetime.date.today().weekday() == 0
         top5_semanal = obter_top5_vigentes_cais(historico_editais) if is_segunda_feira else []
+        saude_sistema = verificar_saude_sistema_online(resultados_saude, historico_editais)
 
         relatorio_md = montar_relatorio_markdown(
-            ciclos, novos_qualificados, alertas_urgencia, retificacoes_detectadas, top5_semanal, alertas_saude
+            ciclos, novos_qualificados, alertas_urgencia, retificacoes_detectadas, top5_semanal, alertas_saude, saude_sistema
         )
         relatorio_html = montar_relatorio_html(
-            ciclos, novos_qualificados, alertas_urgencia, retificacoes_detectadas, top5_semanal, alertas_saude
+            ciclos, novos_qualificados, alertas_urgencia, retificacoes_detectadas, top5_semanal, alertas_saude, saude_sistema
         )
 
         if not dry_run:
             ARQUIVO_RELATORIO_MD.write_text(relatorio_md, encoding="utf-8")
             ARQUIVO_RELATORIO_HTML.write_text(relatorio_html, encoding="utf-8")
             salvar_memoria_e_exportar(memoria)
-            if novos_qualificados or alertas_urgencia or retificacoes_detectadas or alertas_saude or is_segunda_feira:
-                if is_segunda_feira and not novos_qualificados and not retificacoes_detectadas:
-                    assunto = f"[Radar CAIS] Mapa Top 5 da Semana ({hoje_br})"
-                elif retificacoes_detectadas:
-                    assunto = f"[Radar CAIS] ⚠️ {len(retificacoes_detectadas)} retificação(ões) e {len(novos_qualificados)} novidade(s) ({hoje_br})"
-                else:
-                    assunto = f"[Radar CAIS] {len(novos_qualificados)} novas oportunidades qualificadas ({hoje_br})"
-                enviar_notificacoes(assunto, relatorio_md, relatorio_html)
+
+            # Envia o boletim diário de status/saúde TODOS OS DIAS às 08h (com novidades, prorrogações ou Top 5 de segunda)
+            icone_status = "🟢" if saude_sistema["nivel"] == "OK" else ("🟡" if saude_sistema["nivel"] == "AVISO" else "🔴")
+            if saude_sistema["nivel"] == "CRITICO":
+                assunto = f"🔴 [Radar CAIS] ALERTA: Problema no Site Online ({hoje_br})"
+            elif is_segunda_feira:
+                assunto = f"{icone_status} [Radar CAIS] Status Online + Mapa Top 5 da Semana ({hoje_br})"
+            elif retificacoes_detectadas:
+                assunto = f"{icone_status} [Radar CAIS] Status Online + ⚠️ {len(retificacoes_detectadas)} retificação(ões) ({hoje_br})"
+            elif novos_qualificados:
+                assunto = f"{icone_status} [Radar CAIS] Status Online + {len(novos_qualificados)} novidade(s) ({hoje_br})"
+            else:
+                assunto = f"{icone_status} [Radar CAIS] Boletim Diário: 100% Funcional e Online ({hoje_br})"
+            enviar_notificacoes(assunto, relatorio_md, relatorio_html)
 
         resultado = {
             "status": "concluido",
@@ -3598,8 +3777,17 @@ def main():
         action="store_true",
         help="Executa varredura e scoring sem salvar dados em disco nem enviar notificações.",
     )
+    parser.add_argument(
+        "--alerta-falha",
+        action="store_true",
+        help="Dispara e-mail de emergência informando falha no pipeline diário (usado pelo GitHub Actions).",
+    )
 
     args = parser.parse_args()
+
+    if args.alerta_falha:
+        enviar_alerta_falha_pipeline()
+        return
 
     # Opção: Carregar Mock Realista
     if args.mock:

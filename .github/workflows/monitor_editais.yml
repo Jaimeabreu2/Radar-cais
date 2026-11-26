@@ -67,3 +67,15 @@ jobs:
           git commit -m "chore(pages): sincronização diária de editais"
           git branch -M gh-pages
           git push -f origin gh-pages
+
+      - name: Notificar por E-mail em Caso de Falha no Pipeline
+        if: failure()
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '465' }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python agente_editais_cais.py --alerta-falha
