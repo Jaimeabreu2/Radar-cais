@@ -2775,13 +2775,29 @@ def analisar_candidatos_com_gemini(
 URL_PAINEL_ONLINE = "https://jaimeabreu2.github.io/radar-cais/"
 
 
+def _formatar_erro_portal_amigavel(erro: str) -> str:
+    """Converte exceções técnicas de rede em mensagens humanas e objetivas para o relatório executivo."""
+    e_low = str(erro or "").lower()
+    if "max retries" in e_low or "timed out" in e_low or "timeout" in e_low or "sem resposta" in e_low:
+        return "Servidor do órgão não respondeu ao robô na nuvem (bloqueio geográfico ou lentidão temporária)"
+    if "403" in e_low:
+        return "Firewall do órgão bloqueou acesso automático (HTTP 403)"
+    if "404" in e_low:
+        return "Página do órgão não encontrada (HTTP 404 — possível mudança de endereço)"
+    if any(c in e_low for c in ("500", "502", "503", "504")):
+        return "Portal do órgão em manutenção ou instável (HTTP 5xx)"
+    if "ssl" in e_low or "certificate" in e_low:
+        return "Certificado SSL do portal do órgão instável"
+    return "Instabilidade temporária na resposta do portal do órgão"
+
+
 def verificar_saude_sistema_online(
     resultados_saude: Optional[Dict[str, Dict[str, Any]]] = None,
     historico_editais: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Executa health-check real no site publicado (GitHub Pages), na base JSON online
-    e consolida todas as falhas/problemas detectados no ciclo diário.
+    e consolida falhas reais do sistema separadas de instabilidades externas de órgãos públicos.
     """
     resultados_saude = resultados_saude or {}
     historico_editais = historico_editais or {}
@@ -2793,6 +2809,7 @@ def verificar_saude_sistema_online(
     json_ok = False
     json_qtd = 0
     problemas: List[str] = []
+    avisos_externos: List[str] = []
 
     # 1. Testa se o painel HTML está no ar (HTTP 200)
     t0 = datetime.datetime.now()
@@ -2825,12 +2842,13 @@ def verificar_saude_sistema_online(
     except Exception as e:
         problemas.append(f"Erro ao validar historico_editais.json online: {str(e)[:120]}")
 
-    # 3. Consolida portais que falharam na coleta de hoje
+    # 3. Consolida portais externos que não responderam ao servidor na nuvem hoje
     fontes_total = len(resultados_saude)
     fontes_falhas = [info for info in resultados_saude.values() if not info.get("ok")]
     fontes_ok = fontes_total - len(fontes_falhas)
     for f_err in fontes_falhas:
-        problemas.append(f"Portal externo indisponível hoje: {f_err.get('orgao')} ({f_err.get('erro', 'Falha HTTP')[:90]})")
+        motivo = _formatar_erro_portal_amigavel(f_err.get("erro", ""))
+        avisos_externos.append(f"{f_err.get('orgao')}: {motivo}")
 
     # 4. Resumo da carteira local
     total_base = len(historico_editais)
@@ -2841,13 +2859,14 @@ def verificar_saude_sistema_online(
         if not ((d is not None and d < 0) or "ENCERRADO" in dec):
             vigentes += 1
 
-    # 5. Veredito executivo
+    # 5. Veredito executivo: diferencia saúde real do Radar CAIS vs. bloqueio/lentidão de site de órgão terceiro
     if not site_ok or not json_ok:
         nivel = "CRITICO"
-        rotulo = "🔴 ALERTA: FORA DO AR OU COM FALHA CRÍTICA"
-    elif fontes_falhas:
+        rotulo = "🔴 ALERTA: PROJETO FORA DO AR OU COM FALHA CRÍTICA"
+    elif fontes_total > 0 and fontes_ok == 0:
         nivel = "AVISO"
-        rotulo = "🟡 ONLINE COM AVISOS (Portal externo instável)"
+        rotulo = "🟡 SITE ONLINE, MAS NENHUM PORTAL EXTERNO RESPONDEU HOJE"
+        problemas.append("Nenhum dos portais externos respondeu na coleta de hoje. Verificar conexão do robô.")
     else:
         nivel = "OK"
         rotulo = "🟢 100% FUNCIONAL E ONLINE"
@@ -2864,6 +2883,7 @@ def verificar_saude_sistema_online(
         "total_base": total_base,
         "vigentes": vigentes,
         "problemas": problemas,
+        "avisos_externos": avisos_externos,
     }
 
 
@@ -2989,11 +3009,16 @@ def montar_relatorio_markdown(
         if saude_sistema["fontes_total"] > 0:
             md.append(f"- **Portais consultados hoje:** {saude_sistema['fontes_ok']}/{saude_sistema['fontes_total']} responderam normalmente")
         if saude_sistema["problemas"]:
-            md.append("- **Relatório de Problemas / Falhas:**")
+            md.append("- **Relatório de Problemas / Falhas do Projeto:**")
             for prob in saude_sistema["problemas"]:
                 md.append(f"  - ⚠️ {prob}")
         else:
-            md.append("- **Relatório de Problemas / Falhas:** Nenhum problema ou falha detectada hoje. Tudo 100% operacional.")
+            md.append("- **Relatório de Problemas / Falhas do Projeto:** Nenhuma falha no Radar CAIS. Site, base de dados e painel 100% operacionais.")
+        if saude_sistema.get("avisos_externos"):
+            md.append("- **Observações de Portais Externos (fora do nosso servidor):**")
+            for av in saude_sistema["avisos_externos"]:
+                md.append(f"  - ℹ️ {av}")
+            md.append("  - _Os editais já cadastrados desses órgãos continuam 100% preservados e visíveis no painel._")
         md.append("")
 
     if top5_semanal:
@@ -3104,12 +3129,24 @@ def montar_relatorio_html(
             bg_s, bd_s, ac_s, txt_s = "#FFF1F2", "#FB7185", "#BE123C", "#881337"
 
         probs = saude_sistema.get("problemas", [])
+        avisos_ext = saude_sistema.get("avisos_externos", [])
         if probs:
             lista_probs_html = "<ul style='margin:6px 0 0 0;padding-left:18px;'>" + "".join(
                 f"<li style='margin-bottom:4px;'>⚠️ {html.escape(p)}</li>" for p in probs
             ) + "</ul>"
         else:
-            lista_probs_html = "<div style='margin-top:6px;'>✅ <strong>Nenhuma falha ou problema detectado hoje.</strong> Site, base de dados e coleta 100% operacionais.</div>"
+            lista_probs_html = "<div style='margin-top:6px;'>✅ <strong>Nenhuma falha no Radar CAIS.</strong> Site, base de dados e painel 100% operacionais.</div>"
+
+        bloco_avisos_ext_html = ""
+        if avisos_ext:
+            itens_ext = "".join(f"<li style='margin-bottom:3px;'>{html.escape(a)}</li>" for a in avisos_ext)
+            bloco_avisos_ext_html = (
+                "<div style='margin-top:8px; padding-top:8px; border-top:1px dashed #CBD5E1; color:#475569; font-size:12px;'>"
+                "<strong>ℹ️ Observações de Portais Externos (fora do nosso servidor):</strong>"
+                f"<ul style='margin:4px 0 0 0;padding-left:18px;'>{itens_ext}</ul>"
+                "<div style='margin-top:4px;font-style:italic;'>Os editais já cadastrados desses órgãos continuam 100% preservados e visíveis no painel.</div>"
+                "</div>"
+            )
 
         fontes_linha = (
             f" &nbsp;|&nbsp; <strong>Portais hoje:</strong> {saude_sistema['fontes_ok']}/{saude_sistema['fontes_total']} OK"
@@ -3124,9 +3161,10 @@ def montar_relatorio_html(
             &nbsp;|&nbsp; <strong>Base Pública:</strong> {saude_sistema['json_qtd']} editais ({saude_sistema['vigentes']} vigentes){fontes_linha}
           </div>
           <div style="margin-top:8px; padding-top:8px; border-top:1px dashed {bd_s};">
-            <strong>Relatório de Problemas / Falhas:</strong>
+            <strong>Relatório de Problemas / Falhas do Projeto:</strong>
             {lista_probs_html}
           </div>
+          {bloco_avisos_ext_html}
         </div>
         """
 

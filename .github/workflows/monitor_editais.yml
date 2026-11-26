@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: radar-cais-monitor
+  cancel-in-progress: false
+
 jobs:
   monitorar-editais:
     runs-on: ubuntu-latest
@@ -56,6 +60,7 @@ jobs:
           git config user.email "bot@cais.org.br"
           git add historico_editais.json frontend/historico_editais.json banco_editais_cais.db pipeline_oportunidades_cais.csv relatorio_ultimo_ciclo.md relatorio_ultimo_ciclo.html
           git diff --staged --quiet || git commit -m "chore(radar): atualização automática de editais [skip ci]"
+          git pull --rebase origin main || true
           git push origin main
           TMP_DIR=$(mktemp -d)
           cp -f frontend/index.html frontend/style.css frontend/app.js frontend/historico_editais.json pipeline_oportunidades_cais.csv "$TMP_DIR/"
