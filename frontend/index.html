@@ -5,9 +5,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self';">
   <title>Radar CAIS — Sistema de Inteligência de Editais e Fomento</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect width='24' height='24' rx='5' fill='%230B2545'/%3E%3Ccircle cx='12' cy='12' r='8' stroke='%2338BDF8' stroke-width='1.8'/%3E%3Ccircle cx='12' cy='12' r='4' stroke='%230284C7' stroke-width='1.5' stroke-dasharray='3 2'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%2338BDF8'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect width='24' height='24' rx='5' fill='%230B2545'/%3E%3Ccircle cx='12' cy='12' r='8' stroke='%2338BDF8' stroke-width='1.8'/%3E%3Ccircle cx='12' cy='12' r='4' stroke='%230284C7' stroke-width='1.5' stroke-dasharray='3 2'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%2338BDF8'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -109,7 +111,8 @@
             <button class="btn-toggle-guia" id="btnToggleGuia" title="Exibir ou ocultar critérios de nota">
               <span id="textoToggleGuia">Entender Nota</span>
             </button>
-            <button class="btn-mapa-bolso" id="btnMapaBolso" type="button" title="Abrir nova tela limpa com os Top 5 editais mais compatíveis, pontos fortes, escopo de submissão e mensagem pronta para apresentar à chefia">
+            <button class="btn-mapa-bolso" id="btnMapaBolso" type="button"
+              title="Abrir nova tela limpa com os Top 5 editais mais compatíveis, pontos fortes, escopo de submissão e mensagem pronta para apresentar à chefia">
               <span>Mapa Top 5</span>
             </button>
           </div>
@@ -325,7 +328,8 @@
             <div class="passo-didatico-label">🏆 Top 3 prioridades de hoje</div>
             <div class="lista-top-roi-ml" id="listaTopRoiMl"></div>
 
-            <div class="passo-didatico-label" style="margin-top:16px;">⏱️ Prazos por Núcleo CAIS (clique para filtrar)</div>
+            <div class="passo-didatico-label" style="margin-top:16px;">⏱️ Prazos por Núcleo CAIS (clique para filtrar)
+            </div>
             <div class="resumo-gargalos-ml" id="resumoGargalosMl"></div>
           </div>
         </div>
@@ -343,134 +347,134 @@
       </div>
 
       <div class="corpo-painel-filtros" id="corpoPainelFiltros">
-      <div class="busca-amigavel">
-        <span class="icone-lupa">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </span>
-        <input type="text" id="campoBusca"
-          placeholder="Buscar por tema, palavra-chave ou órgão (ex: IA, Bolsas, Subvenção, Hidrogênio, CNPq)...">
-        <kbd class="atalho-teclado" id="dicaAtalhoBusca" title="Pressione / para focar na busca">/</kbd>
-        <button id="btnLimparBusca" class="btn-limpar" style="display:none;">Limpar</button>
-      </div>
-
-      <!-- CHIPS DE FILTRO RÁPIDO -->
-      <div class="barra-chips-atalhos">
-        <span class="label-chips">Atalhos:</span>
-        <div class="chips-container" id="chipsContainer">
-          <button class="chip-filtro ativo" data-tipo="todos">Todos</button>
-          <button class="chip-filtro chip-go" data-tipo="go">● Recomendados (GO)</button>
-          <button class="chip-filtro chip-novos" data-tipo="novos"
-            title="Mostrar apenas editais descobertos nos últimos 7 dias">✨ Novos (7d)</button>
-          <button class="chip-filtro chip-urgente" data-tipo="urgente">Prazo Crítico (&le; 7d)</button>
-          <button class="chip-filtro chip-favoritos" data-tipo="favoritos"
-            title="Filtrar editais marcados com estrela pela equipe de prospecção CAIS">★ Favoritos</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="ETICE">ETICE</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="FINEP">FINEP</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="Petrobras">Petrobras</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="FUNCAP">FUNCAP</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="CNPq">CNPq</button>
-          <button class="chip-filtro" data-tipo="orgao" data-valor="EMBRAPII">EMBRAPII</button>
-        </div>
-      </div>
-
-      <div class="linha-filtros">
-        <!-- Filtro de Semáforo -->
-        <div class="item-filtro">
-          <label for="filtroDecisao">Recomendação</label>
-          <select id="filtroDecisao">
-            <option value="">Todas as recomendações</option>
-            <option value="GO">● GO — Priorizar submissão</option>
-            <option value="AVALIAR">● AVALIAR — Articular parceiros</option>
-            <option value="NO-GO">● NO-GO / Encerrados</option>
-          </select>
+        <div class="busca-amigavel">
+          <span class="icone-lupa">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input type="text" id="campoBusca"
+            placeholder="Buscar por tema, palavra-chave ou órgão (ex: IA, Bolsas, Subvenção, Hidrogênio, CNPq)...">
+          <kbd class="atalho-teclado" id="dicaAtalhoBusca" title="Pressione / para focar na busca">/</kbd>
+          <button id="btnLimparBusca" class="btn-limpar" style="display:none;">Limpar</button>
         </div>
 
-        <!-- Filtro de Órgão -->
-        <div class="item-filtro">
-          <label for="filtroOrgao">Órgão Fomentador</label>
-          <select id="filtroOrgao">
-            <option value="">Todas as instituições</option>
-          </select>
-        </div>
-
-        <!-- Filtro de Urgência de Prazo -->
-        <div class="item-filtro">
-          <label for="filtroPrazo">Prazo Restante</label>
-          <select id="filtroPrazo">
-            <option value="">Qualquer prazo</option>
-            <option value="urgente">Até 7 dias (Urgente)</option>
-            <option value="quinzena">Até 15 dias</option>
-            <option value="mes">Até 30 dias</option>
-          </select>
-        </div>
-
-        <!-- Filtro por Laboratório / Núcleo CAIS -->
-        <div class="item-filtro">
-          <label for="filtroLaboratorio">Núcleo / Lab CAIS</label>
-          <select id="filtroLaboratorio">
-            <option value="">Todos os núcleos técnicos</option>
-            <option value="Lab IA & Ciência de Dados">Lab IA &amp; Ciência de Dados</option>
-            <option value="Lab Semicondutores & Embarcados">Lab Semicondutores &amp; Embarcados</option>
-            <option value="Lab Nuvem, Redes & Cibersegurança">Lab Nuvem, Redes &amp; Cibersegurança</option>
-            <option value="Lab Transição Energética & Clima">Lab Transição Energética &amp; Clima</option>
-            <option value="Núcleo de Inovação & Spin-offs">Núcleo de Inovação &amp; Spin-offs</option>
-          </select>
-        </div>
-
-        <button type="button" class="btn-limpar-filtros-inline" id="btnLimparFiltrosTopo" style="display:none;"
-          title="Restaurar visualização de todos os editais">
-          Limpar filtros
-        </button>
-
-        <!-- Alternar Cards vs Tabela vs Cronograma vs Pipeline -->
-        <div class="bloco-modo-visualizacao">
-          <span class="label-modo-visao">Formato de Exibição</span>
-          <div class="modo-visualizacao">
-            <button class="btn-modo ativo" id="btnModoCards" title="Visualizar em cartões executivos">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-              </svg>
-              <span>Cartões</span>
-            </button>
-            <button class="btn-modo" id="btnModoTabela" title="Visualizar em formato de planilha compacta">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" />
-                <line x1="3" y1="12" x2="3.01" y2="12" />
-                <line x1="3" y1="18" x2="3.01" y2="18" />
-              </svg>
-              <span>Tabela</span>
-            </button>
-            <button class="btn-modo" id="btnModoCronograma"
-              title="Linha do tempo de prazos e exportação para Agenda (.ics)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span>Cronograma</span>
-            </button>
-            <button class="btn-modo" id="btnModoPipeline"
-              title="Funil de gestão interna de submissões do Instituto CAIS">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="5" height="18" rx="1" />
-                <rect x="10" y="3" width="5" height="12" rx="1" />
-                <rect x="17" y="3" width="5" height="15" rx="1" />
-              </svg>
-              <span>Funil CAIS</span>
-            </button>
+        <!-- CHIPS DE FILTRO RÁPIDO -->
+        <div class="barra-chips-atalhos">
+          <span class="label-chips">Atalhos:</span>
+          <div class="chips-container" id="chipsContainer">
+            <button class="chip-filtro ativo" data-tipo="todos">Todos</button>
+            <button class="chip-filtro chip-go" data-tipo="go">● Recomendados (GO)</button>
+            <button class="chip-filtro chip-novos" data-tipo="novos"
+              title="Mostrar apenas editais descobertos nos últimos 7 dias">✨ Novos (7d)</button>
+            <button class="chip-filtro chip-urgente" data-tipo="urgente">Prazo Crítico (&le; 7d)</button>
+            <button class="chip-filtro chip-favoritos" data-tipo="favoritos"
+              title="Filtrar editais marcados com estrela pela equipe de prospecção CAIS">★ Favoritos</button>
+            <button class="chip-filtro" data-tipo="orgao" data-valor="ETICE">ETICE</button>
+            <button class="chip-filtro" data-tipo="orgao" data-valor="FINEP">FINEP</button>
+            <button class="chip-filtro" data-tipo="orgao" data-valor="Petrobras">Petrobras</button>
+            <button class="chip-filtro" data-tipo="orgao" data-valor="FUNCAP">FUNCAP</button>
+            <button class="chip-filtro" data-tipo="orgao" data-valor="CNPq">CNPq</button>
+            <button class="chip-filtro" data-tipo="orgao" data-valor="EMBRAPII">EMBRAPII</button>
           </div>
         </div>
-      </div>
+
+        <div class="linha-filtros">
+          <!-- Filtro de Semáforo -->
+          <div class="item-filtro">
+            <label for="filtroDecisao">Recomendação</label>
+            <select id="filtroDecisao">
+              <option value="">Todas as recomendações</option>
+              <option value="GO">● GO — Priorizar submissão</option>
+              <option value="AVALIAR">● AVALIAR — Articular parceiros</option>
+              <option value="NO-GO">● NO-GO / Encerrados</option>
+            </select>
+          </div>
+
+          <!-- Filtro de Órgão -->
+          <div class="item-filtro">
+            <label for="filtroOrgao">Órgão Fomentador</label>
+            <select id="filtroOrgao">
+              <option value="">Todas as instituições</option>
+            </select>
+          </div>
+
+          <!-- Filtro de Urgência de Prazo -->
+          <div class="item-filtro">
+            <label for="filtroPrazo">Prazo Restante</label>
+            <select id="filtroPrazo">
+              <option value="">Qualquer prazo</option>
+              <option value="urgente">Até 7 dias (Urgente)</option>
+              <option value="quinzena">Até 15 dias</option>
+              <option value="mes">Até 30 dias</option>
+            </select>
+          </div>
+
+          <!-- Filtro por Laboratório / Núcleo CAIS -->
+          <div class="item-filtro">
+            <label for="filtroLaboratorio">Núcleo / Lab CAIS</label>
+            <select id="filtroLaboratorio">
+              <option value="">Todos os núcleos técnicos</option>
+              <option value="Lab IA & Ciência de Dados">Lab IA &amp; Ciência de Dados</option>
+              <option value="Lab Semicondutores & Embarcados">Lab Semicondutores &amp; Embarcados</option>
+              <option value="Lab Nuvem, Redes & Cibersegurança">Lab Nuvem, Redes &amp; Cibersegurança</option>
+              <option value="Lab Transição Energética & Clima">Lab Transição Energética &amp; Clima</option>
+              <option value="Núcleo de Inovação & Spin-offs">Núcleo de Inovação &amp; Spin-offs</option>
+            </select>
+          </div>
+
+          <button type="button" class="btn-limpar-filtros-inline" id="btnLimparFiltrosTopo" style="display:none;"
+            title="Restaurar visualização de todos os editais">
+            Limpar filtros
+          </button>
+
+          <!-- Alternar Cards vs Tabela vs Cronograma vs Pipeline -->
+          <div class="bloco-modo-visualizacao">
+            <span class="label-modo-visao">Formato de Exibição</span>
+            <div class="modo-visualizacao">
+              <button class="btn-modo ativo" id="btnModoCards" title="Visualizar em cartões executivos">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7" />
+                  <rect x="14" y="3" width="7" height="7" />
+                  <rect x="14" y="14" width="7" height="7" />
+                  <rect x="3" y="14" width="7" height="7" />
+                </svg>
+                <span>Cartões</span>
+              </button>
+              <button class="btn-modo" id="btnModoTabela" title="Visualizar em formato de planilha compacta">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6" />
+                  <line x1="8" y1="12" x2="21" y2="12" />
+                  <line x1="8" y1="18" x2="21" y2="18" />
+                  <line x1="3" y1="6" x2="3.01" y2="6" />
+                  <line x1="3" y1="12" x2="3.01" y2="12" />
+                  <line x1="3" y1="18" x2="3.01" y2="18" />
+                </svg>
+                <span>Tabela</span>
+              </button>
+              <button class="btn-modo" id="btnModoCronograma"
+                title="Linha do tempo de prazos e exportação para Agenda (.ics)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                <span>Cronograma</span>
+              </button>
+              <button class="btn-modo" id="btnModoPipeline"
+                title="Funil de gestão interna de submissões do Instituto CAIS">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="5" height="18" rx="1" />
+                  <rect x="10" y="3" width="5" height="12" rx="1" />
+                  <rect x="17" y="3" width="5" height="15" rx="1" />
+                </svg>
+                <span>Funil CAIS</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -795,8 +799,9 @@
           </button>
         </div>
         <div class="rodape-modal-direita">
-          <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-secundario botao-grande btn-link-direto-edital"
-            id="btnPortalOrgao" title="Abrir o site oficial de editais do órgão financiador">
+          <a href="#" target="_blank" rel="noopener noreferrer"
+            class="botao botao-secundario botao-grande btn-link-direto-edital" id="btnPortalOrgao"
+            title="Abrir o site oficial de editais do órgão financiador">
             🏛️ Portal do Órgão
           </a>
           <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-primario botao-grande"
@@ -826,7 +831,7 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261126_sec_v16"></script>
+  <script src="app.js?v=20261126_csp_fix_v17"></script>
 </body>
 
 </html>

@@ -2478,7 +2478,7 @@ ${ed.parceiros_sugeridos}
       </head>
       <body>
         <div class="acoes-topo">
-          <button class="btn-print" onclick="window.print()">Imprimir / Salvar como PDF</button>
+          <button class="btn-print" id="btnImprimirRelatorio" type="button">Imprimir / Salvar como PDF</button>
         </div>
         <div class="cabecalho">
           <div>
@@ -2514,6 +2514,10 @@ ${ed.parceiros_sugeridos}
       </html>
     `);
     janelaPrint.document.close();
+    const btnImprimirRel = janelaPrint.document.querySelector('#btnImprimirRelatorio');
+    if (btnImprimirRel) {
+      btnImprimirRel.addEventListener('click', () => janelaPrint.print());
+    }
   }
 
   function montarMensagemChefeTop5(top5, totalVigentes) {
@@ -2952,7 +2956,7 @@ ${ed.parceiros_sugeridos}
             </div>
             <div class="acoes-topo">
               <button type="button" class="btn btn-primario" id="btnCopiarChefeTopo">Copiar Mensagem para o Chefe</button>
-              <button type="button" class="btn btn-claro" onclick="window.print()">Imprimir / Salvar PDF</button>
+              <button type="button" class="btn btn-claro" id="btnImprimirMapa">Imprimir / Salvar PDF</button>
             </div>
           </header>
 
@@ -2973,49 +2977,57 @@ ${ed.parceiros_sugeridos}
         </div>
 
         <div id="avisoCopia" class="aviso-copia">Copiado para a área de transferência!</div>
-
-        <script>
-          function copiarTexto(texto, rotulo) {
-            const mostrar = () => {
-              const el = document.querySelector('#avisoCopia');
-              el.textContent = rotulo || 'Copiado!';
-              el.style.display = 'block';
-              clearTimeout(window._tAviso);
-              window._tAviso = setTimeout(() => { el.style.display = 'none'; }, 2800);
-            };
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(texto).then(mostrar).catch(() => fallback(texto, mostrar));
-            } else {
-              fallback(texto, mostrar);
-            }
-          }
-          function fallback(texto, cb) {
-            const ta = document.createElement('textarea');
-            ta.value = texto;
-            ta.style.position = 'fixed';
-            ta.style.opacity = '0';
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            ta.remove();
-            cb();
-          }
-          const copiarChefe = () => {
-            const txt = document.querySelector('#textoMensagemChefe').value.trim();
-            copiarTexto(txt, 'Mensagem pronta para o gestor copiada!');
-          };
-          document.querySelector('#btnCopiarChefeTopo').addEventListener('click', copiarChefe);
-          document.querySelector('#btnCopiarChefeBox').addEventListener('click', copiarChefe);
-          document.querySelectorAll('.btn-copiar-item').forEach(btn => {
-            btn.addEventListener('click', () => {
-              copiarTexto(btn.getAttribute('data-texto') || '', 'Resumo do edital copiado!');
-            });
-          });
-        </script>
       </body>
       </html>
     `);
     janelaMapa.document.close();
+
+    // Vincula eventos diretamente a partir do app.js (100% compatível com CSP estrita script-src 'self')
+    const mostrarAvisoMapa = (rotulo) => {
+      const el = janelaMapa.document.querySelector('#avisoCopia');
+      if (!el) return;
+      el.textContent = rotulo || 'Copiado!';
+      el.style.display = 'block';
+      clearTimeout(janelaMapa._tAviso);
+      janelaMapa._tAviso = janelaMapa.setTimeout(() => { el.style.display = 'none'; }, 2800);
+    };
+    const copiarNoMapa = (texto, rotulo) => {
+      const fallbackMapa = () => {
+        try {
+          const ta = janelaMapa.document.createElement('textarea');
+          ta.value = texto;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          janelaMapa.document.body.appendChild(ta);
+          ta.select();
+          janelaMapa.document.execCommand('copy');
+          ta.remove();
+          mostrarAvisoMapa(rotulo);
+        } catch (e) {}
+      };
+      if (janelaMapa.navigator && janelaMapa.navigator.clipboard && janelaMapa.navigator.clipboard.writeText) {
+        janelaMapa.navigator.clipboard.writeText(texto).then(() => mostrarAvisoMapa(rotulo)).catch(fallbackMapa);
+      } else {
+        fallbackMapa();
+      }
+    };
+    const acionarCopiaChefe = () => {
+      const taMsg = janelaMapa.document.querySelector('#textoMensagemChefe');
+      const txt = taMsg ? taMsg.value.trim() : mensagemChefe;
+      copiarNoMapa(txt, 'Mensagem pronta para o gestor copiada!');
+    };
+    const btnTopoMapa = janelaMapa.document.querySelector('#btnCopiarChefeTopo');
+    const btnBoxMapa = janelaMapa.document.querySelector('#btnCopiarChefeBox');
+    const btnPrintMapa = janelaMapa.document.querySelector('#btnImprimirMapa');
+    if (btnTopoMapa) btnTopoMapa.addEventListener('click', acionarCopiaChefe);
+    if (btnBoxMapa) btnBoxMapa.addEventListener('click', acionarCopiaChefe);
+    if (btnPrintMapa) btnPrintMapa.addEventListener('click', () => janelaMapa.print());
+    janelaMapa.document.querySelectorAll('.btn-copiar-item').forEach(btn => {
+      const txtItem = btn.getAttribute('data-texto');
+      if (txtItem) {
+        btn.addEventListener('click', () => copiarNoMapa(txtItem, 'Resumo do edital copiado!'));
+      }
+    });
   }
 
   function escapeHtml(str) {
