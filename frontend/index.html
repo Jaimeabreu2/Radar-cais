@@ -10,7 +10,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261126_pack6_v8">
+  <link rel="stylesheet" href="style.css?v=20261126_ia_clean_v9">
 </head>
 
 <body>
@@ -253,17 +253,17 @@
 
       <!-- CORPO DO ASSISTENTE (OCULTO POR PADRÃO — SÓ ABRE QUANDO O USUÁRIO CLICA) -->
       <div class="corpo-copiloto-ml" id="corpoCopilotoRagMl" style="display:none;">
-        <!-- Navegação simples em 2 passos claros (um de cada vez) -->
+        <!-- Navegação simples em 2 abas -->
         <div class="abas-assistente-didatico">
           <button type="button" class="aba-assistente-btn ativa" id="btnAbaAssistenteBusca">
-            1. Descobrir Edital para Minha Ideia
+            Buscar por Ideia
           </button>
           <button type="button" class="aba-assistente-btn" id="btnAbaAssistentePrioridades">
-            2. Top 3 Recomendações da Semana &amp; Prazos
+            Top 3 &amp; Prazos
           </button>
           <button type="button" class="btn-config-gemini" id="btnConfigGeminiKey"
             title="Opcional: conectar chave gratuita do Google Gemini">
-            <span id="labelStatusGemini">⚙️ IA: Modo Local Gratuito</span>
+            <span id="labelStatusGemini">⚙️ Gemini</span>
           </button>
         </div>
 
@@ -286,11 +286,17 @@
           </div>
         </div>
 
-        <!-- ABA 1 DO ASSISTENTE: BUSCA GUIADA PASSO A PASSO -->
+        <!-- ABA 1 DO ASSISTENTE: BUSCA POR IDEIA -->
         <div class="painel-assistente-aba" id="abaAssistenteBusca">
           <div class="coluna-rag-box">
-            <div class="passo-didatico-label">PASSO 1 • Escolha uma situação pronta abaixo ou escreva sua ideia de
-              projeto:</div>
+            <div class="caixa-input-rag">
+              <input type="text" id="inputPerguntaRag"
+                placeholder="Descreva sua ideia de projeto ou escolha uma opção abaixo...">
+              <button type="button" class="botao botao-primario" id="btnExecutarRag">
+                <span>Buscar Editais</span>
+              </button>
+            </div>
+
             <div class="chips-prompts-rag" id="chipsPromptsRag">
               <button type="button" class="chip-prompt-ia ativo"
                 data-prompt="Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?">💡
@@ -306,16 +312,6 @@
                 Editais mais fáceis e rápidos de aprovar</button>
             </div>
 
-            <div class="caixa-input-rag">
-              <input type="text" id="inputPerguntaRag"
-                placeholder="Ou escreva aqui sua ideia (ex: usar drones e IA para inspecionar redes elétricas)...">
-              <button type="button" class="botao botao-primario" id="btnExecutarRag">
-                <span>Buscar Melhores Editais</span>
-              </button>
-            </div>
-
-            <div class="passo-didatico-label" style="margin-top:14px;">PASSO 2 • Veja a recomendação e clique em um dos
-              3 editais mais compatíveis:</div>
             <div class="resultado-rag-container" id="resultadoRagContainer"></div>
           </div>
         </div>
@@ -323,12 +319,10 @@
         <!-- ABA 2 DO ASSISTENTE: TOP 3 DA SEMANA & PRAZOS (OCULTA ATÉ CLICAR) -->
         <div class="painel-assistente-aba" id="abaAssistentePrioridades" style="display:none;">
           <div class="coluna-ml-box">
-            <div class="passo-didatico-label">🏆 Os 3 editais abertos com maior chance de sucesso e melhor retorno para
-              a equipe hoje:</div>
+            <div class="passo-didatico-label">🏆 Top 3 prioridades de hoje</div>
             <div class="lista-top-roi-ml" id="listaTopRoiMl"></div>
 
-            <div class="passo-didatico-label" style="margin-top:16px;">⏱️ Situação dos prazos e oportunidades por
-              Laboratório CAIS (clique em um laboratório para filtrar):</div>
+            <div class="passo-didatico-label" style="margin-top:16px;">⏱️ Prazos por Núcleo CAIS (clique para filtrar)</div>
             <div class="resumo-gargalos-ml" id="resumoGargalosMl"></div>
           </div>
         </div>
@@ -826,7 +820,7 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261126_pack6_v8"></script>
+  <script src="app.js?v=20261126_ia_clean_v9"></script>
 </body>
 
 </html>

@@ -3165,14 +3165,42 @@ mark.grifo-busca {
 
 .parecer-rag-box {
   background: linear-gradient(160deg, #F0F9FF 0%, #FFFFFF 90%);
-  border: 1px solid #7DD3FC;
+  border: 1px solid #BAE6FD;
   border-left: 4px solid #0284C7;
   border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  font-size: 12.5px;
+  padding: 10px 14px;
+  font-size: 13px;
   color: #0F172A;
-  line-height: 1.5;
+  line-height: 1.45;
   margin-bottom: 12px;
+}
+
+.parecer-rag-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.parecer-rag-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pill-rag-meta {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 999px;
+  padding: 2px 9px;
+  white-space: nowrap;
 }
 
 .status-llm-rag {

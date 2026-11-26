@@ -3226,16 +3226,15 @@ ${ed.parceiros_sugeridos}
       div.className = 'card-top-roi-ml';
       div.innerHTML = `
         <div class="topo-card-roi-ml">
-          <span class="rank-roi-ml">${idx + 1}º MAIS VANTAJOSO</span>
+          <span class="rank-roi-ml">${idx + 1}º</span>
           <span class="badge-tag badge-orgao">${escapeHtml(item.ed.orgao)}</span>
-          <span class="pilula-roi-ml font-mono">Nota ${Number(item.ed.score_ponderado || 0).toFixed(1)}/10 • Chance Alta (~${item.ml.probConversao}%)</span>
+          <span class="pilula-roi-ml font-mono">Nota ${Number(item.ed.score_ponderado || 0).toFixed(1)} • Chance ~${item.ml.probConversao}%</span>
         </div>
         <div class="titulo-card-roi-ml">${escapeHtml(item.ed.titulo)}</div>
         <div class="meta-card-roi-ml">
-          <span>⏱️ Tempo médio para preparar a proposta: <strong>~${item.ml.diasPreparo} dias</strong></span>
-          <span>•</span>
-          <span>${escapeHtml(item.ml.rotuloJanela)}</span>
-          <span class="link-abrir-roi-ml">Ver Passo a Passo &rarr;</span>
+          <span class="pill-rag-meta">⏱️ ~${item.ml.diasPreparo}d preparo</span>
+          <span class="pill-rag-meta">${escapeHtml(item.ml.rotuloJanela)}</span>
+          <span class="link-abrir-roi-ml">Abrir &rarr;</span>
         </div>
       `;
       div.addEventListener('click', () => abrirModal(item.ed));
@@ -3251,11 +3250,11 @@ ${ed.parceiros_sugeridos}
 
     const alertaGargaloHtml = gargalosCriticos.length > 0
       ? `<div class="alerta-gargalo-ml">
-           <strong>⚠️ Atenção ao Prazo (${gargalosCriticos.length} ${gargalosCriticos.length === 1 ? 'edital' : 'editais'}):</strong>
-           O edital da <strong>${escapeHtml(gargalosCriticos[0].ed.orgao)}</strong> (${escapeHtml(truncarTexto(gargalosCriticos[0].ed.titulo, 65))}) costuma levar cerca de <strong>${gargalosCriticos[0].ml.diasPreparo} dias</strong> para juntar a documentação, mas faltam apenas <strong>${gargalosCriticos[0].ml.diasRestantes} dias</strong>. Se tiver interesse, comece hoje!
+           <strong>⚠️ Atenção ao prazo (${gargalosCriticos.length}):</strong>
+           ${escapeHtml(gargalosCriticos[0].ed.orgao)} — ${escapeHtml(truncarTexto(gargalosCriticos[0].ed.titulo, 55))} (faltam <strong>${gargalosCriticos[0].ml.diasRestantes}d</strong>; preparo ~${gargalosCriticos[0].ml.diasPreparo}d).
          </div>`
       : `<div class="alerta-gargalo-ml alerta-gargalo-ok">
-           <strong>✅ Todos os prazos estão tranquilos:</strong> Os ${vigentes.length} editais abertos têm tempo suficiente para preparar a documentação com calma.
+           <strong>✅ Prazos sob controle:</strong> todos os ${vigentes.length} editais abertos têm margem confortável de preparo.
          </div>`;
 
     const chipsLabsHtml = Object.entries(contagemLabs)
@@ -3425,30 +3424,34 @@ ${ed.parceiros_sugeridos}
     }
 
     const primeiro = topRecuperados[0];
-    const segundo = topRecuperados[1];
+    const contrapartidaCurta = truncarTexto(primeiro.ed.contrapartida || 'Sem contrapartida', 48);
+    const tituloPrimeiro = String(primeiro.ed.titulo || '').toLowerCase().startsWith(String(primeiro.ed.orgao || '').toLowerCase())
+      ? primeiro.ed.titulo
+      : `${primeiro.ed.orgao} — ${primeiro.ed.titulo}`;
 
-    // Resposta didática, direta e sem jargão técnico
+    // Resumo em 1 linha direta + etiquetas curtas (sem paredão de texto)
     let sinteseRagHtml = `
-      <p><strong>💡 Recomendação do Assistente:</strong>
-      Para o que você procura, a melhor oportunidade aberta hoje é o edital da <strong>${escapeHtml(primeiro.ed.orgao)}</strong>
-      (<em>${escapeHtml(truncarTexto(primeiro.ed.titulo, 80))}</em> — <strong>${primeiro.pctMatch}% compatível</strong> com seu pedido)${segundo ? `, seguido pela opção da <strong>${escapeHtml(segundo.ed.orgao)}</strong> (${segundo.pctMatch}% compatível)` : ''}.</p>
-      <p style="margin-top:6px;"><strong>📋 Como aproveitar:</strong> ${escapeHtml(truncarTexto(primeiro.ed.ideia_projeto_cais || primeiro.ed.resumo_objetivo, 150))}
-      • <strong>Contrapartida:</strong> ${escapeHtml(primeiro.ed.contrapartida || 'Não exigida')}
-      • <strong>Tempo médio para preparar a proposta:</strong> cerca de ${primeiro.ml.diasPreparo} dias.</p>
+      <div class="parecer-rag-linha">
+        <span><strong>💡 Melhor opção hoje:</strong> ${escapeHtml(truncarTexto(tituloPrimeiro, 78))}</span>
+        <div class="parecer-rag-pills">
+          <span class="pill-rag-meta">${primeiro.pctMatch}% compatível</span>
+          <span class="pill-rag-meta">⏱️ ~${primeiro.ml.diasPreparo}d preparo</span>
+          <span class="pill-rag-meta">${escapeHtml(contrapartidaCurta)}</span>
+        </div>
+      </div>
     `;
 
     const cardsRecuperadosHtml = topRecuperados.map((item, idx) => `
       <div class="card-recuperado-rag" data-id="${escapeHtml(item.ed.id_edital)}">
         <div class="topo-card-rag">
-          <span class="badge-match-rag">${idx + 1}ª Opção • ${item.pctMatch}% compatível</span>
+          <span class="badge-match-rag">${idx + 1}º • ${item.pctMatch}%</span>
           <span class="badge-tag badge-orgao">${escapeHtml(item.ed.orgao)}</span>
-          <span class="nota-circulo font-mono" style="font-size:11px; padding:2px 6px;">Nota ${Number(item.ed.score_ponderado || 0).toFixed(1)}</span>
+          <span class="nota-circulo font-mono" style="font-size:11px; padding:2px 6px;">${Number(item.ed.score_ponderado || 0).toFixed(1)}</span>
         </div>
         <div class="titulo-card-rag">${escapeHtml(item.ed.titulo)}</div>
-        <div class="resumo-card-rag"><strong>O que propor:</strong> ${escapeHtml(truncarTexto(item.ed.ideia_projeto_cais || item.ed.resumo_objetivo, 115))}</div>
         <div class="rodape-card-rag">
           <span>💰 ${escapeHtml(resumirValorCard(item.ed.valor_financiado))}</span>
-          <span class="acao-abrir-rag">Abrir Edital &rarr;</span>
+          <span class="acao-abrir-rag">Abrir &rarr;</span>
         </div>
       </div>
     `).join('');
@@ -3516,9 +3519,9 @@ ${ed.parceiros_sugeridos}
     if (!labelStatusGemini) return;
     const chave = (localStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
     if (chave) {
-      labelStatusGemini.textContent = '🟢 IA: Google Gemini Ativo';
+      labelStatusGemini.textContent = '🟢 Gemini Ativo';
     } else {
-      labelStatusGemini.textContent = '⚙️ IA: Modo Local Gratuito';
+      labelStatusGemini.textContent = '⚙️ Gemini';
     }
   }
 
