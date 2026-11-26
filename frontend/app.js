@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnEditalProximo = document.getElementById('btnEditalProximo');
   const indiceNavModal = document.getElementById('indiceNavModal');
   const btnLinkOficial = document.getElementById('btnLinkOficial');
+  const btnPortalOrgao = document.getElementById('btnPortalOrgao');
   const btnCopiarLinkEdital = document.getElementById('btnCopiarLinkEdital');
   const btnCopiarResumo = document.getElementById('btnCopiarResumo');
   const btnGerarMinuta = document.getElementById('btnGerarMinuta');
@@ -1417,6 +1418,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function obterPortalOficialOrgao(orgao, linkFallback) {
+    const o = String(orgao || '').toLowerCase();
+    if (o.includes('finep')) return 'https://www.finep.gov.br/chamadas-publicas/';
+    if (o.includes('petrobras')) return 'https://conexoes-inovacao.petrobras.com.br/s/?language=pt_BR';
+    if (o.includes('funcap')) return 'https://montenegro.funcap.ce.gov.br/sugba/script/id_solicitacao.php?cnpj=00078007000126';
+    if (o.includes('etice')) return 'https://www.ce.gov.br/etice/';
+    if (o.includes('cnpq')) return 'https://www.gov.br/cnpq/pt-br/chamadas/Busca_abertas';
+    if (o.includes('embrapii')) return 'https://embrapii.org.br/chamadas-publicas/';
+    if (o.includes('capes')) return 'https://www.gov.br/capes/pt-br/acesso-a-informacao/acoes-e-programas/editais-e-resultados';
+    if (o.includes('sebrae') || o.includes('catalisa')) return 'https://sebrae.com.br/subsites/catalisa-ict';
+    if (o.includes('senai') || o.includes('mover')) return 'https://www.portaldaindustria.com.br/canais/plataforma-inovacao-para-industria/';
+    if (o.includes('bndes')) return 'https://www.bndes.gov.br/wps/portal/site/home/financiamento/produto/bndes-funtec';
+    if (o.includes('nordeste') || o.includes('fundeci')) return 'https://www.bnb.gov.br/fundeci/editais';
+    if (o.includes('confap')) return 'https://confap.org.br/';
+    if (o.includes('horizon')) return 'https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/calls-for-proposals';
+    if (o.includes('mcti')) return 'https://www.gov.br/mcti/pt-br';
+    if (o.includes('abdi')) return 'https://www.abdi.com.br/';
+    try {
+      const u = new URL(linkFallback);
+      return u.origin;
+    } catch (e) {
+      return linkFallback || '#';
+    }
+  }
+
   /**
    * Abre o Master Pop-up Modal unificado
    */
@@ -1589,11 +1615,14 @@ document.addEventListener('DOMContentLoaded', () => {
       badgeDecisao.style.borderColor = 'var(--semaforo-vermelho-border)';
     }
 
-    // Link oficial governamental (normaliza links legados da FINEP para HTTPS oficial)
+    // Link oficial da oportunidade + Portal oficial do órgão
     const linkOficialLimpo = String(ed.link || '#')
       .replace('http://legacy.finep.gov.br', 'https://www.finep.gov.br')
       .replace('https://legacy.finep.gov.br', 'https://www.finep.gov.br');
     btnLinkOficial.href = linkOficialLimpo;
+    if (btnPortalOrgao) {
+      btnPortalOrgao.href = obterPortalOficialOrgao(ed.orgao, linkOficialLimpo);
+    }
 
     // Atualiza botão Favoritar do Topo do Modal
     atualizarEstadoBotaoFavoritoModal(ed);

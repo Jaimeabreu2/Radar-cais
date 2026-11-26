@@ -10,7 +10,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261126_petrobras_v12">
+  <link rel="stylesheet" href="style.css?v=20261126_modal_clean_v13">
 </head>
 
 <body>
@@ -543,6 +543,8 @@
         <div class="topo-modal-acoes">
           <button class="btn-favorito-modal" id="btnFavoritoModal" type="button"
             title="Adicionar ou remover dos Favoritos da equipe CAIS">☆ Favoritar</button>
+          <button class="btn-favorito-modal" id="btnCopiarLinkEdital" type="button"
+            title="Copiar link direto que abre exatamente este edital no Radar CAIS">🔗 Copiar Link</button>
           <div class="navegacao-modal-setas">
             <button class="btn-nav-modal" id="btnEditalAnterior" type="button"
               title="Edital anterior (Seta Esquerda)">&larr;</button>
@@ -790,13 +792,13 @@
           </button>
         </div>
         <div class="rodape-modal-direita">
-          <button class="botao botao-secundario botao-grande btn-link-direto-edital" id="btnCopiarLinkEdital" type="button"
-            title="Copiar link direto que abre exatamente este edital no Radar CAIS">
-            🔗 Copiar Link
-          </button>
+          <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-secundario botao-grande btn-link-direto-edital"
+            id="btnPortalOrgao" title="Abrir o site oficial de editais do órgão financiador">
+            🏛️ Portal do Órgão
+          </a>
           <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-primario botao-grande"
-            id="btnLinkOficial" title="Abrir a página oficial do edital no portal do órgão em nova aba">
-            🌐 Ir para o Edital Oficial &rarr;
+            id="btnLinkOficial" title="Abrir diretamente a página ou PDF oficial desta oportunidade">
+            📄 Abrir Edital &rarr;
           </a>
         </div>
       </div>
@@ -821,7 +823,7 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261126_petrobras_v12"></script>
+  <script src="app.js?v=20261126_modal_clean_v13"></script>
 </body>
 
 </html>
