@@ -23,6 +23,7 @@ Ele monitora automaticamente **19 portais oficiais de fomento** (nacionais, esta
 - **Ferramentas de 1 clique em cada edital:**
   - **🤖 Copiloto CAIS (`RAG + LLM`):** Busca vetorial semântica (TF-IDF + Similaridade de Cosseno) para responder perguntas em linguagem natural e fazer o *match* automático entre ideias de projeto do laboratório e os editais abertos (com suporte híbrido gratuito ao `gemini-2.5-flash`).
   - **🔮 Motor Preditivo de Captação (`Machine Learning`):** Calcula o **Índice de ROI do Esforço (`0–100%`)**, estima o **tempo médio de preparo documental (dias úteis)**, alerta sobre **Risco de Gargalo de Prazo** e sugere o **reaproveitamento de propostas** entre editais similares (*Cluster ML*).
+  - **🤝 Copiar Convite para Parceiro:** Dentro dos detalhes do edital, gera e copia em 1 clique uma mensagem natural, clara e personalizada para convidar o parceiro ideal (Indústria/Empresa, Startup, Órgão Público ou Laboratório/UECE), com verba, prazo, ganhos mútuos e divisão de papéis.
   - **Copiar Sumário Executivo:** Texto formatado pronto para enviar no WhatsApp ou e-mail da diretoria.
   - **Copiar Minuta Técnica (1-Page):** Rascunho estruturado de pré-projeto (*Concept Note* com pacotes de trabalho) para iniciar a escrita.
   - **Exportação:** Planilha `.CSV` compatível com Excel e Relatório Executivo em `.PDF`.

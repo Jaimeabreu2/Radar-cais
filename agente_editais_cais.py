@@ -3057,6 +3057,25 @@ class RadarCaisHttpHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(204)
         self.end_headers()
 
+    def do_HEAD(self):
+        caminho = urlparse(self.path).path
+        if caminho in ("/api/download/csv", "/pipeline_oportunidades_cais.csv"):
+            if ARQUIVO_CSV.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8-sig")
+                self.send_header("Content-Length", str(ARQUIVO_CSV.stat().st_size))
+                self.end_headers()
+                return
+            self.send_response(404)
+            self.end_headers()
+            return
+        if caminho == "/api/editais":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            return
+        super().do_HEAD()
+
     def do_GET(self):
         parsed = urlparse(self.path)
         caminho = parsed.path

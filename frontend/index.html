@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Radar CAIS — Sistema de Inteligência de Editais e Fomento</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261125_crono_v3">
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20261125_convite_v5">
 </head>
+
 <body>
 
   <!-- CABEÇALHO INSTITUCIONAL -->
@@ -37,26 +41,47 @@
         </div>
 
         <!-- Botão Assistente Inteligente (abre sob demanda, sem poluir a tela inicial) -->
-        <button class="botao botao-copiloto-topo" id="btnAbrirCopilotoTopo" type="button" title="Abrir Assistente Inteligente para encontrar o edital ideal para sua ideia">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+        <button class="botao botao-copiloto-topo" id="btnAbrirCopilotoTopo" type="button"
+          title="Abrir Assistente Inteligente para encontrar o edital ideal para sua ideia">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
+          </svg>
           <span>Assistente IA</span>
         </button>
 
         <!-- Botão Relatório Executivo PDF -->
-        <button class="botao botao-secundario" id="btnRelatorioExecutivo" title="Gerar relatório executivo formatado para reunião de diretoria (Impressão / PDF)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <button class="botao botao-secundario" id="btnRelatorioExecutivo"
+          title="Gerar relatório executivo formatado para reunião de diretoria (Impressão / PDF)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
           <span>Relatório PDF</span>
         </button>
 
         <!-- Botão Baixar Planilha -->
-        <button class="botao botao-secundario" id="btnExportarCsv" title="Exportar pipeline completo em formato CSV compatível com Excel">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <button class="botao botao-secundario" id="btnExportarCsv"
+          title="Exportar pipeline completo em formato CSV compatível com Excel">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
           <span>Exportar CSV</span>
         </button>
 
         <!-- Botão Principal de Varredura -->
-        <button class="botao botao-primario" id="btnVarreduraTopo" title="Executar coleta em tempo real nos portais governamentais">
-          <svg class="icone-giratorio" id="iconeGirar" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+        <button class="botao botao-primario" id="btnVarreduraTopo"
+          title="Executar coleta em tempo real nos portais governamentais">
+          <svg class="icone-giratorio" id="iconeGirar" width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+          </svg>
           <span id="labelVarredura">Atualizar Varredura</span>
         </button>
       </div>
@@ -73,8 +98,10 @@
             <strong>Triagem Inteligente em 19 Portais Oficiais • Decisão Rápida (Go / Avaliar)</strong>
           </div>
           <div class="legenda-semaforo-topo">
-            <span class="semaforo-mini verde" title="Alta aderência técnica e financeira: priorizar submissão">● GO: Priorizar</span>
-            <span class="semaforo-mini amarelo" title="Bom potencial, mas exige parceria ou avaliação de escopo">● AVALIAR: Articular</span>
+            <span class="semaforo-mini verde" title="Alta aderência técnica e financeira: priorizar submissão">● GO:
+              Priorizar</span>
+            <span class="semaforo-mini amarelo" title="Bom potencial, mas exige parceria ou avaliação de escopo">●
+              AVALIAR: Articular</span>
             <span class="semaforo-mini vermelho" title="Prazo encerrando em até 7 dias">● URGENTE: &le; 7 dias</span>
             <button class="btn-toggle-guia" id="btnToggleGuia" title="Exibir ou ocultar critérios de nota">
               <span id="textoToggleGuia">Entender Nota</span>
@@ -84,15 +111,20 @@
         <div class="grid-passos" id="gridPassos" style="display:none;">
           <div class="card-passo">
             <div class="numero-passo">01. Coleta Oficial Verificada</div>
-            <p>Monitoramento direto em <strong>19 fontes</strong> (FINEP, CNPq, FUNCAP, ETICE, EMBRAPII, CONFAP, MDIC, BNDES e Horizon Europe) com link original auditado.</p>
+            <p>Monitoramento direto em <strong>19 fontes</strong> (FINEP, CNPq, FUNCAP, ETICE, EMBRAPII, CONFAP, MDIC,
+              BNDES e Horizon Europe) com link original auditado.</p>
           </div>
           <div class="card-passo">
             <div class="numero-passo">02. Cálculo da Nota (0 a 10)</div>
-            <p>Média ponderada entre <strong>Aderência ao CAIS (40%)</strong>, <strong>Chance de Aprovação (25%)</strong>, <strong>Atratividade Financeira (20%)</strong> e <strong>Facilidade Operacional (15%)</strong>.</p>
+            <p>Média ponderada entre <strong>Aderência ao CAIS (40%)</strong>, <strong>Chance de Aprovação
+                (25%)</strong>, <strong>Atratividade Financeira (20%)</strong> e <strong>Facilidade Operacional
+                (15%)</strong>.</p>
           </div>
           <div class="card-passo">
             <div class="numero-passo">03. Plano Prático por Edital</div>
-            <p>Clique em qualquer edital para ver <strong>o que é</strong>, <strong>quem pode participar</strong>, <strong>qual projeto propor</strong> e <strong>quais parceiros convidar</strong>.</p>
+            <p>Clique em qualquer edital para ver <strong>o que é</strong>, <strong>quem pode participar</strong>,
+              <strong>qual projeto propor</strong> e <strong>quais parceiros convidar</strong>.
+            </p>
           </div>
         </div>
       </div>
@@ -104,33 +136,45 @@
 
     <!-- CARDS DE RESUMO (KPIS EXECUTIVOS CLICÁVEIS) -->
     <section class="grid-kpis">
-      <div class="card-kpi kpi-clicavel" id="cardKpiTotal" role="button" tabindex="0" title="Clique para exibir todos os editais mapeados">
+      <div class="card-kpi kpi-clicavel" id="cardKpiTotal" role="button" tabindex="0"
+        title="Clique para exibir todos os editais mapeados">
         <div class="kpi-topo">
           <span class="kpi-rotulo">Total de Editais</span>
           <span class="kpi-icone">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M9 21V9" />
+            </svg>
           </span>
         </div>
         <div class="kpi-numero font-mono" id="kpiTotal">0</div>
         <div class="kpi-legenda" id="kpiOrgaos">Fontes governamentais verificadas</div>
       </div>
 
-      <div class="card-kpi kpi-verde kpi-clicavel" id="cardKpiGo" role="button" tabindex="0" title="Clique para filtrar apenas oportunidades recomendadas (GO)">
+      <div class="card-kpi kpi-verde kpi-clicavel" id="cardKpiGo" role="button" tabindex="0"
+        title="Clique para filtrar apenas oportunidades recomendadas (GO)">
         <div class="kpi-topo">
           <span class="kpi-rotulo">Recomendados (GO)</span>
           <span class="kpi-icone icone-verde">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
           </span>
         </div>
         <div class="kpi-numero font-mono cor-verde" id="kpiGo">0</div>
         <div class="kpi-legenda">Alta aderência • Clique para filtrar</div>
       </div>
 
-      <div class="card-kpi kpi-vermelho kpi-clicavel" id="cardKpiUrgentes" role="button" tabindex="0" title="Clique para filtrar editais que vencem em até 7 dias">
+      <div class="card-kpi kpi-vermelho kpi-clicavel" id="cardKpiUrgentes" role="button" tabindex="0"
+        title="Clique para filtrar editais que vencem em até 7 dias">
         <div class="kpi-topo">
           <span class="kpi-rotulo">Prazo Crítico (&le; 7 dias)</span>
           <span class="kpi-icone icone-vermelho">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
           </span>
         </div>
         <div class="kpi-numero font-mono cor-vermelho" id="kpiUrgentes">0</div>
@@ -141,7 +185,9 @@
         <div class="kpi-topo">
           <span class="kpi-rotulo">Nota Média CAIS</span>
           <span class="kpi-icone">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
           </span>
         </div>
         <div class="kpi-numero font-mono" id="kpiMediaScore">0.0<span class="kpi-max">/10</span></div>
@@ -154,7 +200,8 @@
       <div class="cartao-decolagem">
         <h2>Base de Inteligência Pronta para Coleta</h2>
         <p class="sub-decolagem">
-          O sistema opera exclusivamente com dados extraídos das páginas oficiais de fomento. Inicie a varredura para consultar os portais governamentais.
+          O sistema opera exclusivamente com dados extraídos das páginas oficiais de fomento. Inicie a varredura para
+          consultar os portais governamentais.
         </p>
 
         <div class="caixa-acao-central">
@@ -190,7 +237,8 @@
         <div class="cabecalho-copiloto-esquerda">
           <span class="badge-ia-novo">✨ ASSISTENTE CAIS</span>
           <div>
-            <h2 class="titulo-copiloto-ml">Não sabe qual edital escolher? Descreva sua ideia e o Assistente indica os melhores</h2>
+            <h2 class="titulo-copiloto-ml">Não sabe qual edital escolher? Descreva sua ideia e o Assistente indica os
+              melhores</h2>
           </div>
         </div>
         <div class="cabecalho-copiloto-acoes">
@@ -210,7 +258,8 @@
           <button type="button" class="aba-assistente-btn" id="btnAbaAssistentePrioridades">
             2. Top 3 Recomendações da Semana &amp; Prazos
           </button>
-          <button type="button" class="btn-config-gemini" id="btnConfigGeminiKey" title="Opcional: conectar chave gratuita do Google Gemini">
+          <button type="button" class="btn-config-gemini" id="btnConfigGeminiKey"
+            title="Opcional: conectar chave gratuita do Google Gemini">
             <span id="labelStatusGemini">⚙️ IA: Modo Local Gratuito</span>
           </button>
         </div>
@@ -220,12 +269,16 @@
           <div class="box-config-gemini-interno">
             <div>
               <strong>Opcional — Conectar Google Gemini (Gratuito):</strong>
-              <p>O assistente já funciona sozinho sem chave. Se quiser respostas redigidas pelo Google Gemini, cole uma chave gratuita do <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>:</p>
+              <p>O assistente já funciona sozinho sem chave. Se quiser respostas redigidas pelo Google Gemini, cole uma
+                chave gratuita do <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                  rel="noopener noreferrer">Google AI Studio</a>:</p>
             </div>
             <div class="linha-input-gemini">
-              <input type="password" id="inputChaveGeminiUser" placeholder="Cole sua chave AIzaSy... (opcional)" autocomplete="off">
+              <input type="password" id="inputChaveGeminiUser" placeholder="Cole sua chave AIzaSy... (opcional)"
+                autocomplete="off">
               <button type="button" class="botao botao-primario" id="btnSalvarChaveGemini">Ativar Gemini</button>
-              <button type="button" class="botao botao-secundario" id="btnRemoverChaveGemini" style="color:#0F172A; border-color:#CBD5E1;">Usar Modo Padrão</button>
+              <button type="button" class="botao botao-secundario" id="btnRemoverChaveGemini"
+                style="color:#0F172A; border-color:#CBD5E1;">Usar Modo Padrão</button>
             </div>
           </div>
         </div>
@@ -233,22 +286,33 @@
         <!-- ABA 1 DO ASSISTENTE: BUSCA GUIADA PASSO A PASSO -->
         <div class="painel-assistente-aba" id="abaAssistenteBusca">
           <div class="coluna-rag-box">
-            <div class="passo-didatico-label">PASSO 1 • Escolha uma situação pronta abaixo ou escreva sua ideia de projeto:</div>
+            <div class="passo-didatico-label">PASSO 1 • Escolha uma situação pronta abaixo ou escreva sua ideia de
+              projeto:</div>
             <div class="chips-prompts-rag" id="chipsPromptsRag">
-              <button type="button" class="chip-prompt-ia ativo" data-prompt="Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?">💡 Projeto de IA ou Chips sem contrapartida</button>
-              <button type="button" class="chip-prompt-ia" data-prompt="Temos pesquisadores e doutores na UECE; quais os melhores editais abertos hoje para bolsas de mestrado, doutorado e fixação?">🎓 Bolsas para pesquisadores (UECE)</button>
-              <button type="button" class="chip-prompt-ia" data-prompt="Queremos submeter projeto em parceria com indústria ou startup; quais editais de subvenção e fluxo contínuo têm maior nota?">🏭 Projeto em parceria com Empresa</button>
-              <button type="button" class="chip-prompt-ia" data-prompt="Quais editais vigentes têm o maior retorno (ROI), aprovação mais rápida e menor burocracia para o CAIS iniciar esta semana?">⚡ Editais mais fáceis e rápidos de aprovar</button>
+              <button type="button" class="chip-prompt-ia ativo"
+                data-prompt="Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?">💡
+                Projeto de IA ou Chips sem contrapartida</button>
+              <button type="button" class="chip-prompt-ia"
+                data-prompt="Temos pesquisadores e doutores na UECE; quais os melhores editais abertos hoje para bolsas de mestrado, doutorado e fixação?">🎓
+                Bolsas para pesquisadores (UECE)</button>
+              <button type="button" class="chip-prompt-ia"
+                data-prompt="Queremos submeter projeto em parceria com indústria ou startup; quais editais de subvenção e fluxo contínuo têm maior nota?">🏭
+                Projeto em parceria com Empresa</button>
+              <button type="button" class="chip-prompt-ia"
+                data-prompt="Quais editais vigentes têm o maior retorno (ROI), aprovação mais rápida e menor burocracia para o CAIS iniciar esta semana?">⚡
+                Editais mais fáceis e rápidos de aprovar</button>
             </div>
 
             <div class="caixa-input-rag">
-              <input type="text" id="inputPerguntaRag" placeholder="Ou escreva aqui sua ideia (ex: usar drones e IA para inspecionar redes elétricas)...">
+              <input type="text" id="inputPerguntaRag"
+                placeholder="Ou escreva aqui sua ideia (ex: usar drones e IA para inspecionar redes elétricas)...">
               <button type="button" class="botao botao-primario" id="btnExecutarRag">
                 <span>Buscar Melhores Editais</span>
               </button>
             </div>
 
-            <div class="passo-didatico-label" style="margin-top:14px;">PASSO 2 • Veja a recomendação e clique em um dos 3 editais mais compatíveis:</div>
+            <div class="passo-didatico-label" style="margin-top:14px;">PASSO 2 • Veja a recomendação e clique em um dos
+              3 editais mais compatíveis:</div>
             <div class="resultado-rag-container" id="resultadoRagContainer"></div>
           </div>
         </div>
@@ -256,10 +320,12 @@
         <!-- ABA 2 DO ASSISTENTE: TOP 3 DA SEMANA & PRAZOS (OCULTA ATÉ CLICAR) -->
         <div class="painel-assistente-aba" id="abaAssistentePrioridades" style="display:none;">
           <div class="coluna-ml-box">
-            <div class="passo-didatico-label">🏆 Os 3 editais abertos com maior chance de sucesso e melhor retorno para a equipe hoje:</div>
+            <div class="passo-didatico-label">🏆 Os 3 editais abertos com maior chance de sucesso e melhor retorno para
+              a equipe hoje:</div>
             <div class="lista-top-roi-ml" id="listaTopRoiMl"></div>
 
-            <div class="passo-didatico-label" style="margin-top:16px;">⏱️ Situação dos prazos e oportunidades por Laboratório CAIS (clique em um laboratório para filtrar):</div>
+            <div class="passo-didatico-label" style="margin-top:16px;">⏱️ Situação dos prazos e oportunidades por
+              Laboratório CAIS (clique em um laboratório para filtrar):</div>
             <div class="resumo-gargalos-ml" id="resumoGargalosMl"></div>
           </div>
         </div>
@@ -270,9 +336,13 @@
     <section class="painel-filtros" id="painelFiltros" style="display:none;">
       <div class="busca-amigavel">
         <span class="icone-lupa">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
         </span>
-        <input type="text" id="campoBusca" placeholder="Buscar por tema, palavra-chave ou órgão (ex: IA, Bolsas, Subvenção, Hidrogênio, CNPq)...">
+        <input type="text" id="campoBusca"
+          placeholder="Buscar por tema, palavra-chave ou órgão (ex: IA, Bolsas, Subvenção, Hidrogênio, CNPq)...">
         <kbd class="atalho-teclado" id="dicaAtalhoBusca" title="Pressione / para focar na busca">/</kbd>
         <button id="btnLimparBusca" class="btn-limpar" style="display:none;">Limpar</button>
       </div>
@@ -284,7 +354,8 @@
           <button class="chip-filtro ativo" data-tipo="todos">Todos</button>
           <button class="chip-filtro chip-go" data-tipo="go">● Recomendados (GO)</button>
           <button class="chip-filtro chip-urgente" data-tipo="urgente">Prazo Crítico (&le; 7d)</button>
-          <button class="chip-filtro chip-favoritos" data-tipo="favoritos" title="Filtrar editais marcados com estrela pela equipe de prospecção CAIS">★ Favoritos</button>
+          <button class="chip-filtro chip-favoritos" data-tipo="favoritos"
+            title="Filtrar editais marcados com estrela pela equipe de prospecção CAIS">★ Favoritos</button>
           <button class="chip-filtro" data-tipo="orgao" data-valor="ETICE">ETICE</button>
           <button class="chip-filtro" data-tipo="orgao" data-valor="FINEP">FINEP</button>
           <button class="chip-filtro" data-tipo="orgao" data-valor="FUNCAP">FUNCAP</button>
@@ -337,7 +408,8 @@
           </select>
         </div>
 
-        <button type="button" class="btn-limpar-filtros-inline" id="btnLimparFiltrosTopo" style="display:none;" title="Restaurar visualização de todos os editais">
+        <button type="button" class="btn-limpar-filtros-inline" id="btnLimparFiltrosTopo" style="display:none;"
+          title="Restaurar visualização de todos os editais">
           Limpar filtros
         </button>
 
@@ -346,19 +418,42 @@
           <span class="label-modo-visao">Formato de Exibição</span>
           <div class="modo-visualizacao">
             <button class="btn-modo ativo" id="btnModoCards" title="Visualizar em cartões executivos">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
               <span>Cartões</span>
             </button>
             <button class="btn-modo" id="btnModoTabela" title="Visualizar em formato de planilha compacta">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" />
+                <line x1="3" y1="12" x2="3.01" y2="12" />
+                <line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
               <span>Tabela</span>
             </button>
-            <button class="btn-modo" id="btnModoCronograma" title="Linha do tempo de prazos e exportação para Agenda (.ics)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <button class="btn-modo" id="btnModoCronograma"
+              title="Linha do tempo de prazos e exportação para Agenda (.ics)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
               <span>Cronograma</span>
             </button>
-            <button class="btn-modo" id="btnModoPipeline" title="Funil de gestão interna de submissões do Instituto CAIS">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+            <button class="btn-modo" id="btnModoPipeline"
+              title="Funil de gestão interna de submissões do Instituto CAIS">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="5" height="18" rx="1" />
+                <rect x="10" y="3" width="5" height="12" rx="1" />
+                <rect x="17" y="3" width="5" height="15" rx="1" />
+              </svg>
               <span>Funil CAIS</span>
             </button>
           </div>
@@ -371,7 +466,8 @@
       <div class="cabecalho-resultados">
         <div class="contador-editais" id="contadorResultados">Carregando oportunidades...</div>
         <div class="controles-resultados-direita">
-          <label class="toggle-ocultar-encerrados" title="Ocultar chamadas cujo prazo de submissão já encerrou (desmarque para ver o histórico completo)">
+          <label class="toggle-ocultar-encerrados"
+            title="Ocultar chamadas cujo prazo de submissão já encerrou (desmarque para ver o histórico completo)">
             <input type="checkbox" id="chkOcultarEncerrados" checked>
             <span id="labelOcultarEncerrados">Ocultar encerrados</span>
           </label>
@@ -426,7 +522,7 @@
   <!-- MASTER MODAL: DETALHES COMPLETOS, ESTRATÉGIA CAIS & SCORECARD -->
   <div class="fundo-modal" id="fundoModal">
     <div class="painel-modal" id="painelModal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
-      
+
       <!-- TOPO FIXO DO MODAL -->
       <div class="topo-modal">
         <div class="topo-modal-textos">
@@ -435,11 +531,14 @@
           <div class="meta-modal" id="modalSubtitulo">Órgão Oficial • Identificador CAIS</div>
         </div>
         <div class="topo-modal-acoes">
-          <button class="btn-favorito-modal" id="btnFavoritoModal" type="button" title="Adicionar ou remover dos Favoritos da equipe CAIS">☆ Favoritar</button>
+          <button class="btn-favorito-modal" id="btnFavoritoModal" type="button"
+            title="Adicionar ou remover dos Favoritos da equipe CAIS">☆ Favoritar</button>
           <div class="navegacao-modal-setas">
-            <button class="btn-nav-modal" id="btnEditalAnterior" type="button" title="Edital anterior (Seta Esquerda)">&larr;</button>
+            <button class="btn-nav-modal" id="btnEditalAnterior" type="button"
+              title="Edital anterior (Seta Esquerda)">&larr;</button>
             <span class="indice-nav-modal font-mono" id="indiceNavModal">1/1</span>
-            <button class="btn-nav-modal" id="btnEditalProximo" type="button" title="Próximo edital (Seta Direita)">&rarr;</button>
+            <button class="btn-nav-modal" id="btnEditalProximo" type="button"
+              title="Próximo edital (Seta Direita)">&rarr;</button>
           </div>
           <button class="btn-fechar-modal" id="btnFecharModal" type="button" title="Fechar (ESC)">&times;</button>
         </div>
@@ -460,10 +559,10 @@
 
       <!-- CORPO DO MODAL -->
       <div class="corpo-modal" id="corpoModal">
-        
+
         <!-- ABA 1: PLANO DE AÇÃO CAIS & DETALHES -->
         <div class="painel-aba ativo" id="painelAbaEstrategia">
-          
+
           <!-- SÍNTESE DIDÁTICA DE DECISÃO EM 1 LINHA -->
           <div class="faixa-sintese-decisao" id="faixaSinteseModal"></div>
 
@@ -522,11 +621,28 @@
 
           <!-- PASSO 3: CONSÓRCIO E PARCERIAS -->
           <div class="balao-parceiros">
-            <div class="balao-cabecalho">
-              <span class="passo-badge-modal ambar">3. COM QUEM ARTICULAR</span>
-              <span class="balao-titulo">Parceiros e Consórcio Recomendado</span>
+            <div class="balao-cabecalho balao-cabecalho-parceiros">
+              <div class="balao-cabecalho-esquerda">
+                <span class="passo-badge-modal ambar">3. COM QUEM ARTICULAR</span>
+                <span class="balao-titulo">Parceiros e Consórcio Recomendado</span>
+              </div>
+              <div class="acoes-parceiro-modal">
+                <button type="button" class="btn-ver-convite-parceiro" id="btnTogglePreviaConvite" aria-expanded="false" title="Ver ou editar o convite personalizado antes de copiar">
+                  Ver texto
+                </button>
+                <button type="button" class="btn-copiar-convite-parceiro" id="btnCopiarConviteParceiro" title="Monta e copia uma mensagem simples, respeitosa e direta para convidar o parceiro ideal no WhatsApp ou E-mail">
+                  🤝 Copiar Convite para Parceiro
+                </button>
+              </div>
             </div>
             <p class="balao-texto" id="modalParceiros">—</p>
+
+            <div class="box-previa-convite-parceiro" id="boxPreviaConviteParceiro" style="display:none;">
+              <label for="textareaConviteParceiro" class="label-previa-convite">
+                Mensagem pronta para WhatsApp ou E-mail (você pode ajustar o texto abaixo antes de copiar, se quiser):
+              </label>
+              <textarea id="textareaConviteParceiro" class="textarea-convite-parceiro" rows="11"></textarea>
+            </div>
           </div>
 
         </div>
@@ -539,7 +655,9 @@
                 <span>1. Aderência Temática e Tecnológica (Peso: 40%)</span>
                 <strong class="font-mono" id="notaAderencia">0/10</strong>
               </div>
-              <div class="trilho-barra"><div class="preenchimento-barra" id="barraAderencia" style="width:0%"></div></div>
+              <div class="trilho-barra">
+                <div class="preenchimento-barra" id="barraAderencia" style="width:0%"></div>
+              </div>
             </div>
 
             <div class="linha-nota">
@@ -547,7 +665,9 @@
                 <span>2. Competitividade e Chance de Aprovação (Peso: 25%)</span>
                 <strong class="font-mono" id="notaChance">0/10</strong>
               </div>
-              <div class="trilho-barra"><div class="preenchimento-barra" id="barraChance" style="width:0%"></div></div>
+              <div class="trilho-barra">
+                <div class="preenchimento-barra" id="barraChance" style="width:0%"></div>
+              </div>
             </div>
 
             <div class="linha-nota">
@@ -555,7 +675,9 @@
                 <span>3. Atratividade Financeira e Escala (Peso: 20%)</span>
                 <strong class="font-mono" id="notaFinanceira">0/10</strong>
               </div>
-              <div class="trilho-barra"><div class="preenchimento-barra" id="barraFinanceira" style="width:0%"></div></div>
+              <div class="trilho-barra">
+                <div class="preenchimento-barra" id="barraFinanceira" style="width:0%"></div>
+              </div>
             </div>
 
             <div class="linha-nota">
@@ -563,7 +685,9 @@
                 <span>4. Viabilidade Operacional e Administrativa (Peso: 15%)</span>
                 <strong class="font-mono" id="notaViabilidade">0/10</strong>
               </div>
-              <div class="trilho-barra"><div class="preenchimento-barra" id="barraViabilidade" style="width:0%"></div></div>
+              <div class="trilho-barra">
+                <div class="preenchimento-barra" id="barraViabilidade" style="width:0%"></div>
+              </div>
             </div>
           </div>
 
@@ -587,8 +711,14 @@
                 <span class="bloco-label">Controle Interno de Captação • Instituto CAIS</span>
                 <h4 class="box-gestao-titulo">Status no Funil &amp; Alocação de Equipe</h4>
               </div>
-              <button type="button" class="botao botao-secundario btn-agenda-modal" id="btnAdicionarAgendaModal" title="Baixar evento de calendário (.ics) compatível com Outlook e Google Agenda">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <button type="button" class="botao botao-secundario btn-agenda-modal" id="btnAdicionarAgendaModal"
+                title="Baixar evento de calendário (.ics) compatível com Outlook e Google Agenda">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
                 <span>Salvar Prazo na Agenda (.ics)</span>
               </button>
             </div>
@@ -606,14 +736,16 @@
 
               <div class="item-filtro">
                 <label for="inputResponsavelModal">Líder / Pesquisador Responsável (CAIS / UECE)</label>
-                <input type="text" id="inputResponsavelModal" class="input-gestao" placeholder="Ex: Prof. Coordenador IA / Equipe Sistemas Embarcados...">
+                <input type="text" id="inputResponsavelModal" class="input-gestao"
+                  placeholder="Ex: Prof. Coordenador IA / Equipe Sistemas Embarcados...">
               </div>
             </div>
 
             <div class="item-filtro" style="margin-top:10px;">
               <label for="inputNotasInternasModal">Anotações Executivas / Próximos Passos</label>
               <div class="linha-notas-salvar">
-                <input type="text" id="inputNotasInternasModal" class="input-gestao" placeholder="Ex: Agendar reunião com empresa parceira e solicitar carta de anuência...">
+                <input type="text" id="inputNotasInternasModal" class="input-gestao"
+                  placeholder="Ex: Agendar reunião com empresa parceira e solicitar carta de anuência...">
                 <button type="button" class="botao botao-primario" id="btnSalvarGestaoModal">Salvar Status</button>
               </div>
             </div>
@@ -636,14 +768,17 @@
       <!-- RODAPÉ FIXO DO MODAL -->
       <div class="rodape-modal">
         <div class="rodape-modal-esquerda">
-          <button class="botao botao-secundario botao-grande" id="btnCopiarResumo" type="button" title="Copiar resumo executivo rápido para WhatsApp ou E-mail">
+          <button class="botao botao-secundario botao-grande" id="btnCopiarResumo" type="button"
+            title="Copiar resumo executivo rápido para WhatsApp ou E-mail">
             Copiar Sumário Executivo
           </button>
-          <button class="botao botao-secundario botao-grande btn-minuta-tecnica" id="btnGerarMinuta" type="button" title="Gerar Minuta Técnica de Pré-Projeto (Concept Note 1-Page) estruturada com Pacotes de Trabalho (Work Packages) para iniciar a escrita">
+          <button class="botao botao-secundario botao-grande btn-minuta-tecnica" id="btnGerarMinuta" type="button"
+            title="Gerar Minuta Técnica de Pré-Projeto (Concept Note 1-Page) estruturada com Pacotes de Trabalho (Work Packages) para iniciar a escrita">
             Copiar Minuta Técnica (1-Page)
           </button>
         </div>
-        <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-primario botao-grande" id="btnLinkOficial">
+        <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-primario botao-grande"
+          id="btnLinkOficial">
           Acessar Página Oficial do Órgão &rarr;
         </a>
       </div>
@@ -659,7 +794,8 @@
     <div class="container rodape-flex">
       <div>
         <strong>Radar CAIS</strong> — Instituto CAIS (Centro Ágil de Inovação e Saber)
-        <p class="rodape-sub">Plataforma de Inteligência e Monitoramento de Fomento à Pesquisa, Desenvolvimento e Inovação.</p>
+        <p class="rodape-sub">Plataforma de Inteligência e Monitoramento de Fomento à Pesquisa, Desenvolvimento e
+          Inovação.</p>
       </div>
       <div class="rodape-links">
         <span>FINEP • FUNCAP • ETICE • CNPq • EMBRAPII • CONFAP • MDIC • BNDES • Horizon Europe</span>
@@ -667,6 +803,7 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261125_crono_v3"></script>
+  <script src="app.js?v=20261125_convite_v5"></script>
 </body>
+
 </html>

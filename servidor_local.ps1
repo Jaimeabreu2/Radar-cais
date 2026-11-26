@@ -65,6 +65,7 @@ try {
         $response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin")
 
         $rawPath = $request.Url.LocalPath
+        $isHead = ($request.HttpMethod -eq "HEAD")
 
         if ($request.HttpMethod -eq "OPTIONS") {
             $response.StatusCode = 204
@@ -78,7 +79,9 @@ try {
                 $bytes = [System.IO.File]::ReadAllBytes($jsonFile)
                 $response.ContentType = "application/json; charset=utf-8"
                 $response.ContentLength64 = $bytes.Length
-                $response.OutputStream.Write($bytes, 0, $bytes.Length)
+                if (-not $isHead) {
+                    $response.OutputStream.Write($bytes, 0, $bytes.Length)
+                }
             } else {
                 $response.StatusCode = 404
             }
@@ -91,7 +94,9 @@ try {
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonOk)
             $response.ContentType = "application/json; charset=utf-8"
             $response.ContentLength64 = $bytes.Length
-            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            if (-not $isHead) {
+                $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            }
             $response.Close()
             continue
         }
@@ -101,7 +106,9 @@ try {
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonStatus)
             $response.ContentType = "application/json; charset=utf-8"
             $response.ContentLength64 = $bytes.Length
-            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            if (-not $isHead) {
+                $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            }
             $response.Close()
             continue
         }
@@ -112,7 +119,9 @@ try {
                 $response.ContentType = "text/csv; charset=utf-8"
                 $response.Headers.Add("Content-Disposition", "attachment; filename=`"pipeline_oportunidades_cais.csv`"")
                 $response.ContentLength64 = $bytes.Length
-                $response.OutputStream.Write($bytes, 0, $bytes.Length)
+                if (-not $isHead) {
+                    $response.OutputStream.Write($bytes, 0, $bytes.Length)
+                }
             } else {
                 $response.StatusCode = 404
             }
@@ -190,7 +199,9 @@ try {
             $response.ContentType = $mime
             $response.ContentLength64 = $bytes.Length
             $response.StatusCode = 200
-            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            if (-not $isHead) {
+                $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            }
         } else {
             $response.StatusCode = 404
             $err = [System.Text.Encoding]::UTF8.GetBytes("Arquivo nao encontrado: $rawPath")

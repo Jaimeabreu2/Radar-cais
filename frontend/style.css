@@ -73,13 +73,16 @@
   --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
+html,
+body {
   overflow-x: clip;
   max-width: 100%;
 }
@@ -290,8 +293,13 @@ body {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ==============================================================================
@@ -410,9 +418,23 @@ body {
   letter-spacing: 0.01em;
 }
 
-.semaforo-mini.verde { background: var(--semaforo-verde-bg); color: var(--semaforo-verde-txt); border: 1px solid var(--semaforo-verde-border); }
-.semaforo-mini.amarelo { background: var(--semaforo-amarelo-bg); color: var(--semaforo-amarelo-txt); border: 1px solid var(--semaforo-amarelo-border); }
-.semaforo-mini.vermelho { background: var(--semaforo-vermelho-bg); color: var(--semaforo-vermelho-txt); border: 1px solid var(--semaforo-vermelho-border); }
+.semaforo-mini.verde {
+  background: var(--semaforo-verde-bg);
+  color: var(--semaforo-verde-txt);
+  border: 1px solid var(--semaforo-verde-border);
+}
+
+.semaforo-mini.amarelo {
+  background: var(--semaforo-amarelo-bg);
+  color: var(--semaforo-amarelo-txt);
+  border: 1px solid var(--semaforo-amarelo-border);
+}
+
+.semaforo-mini.vermelho {
+  background: var(--semaforo-vermelho-bg);
+  color: var(--semaforo-vermelho-txt);
+  border: 1px solid var(--semaforo-vermelho-border);
+}
 
 /* ==============================================================================
    INDICADORES EXECUTIVOS (KPIS)
@@ -482,8 +504,13 @@ body {
   align-items: center;
 }
 
-.kpi-icone.icone-verde { color: var(--semaforo-verde-accent); }
-.kpi-icone.icone-vermelho { color: var(--semaforo-vermelho-accent); }
+.kpi-icone.icone-verde {
+  color: var(--semaforo-verde-accent);
+}
+
+.kpi-icone.icone-vermelho {
+  color: var(--semaforo-vermelho-accent);
+}
 
 .kpi-numero {
   font-size: 30px;
@@ -493,8 +520,13 @@ body {
   margin-bottom: 6px;
 }
 
-.cor-verde { color: var(--semaforo-verde-txt); }
-.cor-vermelho { color: var(--semaforo-vermelho-txt); }
+.cor-verde {
+  color: var(--semaforo-verde-txt);
+}
+
+.cor-vermelho {
+  color: var(--semaforo-vermelho-txt);
+}
 
 .kpi-max {
   font-size: 15px;
@@ -1512,6 +1544,98 @@ body {
 
 .balao-parceiros {
   border-left-color: #D97706;
+  background: linear-gradient(160deg, #FFFBEB 0%, #FFFFFF 60%);
+}
+
+.balao-cabecalho-parceiros {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.balao-cabecalho-esquerda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.acoes-parceiro-modal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-ver-convite-parceiro {
+  font-family: var(--font-principal);
+  font-size: 12px;
+  font-weight: 600;
+  color: #78350F;
+  background: #FFFFFF;
+  border: 1px solid #F59E0B;
+  border-radius: var(--radius-sm);
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-ver-convite-parceiro:hover {
+  background: #FEF3C7;
+}
+
+.btn-copiar-convite-parceiro {
+  font-family: var(--font-principal);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: #B45309;
+  border: 1px solid #92400E;
+  border-radius: var(--radius-sm);
+  padding: 6px 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 1px 3px rgba(180, 83, 9, 0.25);
+  transition: all 0.15s ease;
+}
+
+.btn-copiar-convite-parceiro:hover {
+  background: #92400E;
+  transform: translateY(-1px);
+}
+
+.box-previa-convite-parceiro {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #F59E0B;
+}
+
+.label-previa-convite {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #78350F;
+  margin-bottom: 6px;
+}
+
+.textarea-convite-parceiro {
+  width: 100%;
+  font-family: var(--font-principal);
+  font-size: 13px;
+  line-height: 1.52;
+  color: #0F172A;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.textarea-convite-parceiro:focus {
+  outline: none;
+  border-color: #D97706;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.16);
 }
 
 .balao-titulo {
@@ -1688,8 +1812,15 @@ body {
 }
 
 @keyframes deslizarToast {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .estado-vazio {
@@ -1861,10 +1992,25 @@ body {
   border-left: 4px solid var(--cais-navy);
 }
 
-.cabecalho-grupo-crono.crono-critico { border-left-color: var(--semaforo-vermelho-accent); background: #FFF1F2; }
-.cabecalho-grupo-crono.crono-proximo { border-left-color: var(--semaforo-amarelo-accent); background: #FFFBEB; }
-.cabecalho-grupo-crono.crono-planejado { border-left-color: var(--cais-cerulean); background: #F0F9FF; }
-.cabecalho-grupo-crono.crono-continuo { border-left-color: var(--semaforo-verde-accent); background: #ECFDF5; }
+.cabecalho-grupo-crono.crono-critico {
+  border-left-color: var(--semaforo-vermelho-accent);
+  background: #FFF1F2;
+}
+
+.cabecalho-grupo-crono.crono-proximo {
+  border-left-color: var(--semaforo-amarelo-accent);
+  background: #FFFBEB;
+}
+
+.cabecalho-grupo-crono.crono-planejado {
+  border-left-color: var(--cais-cerulean);
+  background: #F0F9FF;
+}
+
+.cabecalho-grupo-crono.crono-continuo {
+  border-left-color: var(--semaforo-verde-accent);
+  background: #ECFDF5;
+}
 
 .titulo-grupo-crono {
   font-family: var(--font-titulos);
@@ -1929,8 +2075,13 @@ body {
   color: var(--card-subtle-text);
 }
 
-.contagem-dias-crono.urgente { color: var(--semaforo-vermelho-txt); }
-.contagem-dias-crono.continuo { color: var(--semaforo-verde-txt); }
+.contagem-dias-crono.urgente {
+  color: var(--semaforo-vermelho-txt);
+}
+
+.contagem-dias-crono.continuo {
+  color: var(--semaforo-verde-txt);
+}
 
 .coluna-info-crono {
   min-width: 0;
@@ -1994,10 +2145,24 @@ body {
   background: #F8FAFC;
 }
 
-.topo-coluna-pipeline.etapa-triagem { border-top-color: #64748B; }
-.topo-coluna-pipeline.etapa-articulacao { border-top-color: #D97706; background: #FFFBEB; }
-.topo-coluna-pipeline.etapa-redacao { border-top-color: #0284C7; background: #F0F9FF; }
-.topo-coluna-pipeline.etapa-submetido { border-top-color: #059669; background: #ECFDF5; }
+.topo-coluna-pipeline.etapa-triagem {
+  border-top-color: #64748B;
+}
+
+.topo-coluna-pipeline.etapa-articulacao {
+  border-top-color: #D97706;
+  background: #FFFBEB;
+}
+
+.topo-coluna-pipeline.etapa-redacao {
+  border-top-color: #0284C7;
+  background: #F0F9FF;
+}
+
+.topo-coluna-pipeline.etapa-submetido {
+  border-top-color: #059669;
+  background: #ECFDF5;
+}
 
 .titulo-coluna-pipeline {
   font-family: var(--font-titulos);
@@ -2031,8 +2196,13 @@ body {
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
 }
 
-.card-pipeline.pipe-go { border-left-color: var(--semaforo-verde-accent); }
-.card-pipeline.pipe-avaliar { border-left-color: var(--semaforo-amarelo-accent); }
+.card-pipeline.pipe-go {
+  border-left-color: var(--semaforo-verde-accent);
+}
+
+.card-pipeline.pipe-avaliar {
+  border-left-color: var(--semaforo-amarelo-accent);
+}
 
 .card-pipeline-titulo {
   font-size: 12.5px;
@@ -2250,10 +2420,21 @@ body {
 }
 
 @media (max-height: 780px) {
-  .painel-modal { max-height: 95vh; }
-  .topo-modal { padding: 14px 18px; }
-  .corpo-modal { padding: 16px 18px; }
-  .rodape-modal { padding: 10px 18px; }
+  .painel-modal {
+    max-height: 95vh;
+  }
+
+  .topo-modal {
+    padding: 14px 18px;
+  }
+
+  .corpo-modal {
+    padding: 16px 18px;
+  }
+
+  .rodape-modal {
+    padding: 10px 18px;
+  }
 }
 
 /* ==============================================================================
@@ -3687,7 +3868,7 @@ mark.grifo-busca {
     max-width: 100%;
   }
 
-  .rodape-acao-card > div {
+  .rodape-acao-card>div {
     width: 100%;
     justify-content: space-between;
   }
@@ -3849,6 +4030,29 @@ mark.grifo-busca {
   .grid-resumo-justificativa,
   .grid-campos-gestao {
     grid-template-columns: 1fr;
+  }
+
+  .balao-cabecalho-parceiros {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .acoes-parceiro-modal {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+  }
+
+  .btn-ver-convite-parceiro,
+  .btn-copiar-convite-parceiro {
+    justify-content: center;
+    text-align: center;
+    padding: 8px 10px;
+  }
+
+  .textarea-convite-parceiro {
+    font-size: 16px;
   }
 
   .box-gestao-topo {

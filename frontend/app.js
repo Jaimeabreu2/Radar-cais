@@ -82,6 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnLinkOficial = document.getElementById('btnLinkOficial');
   const btnCopiarResumo = document.getElementById('btnCopiarResumo');
   const btnGerarMinuta = document.getElementById('btnGerarMinuta');
+  const btnTogglePreviaConvite = document.getElementById('btnTogglePreviaConvite');
+  const btnCopiarConviteParceiro = document.getElementById('btnCopiarConviteParceiro');
+  const boxPreviaConviteParceiro = document.getElementById('boxPreviaConviteParceiro');
+  const textareaConviteParceiro = document.getElementById('textareaConviteParceiro');
   const abaBtnEstrategia = document.getElementById('abaBtnEstrategia');
   const abaBtnNotas = document.getElementById('abaBtnNotas');
   const abaBtnChecklist = document.getElementById('abaBtnChecklist');
@@ -327,10 +331,14 @@ document.addEventListener('DOMContentLoaded', () => {
       btnIniciarVarreduraCentral.addEventListener('click', executarVarreduraAoVivo);
     }
 
-    // Exportação CSV (compatível com Servidor Local e com GitHub Pages Estático)
+    // Exportação CSV (respeita filtros ativos na tela; sem filtros, usa API local ou gera CSV client-side)
     btnExportarCsv.addEventListener('click', async () => {
       if (editais.length === 0) {
         exibirToast('Nenhum edital disponível para exportar.', 'info');
+        return;
+      }
+      if (editaisFiltrados.length > 0 && editaisFiltrados.length < editais.length) {
+        exportarCsvClientSide();
         return;
       }
       try {
@@ -408,11 +416,27 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Copiar Resumo Executivo para WhatsApp e Gerar Minuta Técnica 1-Page
+    // Copiar Resumo Executivo, Minuta Técnica 1-Page e Convite para Parceiro
     btnCopiarResumo.addEventListener('click', copiarResumoDidatico);
     if (btnGerarMinuta) {
       btnGerarMinuta.addEventListener('click', () => {
         if (editalSelecionado) gerarMinutaTecnicaProjeto(editalSelecionado);
+      });
+    }
+    if (btnTogglePreviaConvite && boxPreviaConviteParceiro) {
+      btnTogglePreviaConvite.addEventListener('click', () => {
+        const estavaOculto = boxPreviaConviteParceiro.style.display === 'none';
+        boxPreviaConviteParceiro.style.display = estavaOculto ? 'block' : 'none';
+        btnTogglePreviaConvite.setAttribute('aria-expanded', estavaOculto ? 'true' : 'false');
+        btnTogglePreviaConvite.textContent = estavaOculto ? 'Ocultar texto' : 'Ver texto';
+        if (estavaOculto && textareaConviteParceiro && editalSelecionado && !textareaConviteParceiro.value.trim()) {
+          textareaConviteParceiro.value = montarTextoConviteParceiro(editalSelecionado);
+        }
+      });
+    }
+    if (btnCopiarConviteParceiro) {
+      btnCopiarConviteParceiro.addEventListener('click', () => {
+        if (editalSelecionado) copiarConviteParceiro(editalSelecionado);
       });
     }
 
@@ -545,6 +569,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!prazoStr) {
         copia.prazo_submissao = 'Consultar cronograma no edital';
       }
+      const diasAtuais = calcularDiasRestantes(copia.prazo_submissao);
+      if (diasAtuais !== null && diasAtuais < 0) {
+        copia.decisao_recomendada = 'NO-GO (Prazo Encerrado)';
+      }
       return copia;
     });
 
@@ -570,7 +598,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderizarPainelPreditivoMl();
     executarConsultaRag(
       (inputPerguntaRag && inputPerguntaRag.value) ||
-      'Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?'
+      'Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?',
+      false
     );
     aplicarFiltros();
   }
@@ -903,13 +932,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const valorCurto = resumirValorCard(ed.valor_financiado);
       const prazoCurto = resumirPrazoCard(ed.prazo_submissao, dias);
-      const prazoVerificado = Boolean(ed.prazo_verificado_fonte);
-      const valorVerificado = Boolean(ed.valor_verificado_fonte);
-      const rotuloOrigem = ed.origem === 'DEMO'
-        ? 'Base Demonstrativa'
-        : (prazoVerificado && valorVerificado
-          ? 'Prazo e Valor Verificados'
-          : (prazoVerificado ? 'Prazo Verificado na Fonte' : 'Ver Anexo PDF Oficial'));
+      const prazoVerificado = Boolean(
+        ed.prazo_verificado_fonte ||
+        (ed.prazo_submissao && !String(ed.prazo_submissao).toLowerCase().includes('consultar'))
+      );
+      const valorVerificado = Boolean(
+        ed.valor_verificado_fonte ||
+        (ed.valor_financiado && !String(ed.valor_financiado).toLowerCase().includes('consultar') && !String(ed.valor_financiado).toLowerCase().includes('ver pdf') && !String(ed.valor_financiado).toLowerCase().includes('ver tópico'))
+      );
 
       const sinteseCurta = ed.justificativa_cais || ed.resumo_objetivo || ed.ideia_projeto_cais || '';
       const infoGestao = obterGestaoEdital(ed.id_edital);
@@ -1110,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'critico', titulo: 'Ação Imediata / Curto Prazo (Até 15 dias)', classe: 'crono-critico', itens: [] },
       { id: 'proximo', titulo: 'Janela de Médio Prazo (16 a 60 dias)', classe: 'crono-proximo', itens: [] },
       { id: 'planejado', titulo: 'Planejamento & Cooperação Internacional (> 60 dias / 2027)', classe: 'crono-planejado', itens: [] },
-      { id: 'continuo', titulo: 'Fluxo Contínuo & Editais Vigentes (Consultar Cronograma no PDF)', classe: 'crono-continuo', itens: [] },
+      { id: 'continuo', titulo: 'Fluxo Contínuo & Credenciamento Permanente (Abertos o Ano Todo)', classe: 'crono-continuo', itens: [] },
     ];
 
     editaisFiltrados.forEach(ed => {
@@ -1326,13 +1356,19 @@ document.addEventListener('DOMContentLoaded', () => {
       tagDecisaoModal = '<span class="badge-tag badge-avaliar">● AVALIAR COM PARCEIROS</span>';
     }
 
-    const prazoVerificado = Boolean(ed.prazo_verificado_fonte);
-    const valorVerificado = Boolean(ed.valor_verificado_fonte);
+    const prazoVerificado = Boolean(
+      ed.prazo_verificado_fonte ||
+      (ed.prazo_submissao && !String(ed.prazo_submissao).toLowerCase().includes('consultar'))
+    );
+    const valorVerificado = Boolean(
+      ed.valor_verificado_fonte ||
+      (ed.valor_financiado && !String(ed.valor_financiado).toLowerCase().includes('consultar') && !String(ed.valor_financiado).toLowerCase().includes('ver pdf') && !String(ed.valor_financiado).toLowerCase().includes('ver tópico'))
+    );
     const badgeProveniencia = (prazoVerificado && valorVerificado)
-      ? '<span class="badge-tag badge-origem-real" title="Prazo e valor extraídos diretamente do portal governamental">Prazo e Valor Verificados na Fonte</span>'
+      ? '<span class="badge-tag badge-origem-real" title="Prazo e valor extraídos diretamente do portal ou PDF oficial">Prazo e Valor Verificados</span>'
       : (prazoVerificado
-        ? '<span class="badge-tag badge-origem-real" title="Prazo extraído do portal oficial; valor detalhado no PDF anexo">Prazo Verificado • Valor no PDF</span>'
-        : '<span class="badge-tag badge-origem-real" title="Consulte o anexo PDF oficial na página do órgão">Verificar Cronograma/Valor no PDF Oficial</span>');
+        ? '<span class="badge-tag badge-origem-real" title="Prazo extraído do edital oficial; valor detalhado por faixa no PDF">Prazo Verificado • Teto no Edital</span>'
+        : '<span class="badge-tag badge-origem-real" title="Consulte o anexo PDF oficial na página do órgão">Conferir Anexo Oficial</span>');
 
     const labCaisModal = obterLaboratorioCais(ed);
     tagsModal.innerHTML = `
@@ -1402,6 +1438,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modalParceiros').textContent = ed.parceiros_sugeridos || 'UECE, Laboratórios do LDI e indústrias associadas.';
     document.getElementById('modalResumo').textContent = ed.resumo_objetivo || 'Sem resumo disponível.';
     document.getElementById('modalJustificativa').textContent = ed.justificativa_cais || 'Oportunidade oficial qualificada pelo Radar CAIS.';
+
+    // Atualiza o convite personalizado para parceiro na caixa 3
+    if (textareaConviteParceiro) {
+      textareaConviteParceiro.value = montarTextoConviteParceiro(ed);
+    }
+    if (!preservarAba && boxPreviaConviteParceiro && btnTogglePreviaConvite) {
+      boxPreviaConviteParceiro.style.display = 'none';
+      btnTogglePreviaConvite.setAttribute('aria-expanded', 'false');
+      btnTogglePreviaConvite.textContent = 'Ver texto';
+    }
 
     // Aba 2: Termômetro de Notas 5 Etapas
     const aderencia = Number(ed.nota_aderencia || 0);
@@ -1484,6 +1530,159 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.overflow = '';
   }
 
+  function copiarParaAreaDeTransferencia(texto, msgSucesso) {
+    const usarFallback = () => {
+      try {
+        const areaTemp = document.createElement('textarea');
+        areaTemp.value = texto;
+        areaTemp.setAttribute('readonly', '');
+        areaTemp.style.position = 'fixed';
+        areaTemp.style.opacity = '0';
+        areaTemp.style.left = '-9999px';
+        document.body.appendChild(areaTemp);
+        areaTemp.select();
+        const ok = document.execCommand('copy');
+        areaTemp.remove();
+        if (ok) {
+          exibirToast(msgSucesso, 'success');
+        } else {
+          exibirToast('Não foi possível copiar automaticamente. Use "Ver texto" para copiar manualmente.', 'error');
+        }
+      } catch (e) {
+        exibirToast('Não foi possível copiar automaticamente.', 'error');
+      }
+    };
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(texto).then(() => {
+        exibirToast(msgSucesso, 'success');
+      }).catch(() => {
+        usarFallback();
+      });
+    } else {
+      usarFallback();
+    }
+  }
+
+  function identificarPerfilParceiroConvite(ed) {
+    const texto = `${ed.parceiros_sugeridos || ''} ${ed.publico_elegivel || ''} ${ed.orgao || ''} ${ed.titulo || ''}`.toLowerCase();
+
+    if (texto.includes('startup') || texto.includes('catalisa') || texto.includes('centelha') || texto.includes('sebrae')) {
+      return {
+        rotulo: 'Startup / Empresa de Base Tecnológica',
+        ganhoParceiro: 'acelerar o desenvolvimento tecnológico com recurso de fomento (sem abrir mão de participação societária) e apoio de pesquisadores especializados.',
+        papelCais: 'pesquisa aplicada e engenharia (IA, software, dados ou hardware), coordenação técnica de P&D e escrita completa do projeto para o edital.',
+        papelParceiro: 'liderar a validação de mercado, o modelo de negócio e a aplicação prática da solução junto aos clientes.'
+      };
+    }
+
+    if (
+      texto.includes('indústria') || texto.includes('industria') || texto.includes('fiec') ||
+      texto.includes('empresa') || texto.includes('embrapii') || texto.includes('senai') ||
+      texto.includes('mover') || texto.includes('bndes') || texto.includes('finep')
+    ) {
+      return {
+        rotulo: 'Indústria / Empresa Parceira',
+        ganhoParceiro: 'desenvolver uma solução sob medida para a operação de vocês compartilhando custos e riscos técnicos com recursos do edital.',
+        papelCais: 'pesquisa e desenvolvimento (IA, ciência de dados, software ou sistemas embarcados), equipe de especialistas e redação técnica da proposta.',
+        papelParceiro: 'apresentar o desafio real da operação, apoiar a validação prática em campo e compor a contrapartida prevista no edital.'
+      };
+    }
+
+    if (
+      texto.includes('governo') || texto.includes('secretaria') || texto.includes('etice') ||
+      texto.includes('funceme') || texto.includes('sema') || texto.includes('municíp') ||
+      texto.includes('municip') || texto.includes('defesa civil') || texto.includes('cientista chefe') ||
+      texto.includes('público') || texto.includes('publico')
+    ) {
+      return {
+        rotulo: 'Órgão Público / Governo',
+        ganhoParceiro: 'resolver um desafio prioritário da gestão pública com tecnologia aplicada e financiamento dedicado à inovação.',
+        papelCais: 'desenvolvimento técnico da solução (IA, sistemas, nuvem ou sensores), coordenação dos pesquisadores e elaboração integral do projeto.',
+        papelParceiro: 'indicar a demanda prioritária do órgão, viabilizar o acesso técnico para teste piloto e emitir a anuência institucional.'
+      };
+    }
+
+    return {
+      rotulo: 'Universidade / Laboratório de Pesquisa',
+      ganhoParceiro: 'unir a excelência científica do laboratório à engenharia aplicada do CAIS, fortalecendo a nota da proposta para captar bolsas e custeio.',
+      papelCais: 'engenharia de software, IA e prototipagem, além do apoio direto na estruturação executiva e escrita do plano de trabalho.',
+      papelParceiro: 'somar na coordenação científica, na indicação de pesquisadores/bolsistas e no enquadramento acadêmico exigido pela chamada.'
+    };
+  }
+
+  function montarTextoConviteParceiro(ed) {
+    if (!ed) return '';
+    const perfil = identificarPerfilParceiroConvite(ed);
+    const dias = calcularDiasRestantes(ed.prazo_submissao);
+    const prazoBruto = String(ed.prazo_submissao || '').trim();
+
+    let prazoNatural = prazoBruto || 'conforme cronograma oficial';
+    if (prazoBruto.toLowerCase().includes('fluxo contínuo') || prazoBruto.toLowerCase().includes('fluxo continuo')) {
+      prazoNatural = 'Fluxo Contínuo (inscrições abertas)';
+    } else if (dias !== null && dias > 1) {
+      prazoNatural = `até ${prazoBruto} (faltam ${dias} dias)`;
+    } else if (dias === 1) {
+      prazoNatural = `até ${prazoBruto} (falta 1 dia)`;
+    } else if (dias === 0) {
+      prazoNatural = `até hoje (${prazoBruto})`;
+    }
+
+    const ideiaLimpa = String(ed.ideia_projeto_cais || ed.resumo_objetivo || 'Desenvolvimento conjunto de solução tecnológica aplicada.')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const contrapartidaLimpa = String(ed.contrapartida || 'Não exigida').trim();
+    const valorLimpo = String(ed.valor_financiado || 'Conforme edital oficial').trim();
+
+    return [
+      'Olá! Tudo bem?',
+      '',
+      `Aqui é da equipe do Instituto CAIS. Identificamos um edital aberto da ${ed.orgao} com ótima aderência para construirmos um projeto em parceria:`,
+      '',
+      `• Edital: ${ed.titulo}`,
+      `• Recurso disponível: ${valorLimpo}`,
+      `• Prazo de submissão: ${prazoNatural}`,
+      `• Contrapartida: ${contrapartidaLimpa}`,
+      '',
+      `A ideia inicial é: ${ideiaLimpa}`,
+      '',
+      'Como funcionaria na prática:',
+      `• Ganho para vocês: ${perfil.ganhoParceiro}`,
+      `• O que o Instituto CAIS entrega: ${perfil.papelCais}`,
+      `• O que caberia a vocês: ${perfil.papelParceiro}`,
+      '',
+      `Link oficial do edital: ${ed.link || ''}`,
+      '',
+      'Faz sentido conversarmos 15 minutos esta semana para avaliarmos se vale seguirmos juntos nessa oportunidade?',
+      '',
+      'Um abraço,',
+      'Equipe Instituto CAIS'
+    ].join('\n');
+  }
+
+  function copiarConviteParceiro(ed) {
+    if (!ed) return;
+    const perfil = identificarPerfilParceiroConvite(ed);
+    const textoFinal = (
+      textareaConviteParceiro &&
+      boxPreviaConviteParceiro &&
+      boxPreviaConviteParceiro.style.display !== 'none' &&
+      textareaConviteParceiro.value.trim()
+    )
+      ? textareaConviteParceiro.value.trim()
+      : montarTextoConviteParceiro(ed);
+
+    if (textareaConviteParceiro) {
+      textareaConviteParceiro.value = textoFinal;
+    }
+
+    copiarParaAreaDeTransferencia(
+      textoFinal,
+      `🤝 Convite personalizado (${perfil.rotulo}) copiado! Pronto para colar no WhatsApp ou E-mail.`
+    );
+  }
+
   function copiarResumoDeEdital(ed) {
     if (!ed) return;
     const dias = calcularDiasRestantes(ed.prazo_submissao);
@@ -1514,11 +1713,7 @@ ${ed.parceiros_sugeridos}
 ======================================================
     `.trim();
 
-    navigator.clipboard.writeText(texto).then(() => {
-      exibirToast('Resumo executivo copiado para a área de transferência!', 'success');
-    }).catch(() => {
-      exibirToast('Não foi possível copiar automaticamente.', 'error');
-    });
+    copiarParaAreaDeTransferencia(texto, 'Resumo executivo copiado para a área de transferência!');
   }
 
   function copiarResumoDidatico() {
@@ -1711,7 +1906,7 @@ ${ed.parceiros_sugeridos}
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(gestaoInterna),
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }
 
@@ -1838,11 +2033,10 @@ ${ed.parceiros_sugeridos}
       '========================================================================',
     ].join('\n');
 
-    navigator.clipboard.writeText(minuta).then(() => {
-      exibirToast('Minuta Técnica (1-Page Pitch com Work Packages) copiada! Cole no Google Docs, Word ou Notion.', 'success');
-    }).catch(() => {
-      exibirToast('Não foi possível copiar a minuta automaticamente.', 'error');
-    });
+    copiarParaAreaDeTransferencia(
+      minuta,
+      'Minuta Técnica (1-Page Pitch com Work Packages) copiada! Cole no Google Docs, Word ou Notion.'
+    );
   }
 
   function rotuloEtapaFunil(etapa) {
@@ -2554,7 +2748,7 @@ ${ed.parceiros_sugeridos}
    * Executa a recuperação vetorial RAG (TF-IDF + Cosine Similarity + Boosts Semânticos)
    * e sintetiza o Parecer Consultivo (com suporte híbrido ao Google Gemini LLM).
    */
-  async function executarConsultaRag(perguntaUsuario) {
+  async function executarConsultaRag(perguntaUsuario, usarLlm = false) {
     if (!resultadoRagContainer) return;
     if (!indiceVetorialRag || editais.length === 0) {
       construirIndiceVetorialRag();
@@ -2671,12 +2865,12 @@ ${ed.parceiros_sugeridos}
       });
     });
 
-    // Se o usuário conectou uma chave opcional do Google Gemini no navegador, enriquece o parecer via LLM com os 4 editais recuperados (RAG Real)
+    // Se o usuário conectou uma chave opcional do Google Gemini e acionou uma consulta interativa, enriquece o parecer via LLM
     const chaveGemini = (localStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
-    if (chaveGemini && perguntaUsuario) {
+    if (chaveGemini && usarLlm && perguntaUsuario) {
       const boxParecer = resultadoRagContainer.querySelector('.parecer-rag-box');
       if (boxParecer) {
-        boxParecer.innerHTML += `<div class="status-llm-rag">🤖 <em>Consultando Google Gemini 2.5 Flash com os 4 editais recuperados pelo RAG...</em></div>`;
+        boxParecer.innerHTML += `<div class="status-llm-rag">🤖 <em>Consultando Google Gemini 2.5 Flash com os ${topRecuperados.length} editais mais compatíveis...</em></div>`;
       }
       try {
         const contextoRag = topRecuperados.map((it, i) =>
@@ -2810,12 +3004,12 @@ ${ed.parceiros_sugeridos}
 
     if (btnExecutarRag && inputPerguntaRag) {
       btnExecutarRag.addEventListener('click', () => {
-        executarConsultaRag(inputPerguntaRag.value);
+        executarConsultaRag(inputPerguntaRag.value, true);
       });
       inputPerguntaRag.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          executarConsultaRag(inputPerguntaRag.value);
+          executarConsultaRag(inputPerguntaRag.value, true);
         }
       });
     }
@@ -2828,15 +3022,8 @@ ${ed.parceiros_sugeridos}
         chip.classList.add('ativo');
         const promptTxt = chip.getAttribute('data-prompt') || '';
         if (inputPerguntaRag) inputPerguntaRag.value = promptTxt;
-        executarConsultaRag(promptTxt);
+        executarConsultaRag(promptTxt, true);
       });
     }
-
-    // Inicializa com a primeira consulta padrão assim que os dados carregarem
-    setTimeout(() => {
-      if (editais.length > 0 && resultadoRagContainer && !resultadoRagContainer.innerHTML.trim()) {
-        executarConsultaRag('Quais editais abertos financiam Inteligência Artificial, Ciência de Dados ou Semicondutores sem exigir contrapartida financeira?');
-      }
-    }, 150);
   }
 });

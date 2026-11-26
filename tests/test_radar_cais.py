@@ -115,6 +115,8 @@ class TestRadarCais(unittest.TestCase):
         self.assertIn("construirIndiceVetorialRag", js_txt, "Motor RAG Vetorial TF-IDF ausente no app.js")
         self.assertIn("calcularPredicaoMlEdital", js_txt, "Motor Preditivo de Machine Learning ausente no app.js")
         self.assertIn("painelCopilotoRagMl", html_txt, "Painel do Copiloto RAG + ML ausente no index.html")
+        self.assertIn("montarTextoConviteParceiro", js_txt, "Gerador de Convite para Parceiro ausente no app.js")
+        self.assertIn("btnCopiarConviteParceiro", html_txt, "Botão de Convite para Parceiro ausente no index.html")
 
     def test_06_workflow_github_actions(self):
         """Verifica se o workflow diário executa os testes antes de publicar e não bloqueia o build do GitHub Pages."""
