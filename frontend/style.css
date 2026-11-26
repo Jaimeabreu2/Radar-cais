@@ -9,35 +9,35 @@
   --cais-page-bg: #091D36;
   --cais-page-bg-deep: #061325;
   --cais-navy: #0B2545;
-  --cais-slate-dark: #0F172A;
+  --cais-slate-dark: #090D16;
   --cais-cerulean: #0284C7;
   --cais-cerulean-bright: #38BDF8;
   --cais-cerulean-hover: #0369A1;
 
-  /* Superfícies e Bordas Arquiteturais */
+  /* Superfícies e Bordas Arquiteturais (Alto Contraste) */
   --card-bg: #FFFFFF;
-  --card-bg-subtle: #F8FAFC;
-  --card-bg-ice: #F1F5F9;
-  --card-border: #E2E8F0;
-  --card-border-strong: #CBD5E1;
-  --card-text: #0F172A;
-  --card-muted: #475569;
-  --card-subtle-text: #64748B;
+  --card-bg-subtle: #F1F5F9;
+  --card-bg-ice: #E2E8F0;
+  --card-border: #CBD5E1;
+  --card-border-strong: #94A3B8;
+  --card-text: #090D16;
+  --card-muted: #1E293B;
+  --card-subtle-text: #334155;
 
-  /* Semáforo Institucional Sobrio */
-  --semaforo-verde-txt: #065F46;
+  /* Semáforo Institucional Sobrio (Alto Contraste) */
+  --semaforo-verde-txt: #064E3B;
   --semaforo-verde-bg: #ECFDF5;
-  --semaforo-verde-border: #A7F3D0;
-  --semaforo-verde-accent: #059669;
+  --semaforo-verde-border: #34D399;
+  --semaforo-verde-accent: #047857;
 
-  --semaforo-amarelo-txt: #92400E;
+  --semaforo-amarelo-txt: #78350F;
   --semaforo-amarelo-bg: #FFFBEB;
-  --semaforo-amarelo-border: #FDE68A;
+  --semaforo-amarelo-border: #F59E0B;
   --semaforo-amarelo-accent: #D97706;
 
-  --semaforo-vermelho-txt: #9F1239;
+  --semaforo-vermelho-txt: #881337;
   --semaforo-vermelho-bg: #FFF1F2;
-  --semaforo-vermelho-border: #FECDD3;
+  --semaforo-vermelho-border: #FB7185;
   --semaforo-vermelho-accent: #E11D48;
 
   /* Família Tipográfica Corporativa e Científica */
@@ -1545,12 +1545,12 @@ body {
 }
 
 .btn-toggle-filtros {
-  background: #F8FAFC;
-  border: 1px solid #CBD5E1;
-  color: #334155;
+  background: #F1F5F9;
+  border: 1px solid #64748B;
+  color: #0B2545;
   font-family: var(--font-principal);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 4px 11px;
   border-radius: 999px;
   cursor: pointer;
@@ -1559,9 +1559,9 @@ body {
 }
 
 .btn-toggle-filtros:hover {
-  background: #F0F9FF;
+  background: #E0F2FE;
   border-color: #0284C7;
-  color: #0369A1;
+  color: #075985;
 }
 
 .corpo-painel-filtros {
@@ -1608,12 +1608,12 @@ body {
 }
 
 .btn-mapa-bolso {
-  background: transparent;
-  border: 1px solid #CBD5E1;
-  color: #475569;
+  background: #F1F5F9;
+  border: 1px solid #64748B;
+  color: #0B2545;
   font-family: var(--font-principal);
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 4px 10px;
   border-radius: 999px;
   cursor: pointer;
@@ -1622,9 +1622,9 @@ body {
 }
 
 .btn-mapa-bolso:hover {
-  background: #F0F9FF;
+  background: #E0F2FE;
   border-color: #0284C7;
-  color: #0369A1;
+  color: #075985;
 }
 
 .balao-parceiros {
