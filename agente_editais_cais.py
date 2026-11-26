@@ -2936,7 +2936,7 @@ def obter_top5_vigentes_cais(historico_editais: Dict[str, Any]) -> List[Dict[str
 def atualizar_saude_fontes(
     memoria: Dict[str, Any], resultados_saude: Dict[str, Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
-    """Registra falhas consecutivas por portal e retorna alertas de portais com >= 3 falhas seguidas."""
+    """Registra falhas consecutivas por portal e alerta apenas erros acionáveis (ex.: 404/URL alterada), ignorando bloqueios geográficos/timeout externos."""
     hoje_br = datetime.date.today().strftime("%d/%m/%Y")
     saude = memoria.setdefault("saude_fontes", {})
     alertas: List[Dict[str, Any]] = []
@@ -2949,11 +2949,17 @@ def atualizar_saude_fontes(
             atual["ultimo_sucesso"] = hoje_br
             atual["ultimo_erro"] = ""
         else:
+            erro_str = str(info.get("erro", "Falha HTTP"))
             atual["falhas_consecutivas"] = int(atual.get("falhas_consecutivas", 0)) + 1
-            atual["ultimo_erro"] = info.get("erro", "Falha HTTP")
+            atual["ultimo_erro"] = erro_str
+            erro_low = erro_str.lower()
+            eh_bloqueio_externo = any(
+                k in erro_low
+                for k in ("max retries", "timed out", "timeout", "sem resposta", "403", "502", "503", "504", "connection")
+            )
+            if atual["falhas_consecutivas"] >= 3 and not eh_bloqueio_externo:
+                alertas.append(atual)
         saude[url] = atual
-        if atual["falhas_consecutivas"] >= 3:
-            alertas.append(atual)
     return alertas
 
 
@@ -3006,19 +3012,12 @@ def montar_relatorio_markdown(
         md.append(f"## 🩺 Status Diário do Projeto: {saude_sistema['rotulo']}")
         md.append(f"- **Site Online ({URL_PAINEL_ONLINE}):** {saude_sistema['site_status']}")
         md.append(f"- **Base JSON Pública:** {'OK' if saude_sistema['json_ok'] else 'FALHA'} ({saude_sistema['json_qtd']} editais publicados | {saude_sistema['vigentes']} vigentes)")
-        if saude_sistema["fontes_total"] > 0:
-            md.append(f"- **Portais consultados hoje:** {saude_sistema['fontes_ok']}/{saude_sistema['fontes_total']} responderam normalmente")
         if saude_sistema["problemas"]:
             md.append("- **Relatório de Problemas / Falhas do Projeto:**")
             for prob in saude_sistema["problemas"]:
                 md.append(f"  - ⚠️ {prob}")
         else:
             md.append("- **Relatório de Problemas / Falhas do Projeto:** Nenhuma falha no Radar CAIS. Site, base de dados e painel 100% operacionais.")
-        if saude_sistema.get("avisos_externos"):
-            md.append("- **Observações de Portais Externos (fora do nosso servidor):**")
-            for av in saude_sistema["avisos_externos"]:
-                md.append(f"  - ℹ️ {av}")
-            md.append("  - _Os editais já cadastrados desses órgãos continuam 100% preservados e visíveis no painel._")
         md.append("")
 
     if top5_semanal:
@@ -3129,7 +3128,6 @@ def montar_relatorio_html(
             bg_s, bd_s, ac_s, txt_s = "#FFF1F2", "#FB7185", "#BE123C", "#881337"
 
         probs = saude_sistema.get("problemas", [])
-        avisos_ext = saude_sistema.get("avisos_externos", [])
         if probs:
             lista_probs_html = "<ul style='margin:6px 0 0 0;padding-left:18px;'>" + "".join(
                 f"<li style='margin-bottom:4px;'>⚠️ {html.escape(p)}</li>" for p in probs
@@ -3137,34 +3135,17 @@ def montar_relatorio_html(
         else:
             lista_probs_html = "<div style='margin-top:6px;'>✅ <strong>Nenhuma falha no Radar CAIS.</strong> Site, base de dados e painel 100% operacionais.</div>"
 
-        bloco_avisos_ext_html = ""
-        if avisos_ext:
-            itens_ext = "".join(f"<li style='margin-bottom:3px;'>{html.escape(a)}</li>" for a in avisos_ext)
-            bloco_avisos_ext_html = (
-                "<div style='margin-top:8px; padding-top:8px; border-top:1px dashed #CBD5E1; color:#475569; font-size:12px;'>"
-                "<strong>ℹ️ Observações de Portais Externos (fora do nosso servidor):</strong>"
-                f"<ul style='margin:4px 0 0 0;padding-left:18px;'>{itens_ext}</ul>"
-                "<div style='margin-top:4px;font-style:italic;'>Os editais já cadastrados desses órgãos continuam 100% preservados e visíveis no painel.</div>"
-                "</div>"
-            )
-
-        fontes_linha = (
-            f" &nbsp;|&nbsp; <strong>Portais hoje:</strong> {saude_sistema['fontes_ok']}/{saude_sistema['fontes_total']} OK"
-            if saude_sistema.get("fontes_total", 0) > 0
-            else ""
-        )
         bloco_status_diario_html = f"""
         <div style="background:{bg_s}; border:1px solid {bd_s}; border-left:5px solid {ac_s}; border-radius:8px; padding:14px 16px; margin:14px 0; color:{txt_s}; font-size:13px;">
           <div style="font-size:15px; font-weight:bold; margin-bottom:6px;">{html.escape(saude_sistema['rotulo'])}</div>
           <div>
             <strong>Site Online:</strong> <a href="{html.escape(URL_PAINEL_ONLINE)}" style="color:{txt_s};">{html.escape(saude_sistema['site_status'])}</a>
-            &nbsp;|&nbsp; <strong>Base Pública:</strong> {saude_sistema['json_qtd']} editais ({saude_sistema['vigentes']} vigentes){fontes_linha}
+            &nbsp;|&nbsp; <strong>Base Pública:</strong> {saude_sistema['json_qtd']} editais ({saude_sistema['vigentes']} vigentes)
           </div>
           <div style="margin-top:8px; padding-top:8px; border-top:1px dashed {bd_s};">
             <strong>Relatório de Problemas / Falhas do Projeto:</strong>
             {lista_probs_html}
           </div>
-          {bloco_avisos_ext_html}
         </div>
         """
 
