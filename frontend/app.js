@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return 0;
     });
 
-    const temFiltroAtivo = Boolean(termo || decisao || orgao || prazo || laboratorio || filtrarApenasFavoritos || (chkOcultarEncerrados && chkOcultarEncerrados.checked));
+    const temFiltroAtivo = Boolean(termo || decisao || orgao || prazo || laboratorio || filtrarApenasFavoritos || (chkOcultarEncerrados && !chkOcultarEncerrados.checked));
     if (btnLimparFiltrosTopo) {
       btnLimparFiltrosTopo.style.display = temFiltroAtivo ? 'inline-flex' : 'none';
     }
@@ -1855,7 +1855,7 @@ ${ed.parceiros_sugeridos}
     filtroOrgao.value = '';
     filtroPrazo.value = '';
     if (filtroLaboratorio) filtroLaboratorio.value = '';
-    if (chkOcultarEncerrados) chkOcultarEncerrados.checked = false;
+    if (chkOcultarEncerrados) chkOcultarEncerrados.checked = true;
     selectOrdenacao.value = 'score_desc';
     sincronizarChipsComSelects();
     aplicarFiltros();
@@ -2176,17 +2176,22 @@ ${ed.parceiros_sugeridos}
   function exportarEventoCalendarioIcs(ed) {
     if (!ed) return;
     const match = String(ed.prazo_submissao || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    let dtInicio;
+    let dataBase;
     if (match) {
       const [_, d, m, y] = match;
-      dtInicio = `${y}${m}${d}`;
+      dataBase = new Date(Number(y), Number(m) - 1, Number(d));
     } else {
-      const proxSemana = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const y = proxSemana.getFullYear();
-      const m = String(proxSemana.getMonth() + 1).padStart(2, '0');
-      const d = String(proxSemana.getDate()).padStart(2, '0');
-      dtInicio = `${y}${m}${d}`;
+      dataBase = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
+    const formatarDataIcs = (dt) => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      return `${y}${m}${d}`;
+    };
+    const dtInicio = formatarDataIcs(dataBase);
+    const dataFim = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate() + 1);
+    const dtFim = formatarDataIcs(dataFim);
 
     const limparIcs = (str) => String(str || '').replace(/[\r\n]+/g, ' ').replace(/[,;\\]/g, ' ').trim();
     const sumario = limparIcs(`[Prazo Edital ${ed.orgao}] ${ed.titulo}`);
@@ -2202,7 +2207,7 @@ ${ed.parceiros_sugeridos}
       `UID:radar-cais-${ed.id_edital || Date.now()}@institutocais.org.br`,
       `DTSTAMP:${dtInicio}T120000Z`,
       `DTSTART;VALUE=DATE:${dtInicio}`,
-      `DTEND;VALUE=DATE:${dtInicio}`,
+      `DTEND;VALUE=DATE:${dtFim}`,
       `SUMMARY:${sumario}`,
       `DESCRIPTION:${descricao}`,
       `URL:${ed.link || ''}`,

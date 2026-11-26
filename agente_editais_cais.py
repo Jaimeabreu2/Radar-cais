@@ -25,6 +25,7 @@ import datetime
 import hashlib
 import html
 import http.server
+import io
 import json
 import logging
 import os
@@ -363,7 +364,8 @@ def inicializar_sqlite() -> None:
                     justificativa_cais TEXT,
                     data_descoberta TEXT,
                     data_atualizacao TEXT,
-                    origem TEXT
+                    origem TEXT,
+                    cronograma_etapas TEXT
                 )
                 """
             )
@@ -374,6 +376,8 @@ def inicializar_sqlite() -> None:
                 conn.execute("ALTER TABLE editais ADD COLUMN data_atualizacao TEXT DEFAULT ''")
             if "origem" not in colunas_existentes:
                 conn.execute("ALTER TABLE editais ADD COLUMN origem TEXT DEFAULT 'REAL'")
+            if "cronograma_etapas" not in colunas_existentes:
+                conn.execute("ALTER TABLE editais ADD COLUMN cronograma_etapas TEXT DEFAULT ''")
 
 
 def carregar_memoria() -> Dict[str, Any]:
@@ -463,7 +467,7 @@ def salvar_memoria_e_exportar(memoria: Dict[str, Any], atualizar_execucao: bool 
                         nota_complexidade, nota_chance_aprovacao, score_ponderado,
                         prioridade, decisao_recomendada, ideia_projeto_cais,
                         parceiros_sugeridos, justificativa_cais, data_descoberta,
-                        data_atualizacao, origem
+                        data_atualizacao, origem, cronograma_etapas
                     ) VALUES (
                         :id_edital, :orgao, :titulo, :link, :prazo_submissao,
                         :valor_financiado, :contrapartida, :publico_elegivel,
@@ -471,7 +475,7 @@ def salvar_memoria_e_exportar(memoria: Dict[str, Any], atualizar_execucao: bool 
                         :nota_complexidade, :nota_chance_aprovacao, :score_ponderado,
                         :prioridade, :decisao_recomendada, :ideia_projeto_cais,
                         :parceiros_sugeridos, :justificativa_cais, :data_descoberta,
-                        :data_atualizacao, :origem
+                        :data_atualizacao, :origem, :cronograma_etapas
                     )
                     """,
                     {
@@ -497,6 +501,7 @@ def salvar_memoria_e_exportar(memoria: Dict[str, Any], atualizar_execucao: bool 
                         "data_descoberta": ed.get("data_descoberta", ""),
                         "data_atualizacao": ed.get("data_atualizacao", ed.get("data_descoberta", "")),
                         "origem": ed.get("origem", "REAL"),
+                        "cronograma_etapas": ed.get("cronograma_etapas", ""),
                     },
                 )
 
@@ -1341,6 +1346,8 @@ def extrair_candidatos_fonte(
             item["datas_detectadas"] = detalhes["datas_detectadas"]
         if detalhes.get("valores_detectados"):
             item["valores_detectados"] = detalhes["valores_detectados"]
+        if detalhes.get("cronograma_etapas"):
+            item["cronograma_etapas"] = detalhes["cronograma_etapas"]
 
     logger.info(f"[{orgao}] {len(candidatos)} novos candidatos extraídos com sucesso.")
     return candidatos
@@ -2407,10 +2414,13 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
             })
 
     ed.update(dados)
+    dias_calc = calcular_dias_restantes(ed.get("prazo_submissao", ""))
     if not ed.get("cronograma_etapas"):
         p_sub = str(ed.get("prazo_submissao", "")).strip()
         if p_sub == "Fluxo Contínuo":
             ed["cronograma_etapas"] = f"Recebimento contínuo de propostas em fluxo permanente no portal oficial ({orgao})."
+        elif dias_calc is not None and dias_calc < 0:
+            ed["cronograma_etapas"] = f"Prazo de submissão encerrado em {p_sub} no portal oficial ({orgao})."
         else:
             ed["cronograma_etapas"] = f"Submissão de propostas aberta até {p_sub} no portal oficial ({orgao})."
     ed["data_descoberta"] = data_desc_preservada
@@ -2423,7 +2433,6 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
     ed["score_ponderado"] = calcular_score_ponderado(ed)
 
     # Classificação coerente com o Score Ponderado e com a vigência real do prazo
-    dias_calc = calcular_dias_restantes(ed.get("prazo_submissao", ""))
     score_final = ed["score_ponderado"]
     if dias_calc is not None and dias_calc < 0:
         ed["prioridade"] = "Baixa"
@@ -2592,6 +2601,7 @@ def _qualificar_candidatos_heuristica_local(
             "titulo": titulo,
             "link": c["link"],
             "prazo_submissao": c.get("datas_detectadas") or "Consultar cronograma no edital",
+            "cronograma_etapas": c.get("cronograma_etapas") or "",
             "valor_financiado": c.get("valores_detectados") or "Consultar edital oficial",
             "contrapartida": contrapartida,
             "publico_elegivel": publico,
@@ -2740,7 +2750,7 @@ def montar_relatorio_markdown(
 
     md.append("## 🎯 Análise Detalhada (Framework CAIS de 5 Etapas)")
     for idx, ed in enumerate(novos, 1):
-        viab = 10 - int(ed.get("nota_complexidade", 5))
+        viab = round(max(0.0, 10.0 - float(ed.get("nota_complexidade", 5))), 1)
         md.extend(
             [
                 f"### {idx}. [{ed['orgao']}] {ed['titulo']}",
@@ -2947,7 +2957,10 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
                 for fonte in fontes
             ]
             for futuro in concurrent.futures.as_completed(futuros):
-                candidatos_brutos.extend(futuro.result())
+                try:
+                    candidatos_brutos.extend(futuro.result())
+                except Exception as err_fonte:
+                    logger.warning(f"Erro isolado ao coletar uma das fontes: {err_fonte}")
 
         STATUS_VARREDURA["mensagem"] = f"Analisando {len(candidatos_brutos)} novos candidatos..."
         novos_qualificados = analisar_candidatos_com_gemini(candidatos_brutos) if candidatos_brutos else []
@@ -2984,10 +2997,9 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
         relatorio_md = montar_relatorio_markdown(ciclos, novos_qualificados, alertas_urgencia)
         relatorio_html = montar_relatorio_html(ciclos, novos_qualificados, alertas_urgencia)
 
-        ARQUIVO_RELATORIO_MD.write_text(relatorio_md, encoding="utf-8")
-        ARQUIVO_RELATORIO_HTML.write_text(relatorio_html, encoding="utf-8")
-
         if not dry_run:
+            ARQUIVO_RELATORIO_MD.write_text(relatorio_md, encoding="utf-8")
+            ARQUIVO_RELATORIO_HTML.write_text(relatorio_html, encoding="utf-8")
             salvar_memoria_e_exportar(memoria)
             if novos_qualificados or alertas_urgencia:
                 assunto = (

@@ -117,6 +117,9 @@ class TestRadarCais(unittest.TestCase):
         self.assertIn("painelCopilotoRagMl", html_txt, "Painel do Copiloto RAG + ML ausente no index.html")
         self.assertIn("montarTextoConviteParceiro", js_txt, "Gerador de Convite para Parceiro ausente no app.js")
         self.assertIn("btnCopiarConviteParceiro", html_txt, "Botão de Convite para Parceiro ausente no index.html")
+        self.assertIn("DTEND;VALUE=DATE:${dtFim}", js_txt, "Evento .ics deve usar DTEND exclusivo (dia seguinte, RFC 5545)")
+        self.assertTrue(hasattr(ag, "io"), "Módulo padrão 'io' deve estar importado em agente_editais_cais.py para leitura de PDF")
+        self.assertEqual(ag._extrair_texto_pdf_bytes(b"not-a-pdf"), "", "Extrator de PDF deve falhar de forma controlada sem NameError")
 
     def test_06_workflow_github_actions(self):
         """Verifica se o workflow diário executa os testes antes de publicar e não bloqueia o build do GitHub Pages."""
