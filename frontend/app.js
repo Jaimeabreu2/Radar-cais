@@ -1099,7 +1099,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="rodape-acao-card">
           <span class="badge-lab-cais" title="Laboratório / Núcleo CAIS com maior aderência técnica">${escapeHtml(labCais)}</span>
           <div style="display:flex; gap:6px; align-items:center;">
-            <a href="${escapeHtml(ed.link || '#')}" target="_blank" rel="noopener noreferrer" class="btn-link-direto-card" title="Abrir página oficial do órgão em nova aba">
+            <a href="${escapeHtml(sanitizarUrlSegura(ed.link))}" target="_blank" rel="noopener noreferrer" class="btn-link-direto-card" title="Abrir página oficial do órgão em nova aba">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
             <button type="button" class="btn-resumo-rapido-card" title="Copiar sumário executivo">
@@ -1437,6 +1437,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function sanitizarUrlSegura(url) {
+    const raw = String(url || '').trim();
+    if (!raw) return '#';
+    const normalizada = raw
+      .replace('http://legacy.finep.gov.br', 'https://www.finep.gov.br')
+      .replace('https://legacy.finep.gov.br', 'https://www.finep.gov.br');
+    try {
+      const parsed = new URL(normalizada, window.location.origin);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        return parsed.href;
+      }
+    } catch (e) {
+      return '#';
+    }
+    return '#';
+  }
+
   function obterPortalOficialOrgao(orgao, linkFallback) {
     const o = String(orgao || '').toLowerCase();
     if (o.includes('finep')) return 'https://www.finep.gov.br/chamadas-publicas/';
@@ -1634,13 +1651,11 @@ document.addEventListener('DOMContentLoaded', () => {
       badgeDecisao.style.borderColor = 'var(--semaforo-vermelho-border)';
     }
 
-    // Link oficial da oportunidade + Portal oficial do órgão
-    const linkOficialLimpo = String(ed.link || '#')
-      .replace('http://legacy.finep.gov.br', 'https://www.finep.gov.br')
-      .replace('https://legacy.finep.gov.br', 'https://www.finep.gov.br');
+    // Link oficial da oportunidade + Portal oficial do órgão (sanitizados contra protocolos inseguros)
+    const linkOficialLimpo = sanitizarUrlSegura(ed.link);
     btnLinkOficial.href = linkOficialLimpo;
     if (btnPortalOrgao) {
-      btnPortalOrgao.href = obterPortalOficialOrgao(ed.orgao, linkOficialLimpo);
+      btnPortalOrgao.href = sanitizarUrlSegura(obterPortalOficialOrgao(ed.orgao, linkOficialLimpo));
     }
 
     // Atualiza botão Favoritar do Topo do Modal
@@ -3543,8 +3558,8 @@ ${ed.parceiros_sugeridos}
       });
     });
 
-    // Se o usuário conectou uma chave opcional do Google Gemini e acionou uma consulta interativa, enriquece o parecer via LLM
-    const chaveGemini = (localStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
+    // Se o usuário conectou uma chave opcional do Google Gemini nesta sessão e acionou uma consulta interativa, enriquece o parecer via LLM
+    const chaveGemini = (sessionStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
     if (chaveGemini && usarLlm && perguntaUsuario) {
       const boxParecer = resultadoRagContainer.querySelector('.parecer-rag-box');
       if (boxParecer) {
@@ -3557,9 +3572,12 @@ ${ed.parceiros_sugeridos}
 
         const promptRagLlm = `Você é o Copiloto Estratégico de PD&I do Instituto CAIS (Ceará). Responda em português de forma executiva, direta e prática (máximo 2 parágrafos curtos) à pergunta do pesquisador usando EXCLUSIVAMENTE os editais oficiais recuperados abaixo:\n\nPERGUNTA/PROJETO: ${consulta}\n\nEDITAIS RECUPERADOS (RAG):\n${contextoRag}`;
 
-        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(chaveGemini)}`, {
+        const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': chaveGemini
+          },
           body: JSON.stringify({
             contents: [{ parts: [{ text: promptRagLlm }] }],
             generationConfig: { temperature: 0.25, maxOutputTokens: 320 }
@@ -3587,7 +3605,7 @@ ${ed.parceiros_sugeridos}
 
   function atualizarBadgeStatusGemini() {
     if (!labelStatusGemini) return;
-    const chave = (localStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
+    const chave = (sessionStorage.getItem(CHAVE_STORAGE_GEMINI) || '').trim();
     if (chave) {
       labelStatusGemini.textContent = '🟢 Gemini Ativo';
     } else {
@@ -3650,7 +3668,7 @@ ${ed.parceiros_sugeridos}
         const oculto = boxConfigGemini.style.display === 'none';
         boxConfigGemini.style.display = oculto ? 'block' : 'none';
         if (oculto && inputChaveGeminiUser) {
-          inputChaveGeminiUser.value = localStorage.getItem(CHAVE_STORAGE_GEMINI) || '';
+          inputChaveGeminiUser.value = sessionStorage.getItem(CHAVE_STORAGE_GEMINI) || '';
           inputChaveGeminiUser.focus();
         }
       });
@@ -3663,15 +3681,17 @@ ${ed.parceiros_sugeridos}
           exibirToast('Cole uma chave válida do Google AI Studio ou use o motor RAG Vetorial Local.', 'info');
           return;
         }
-        localStorage.setItem(CHAVE_STORAGE_GEMINI, val);
+        sessionStorage.setItem(CHAVE_STORAGE_GEMINI, val);
+        localStorage.removeItem(CHAVE_STORAGE_GEMINI);
         atualizarBadgeStatusGemini();
         if (boxConfigGemini) boxConfigGemini.style.display = 'none';
-        exibirToast('Chave Gemini salva no navegador! O Copiloto agora usará RAG + Gemini 2.5 Flash.', 'success');
+        exibirToast('Chave Gemini salva apenas nesta sessão (limpa ao fechar a aba)!', 'success');
       });
     }
 
     if (btnRemoverChaveGemini) {
       btnRemoverChaveGemini.addEventListener('click', () => {
+        sessionStorage.removeItem(CHAVE_STORAGE_GEMINI);
         localStorage.removeItem(CHAVE_STORAGE_GEMINI);
         if (inputChaveGeminiUser) inputChaveGeminiUser.value = '';
         atualizarBadgeStatusGemini();

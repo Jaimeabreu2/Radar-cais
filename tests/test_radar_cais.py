@@ -95,6 +95,14 @@ class TestRadarCais(unittest.TestCase):
         ps1_txt = (BASE_DIR / "servidor_local.ps1").read_text(encoding="utf-8")
         self.assertIn("StartsWith($frontendDirFull", ps1_txt, "Proteção Path Traversal ausente em servidor_local.ps1")
         self.assertIn("X-Content-Type-Options", ps1_txt, "Header X-Content-Type-Options ausente em servidor_local.ps1")
+        self.assertIn("Permissions-Policy", ps1_txt, "Header Permissions-Policy ausente em servidor_local.ps1")
+
+        html_txt = (BASE_DIR / "frontend" / "index.html").read_text(encoding="utf-8")
+        js_txt = (BASE_DIR / "frontend" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("Content-Security-Policy", html_txt, "Meta CSP ausente em frontend/index.html")
+        self.assertIn("sanitizarUrlSegura", js_txt, "Sanitização de protocolo URL ausente em frontend/app.js")
+        self.assertIn("x-goog-api-key", js_txt, "Chave Gemini deve ser enviada no header x-goog-api-key e não na URL")
+        self.assertNotIn("ghp_", js_txt + html_txt, "Token GitHub vazado no frontend!")
 
     def test_05_frontend_dom_e_responsividade_mobile(self):
         """Garante que todos os IDs usados pelo JS existem no HTML e que as regras mobile estão ativas."""

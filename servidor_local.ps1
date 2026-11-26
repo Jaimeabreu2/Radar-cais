@@ -63,6 +63,7 @@ try {
         $response.Headers.Add("X-Content-Type-Options", "nosniff")
         $response.Headers.Add("X-Frame-Options", "DENY")
         $response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin")
+        $response.Headers.Add("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
         $rawPath = $request.Url.LocalPath
         $isHead = ($request.HttpMethod -eq "HEAD")
@@ -131,6 +132,11 @@ try {
 
         if ($rawPath -eq "/api/gestao") {
             if ($request.HttpMethod -eq "POST") {
+                if ($request.ContentLength64 -le 0 -or $request.ContentLength64 -gt 524288) {
+                    $response.StatusCode = 400
+                    $response.Close()
+                    continue
+                }
                 $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
                 $bodyStr = $reader.ReadToEnd()
                 $reader.Close()
