@@ -163,12 +163,15 @@ document.addEventListener('DOMContentLoaded', () => {
       campoBusca.focus();
     });
 
-    // Atalho "/" para focar na busca rapidamente
+    // Atalho "/" para focar na busca rapidamente (expande filtros se estiverem recolhidos)
     document.addEventListener('keydown', (e) => {
       if (e.key === '/' && document.activeElement !== campoBusca && !fundoModal.classList.contains('aberto')) {
         const tag = (document.activeElement && document.activeElement.tagName) || '';
         if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
           e.preventDefault();
+          if (corpoPainelFiltros && corpoPainelFiltros.style.display === 'none' && btnToggleFiltros) {
+            btnToggleFiltros.click();
+          }
           campoBusca.focus();
         }
       }
@@ -1476,7 +1479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const idxAtual = editaisFiltrados.findIndex(item => item.id_edital === ed.id_edital);
     const totalLista = editaisFiltrados.length;
     if (indiceNavModal) {
-      indiceNavModal.textContent = idxAtual >= 0 ? `${idxAtual + 1}/${totalLista}` : `1/${totalLista}`;
+      indiceNavModal.textContent = idxAtual >= 0 ? `${idxAtual + 1}/${totalLista}` : 'Histórico';
     }
     if (btnEditalAnterior) {
       btnEditalAnterior.disabled = idxAtual <= 0;
