@@ -2612,58 +2612,60 @@ ${ed.parceiros_sugeridos}
           body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            background: #F1F5F9;
-            color: #0F172A;
-            line-height: 1.55;
+            background: #DCE3EC;
+            color: #090D16;
+            line-height: 1.58;
             padding: 24px 16px 48px 16px;
           }
           .container { max-width: 920px; margin: 0 auto; }
           .topo-pagina {
-            background: #0B2545;
+            background: linear-gradient(135deg, #071933 0%, #0B2545 100%);
             color: #FFFFFF;
+            border: 1px solid #1E3A5F;
             border-radius: 12px;
             padding: 22px 24px;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             gap: 16px;
             flex-wrap: wrap;
+            box-shadow: 0 6px 18px rgba(7, 25, 51, 0.22);
           }
           .eyebrow {
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: #7DD3FC;
+            color: #38BDF8;
             margin-bottom: 4px;
           }
-          h1 { margin: 0; font-size: 21px; line-height: 1.3; }
-          .sub { margin: 6px 0 0 0; font-size: 13.5px; color: #CBD5E1; max-width: 580px; }
+          h1 { margin: 0; font-size: 21px; line-height: 1.3; color: #FFFFFF; }
+          .sub { margin: 6px 0 0 0; font-size: 13.5px; color: #E2E8F0; max-width: 580px; }
           .acoes-topo { display: flex; gap: 8px; flex-wrap: wrap; }
           .btn {
             font-family: inherit;
             font-size: 13px;
-            font-weight: 600;
-            padding: 9px 14px;
+            font-weight: 700;
+            padding: 9px 15px;
             border-radius: 8px;
             cursor: pointer;
             border: 1px solid transparent;
             transition: all 0.15s ease;
           }
-          .btn-primario { background: #0284C7; color: #FFFFFF; }
+          .btn-primario { background: #0284C7; color: #FFFFFF; border-color: #0369A1; }
           .btn-primario:hover { background: #0369A1; }
-          .btn-claro { background: rgba(255,255,255,0.12); color: #FFFFFF; border-color: rgba(255,255,255,0.24); }
-          .btn-claro:hover { background: rgba(255,255,255,0.2); }
+          .btn-claro { background: rgba(255,255,255,0.16); color: #FFFFFF; border-color: rgba(255,255,255,0.38); }
+          .btn-claro:hover { background: rgba(255,255,255,0.26); }
 
           .box-mensagem-chefe {
             background: #FFFFFF;
-            border: 1px solid #CBD5E1;
-            border-left: 5px solid #0284C7;
+            border: 1px solid #64748B;
+            border-left: 5px solid #0B2545;
             border-radius: 10px;
             padding: 18px 20px;
-            margin-bottom: 22px;
-            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(11, 37, 69, 0.10);
           }
           .topo-box-msg {
             display: flex;
@@ -2673,29 +2675,32 @@ ${ed.parceiros_sugeridos}
             flex-wrap: wrap;
             margin-bottom: 10px;
           }
-          .topo-box-msg h2 { margin: 0; font-size: 15.5px; color: #0B2545; }
-          .dica-msg { font-size: 12.5px; color: #475569; margin: 2px 0 0 0; }
+          .topo-box-msg h2 { margin: 0; font-size: 16px; color: #090D16; }
+          .dica-msg { font-size: 12.5px; color: #334155; font-weight: 500; margin: 2px 0 0 0; }
           .area-msg {
             width: 100%;
             min-height: 185px;
             font-family: inherit;
             font-size: 13.5px;
-            line-height: 1.5;
-            color: #0F172A;
+            font-weight: 500;
+            line-height: 1.55;
+            color: #090D16;
             background: #F8FAFC;
-            border: 1px solid #CBD5E1;
+            border: 1.5px solid #64748B;
             border-radius: 8px;
             padding: 12px;
             resize: vertical;
           }
+          .area-msg:focus { outline: none; border-color: #0284C7; background: #FFFFFF; }
 
           .card-top5 {
             background: #FFFFFF;
-            border: 1px solid #CBD5E1;
+            border: 1px solid #94A3B8;
+            border-top: 4px solid #0B2545;
             border-radius: 12px;
             padding: 20px 22px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+            margin-bottom: 18px;
+            box-shadow: 0 4px 14px rgba(11, 37, 69, 0.10);
             page-break-inside: avoid;
           }
           .card-topo {
@@ -2712,36 +2717,37 @@ ${ed.parceiros_sugeridos}
             color: #FFFFFF;
             font-size: 11.5px;
             font-weight: 700;
-            padding: 3px 9px;
+            padding: 4px 10px;
             border-radius: 999px;
           }
           .orgao-badge {
-            background: #E0F2FE;
-            color: #0369A1;
+            background: #075985;
+            color: #FFFFFF;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+          }
+          .lab-badge {
+            background: #E2E8F0;
+            color: #0F172A;
+            border: 1px solid #94A3B8;
             font-size: 11.5px;
             font-weight: 700;
             padding: 3px 9px;
             border-radius: 6px;
           }
-          .lab-badge {
-            background: #F1F5F9;
-            color: #334155;
-            font-size: 11.5px;
-            font-weight: 600;
-            padding: 3px 9px;
-            border-radius: 6px;
-          }
           .nota-destaque {
-            font-size: 16px;
+            font-size: 15.5px;
             font-weight: 800;
-            color: #065F46;
-            background: #ECFDF5;
-            border: 1px solid #A7F3D0;
-            padding: 4px 11px;
+            color: #FFFFFF;
+            background: #047857;
+            border: 1px solid #065F46;
+            padding: 5px 12px;
             border-radius: 8px;
           }
-          .nota-destaque span { font-size: 12px; font-weight: 600; color: #047857; }
-          .card-titulo { margin: 0 0 14px 0; font-size: 17px; color: #0B2545; line-height: 1.35; }
+          .nota-destaque span { font-size: 12px; font-weight: 600; color: #D1FAE5; }
+          .card-titulo { margin: 0 0 14px 0; font-size: 17.5px; font-weight: 700; color: #090D16; line-height: 1.35; }
 
           .metricas-linha {
             display: grid;
@@ -2750,8 +2756,8 @@ ${ed.parceiros_sugeridos}
             margin-bottom: 14px;
           }
           .metrica-item {
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
+            background: #F1F5F9;
+            border: 1px solid #94A3B8;
             border-radius: 8px;
             padding: 10px 12px;
           }
@@ -2760,25 +2766,26 @@ ${ed.parceiros_sugeridos}
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
-            color: #64748B;
+            letter-spacing: 0.03em;
+            color: #334155;
             margin-bottom: 3px;
           }
-          .metrica-valor { font-size: 13px; color: #0F172A; }
-          .destaque-azul { color: #0369A1; }
+          .metrica-valor { font-size: 13.5px; font-weight: 700; color: #090D16; }
+          .destaque-azul { color: #075985; }
 
-          .secao-card { margin-bottom: 12px; }
-          .secao-card p { margin: 4px 0 0 0; font-size: 13.5px; color: #1E293B; }
+          .secao-card { margin-bottom: 14px; }
+          .secao-card p { margin: 4px 0 0 0; font-size: 13.5px; font-weight: 500; color: #0F172A; }
           .secao-label {
             display: block;
-            font-size: 11px;
-            font-weight: 700;
+            font-size: 11.5px;
+            font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            color: #475569;
+            color: #0B2545;
             margin-bottom: 6px;
           }
           .secao-label.verde { color: #065F46; }
-          .secao-label.azul { color: #0369A1; }
+          .secao-label.azul { color: #075985; }
 
           .grade-dupla {
             display: grid;
@@ -2788,17 +2795,18 @@ ${ed.parceiros_sugeridos}
           }
           .box-suave {
             border-radius: 8px;
-            padding: 12px 14px;
+            padding: 13px 15px;
             font-size: 13px;
-            color: #1E293B;
+            font-weight: 500;
+            color: #0F172A;
           }
-          .box-verde { background: #F0FDF4; border: 1px solid #BBF7D0; }
-          .box-azul { background: #F0F9FF; border: 1px solid #BAE6FD; }
-          .box-passos { background: #F8FAFC; border: 1px solid #E2E8F0; margin-bottom: 14px; }
+          .box-verde { background: #ECFDF5; border: 1px solid #34D399; border-left: 4px solid #047857; }
+          .box-azul { background: #F0F9FF; border: 1px solid #38BDF8; border-left: 4px solid #0284C7; }
+          .box-passos { background: #F8FAFC; border: 1px solid #94A3B8; border-left: 4px solid #0B2545; margin-bottom: 14px; }
           .box-suave ul, .box-suave ol { margin: 0; padding-left: 18px; }
-          .box-suave li { margin-bottom: 4px; }
+          .box-suave li { margin-bottom: 5px; }
           .box-suave p { margin: 0 0 8px 0; }
-          .parceiro-linha { margin-bottom: 0 !important; font-size: 12.5px; color: #334155; }
+          .parceiro-linha { margin-bottom: 0 !important; font-size: 12.5px; color: #0F172A; }
 
           .card-rodape {
             display: flex;
@@ -2806,28 +2814,29 @@ ${ed.parceiros_sugeridos}
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
-            padding-top: 10px;
-            border-top: 1px solid #E2E8F0;
+            padding-top: 12px;
+            border-top: 1px solid #CBD5E1;
           }
           .link-oficial {
             font-size: 13px;
-            font-weight: 600;
-            color: #0284C7;
+            font-weight: 700;
+            color: #0369A1;
             text-decoration: none;
           }
           .link-oficial:hover { text-decoration: underline; }
           .btn-copiar-item {
             font-family: inherit;
             font-size: 12.5px;
-            font-weight: 600;
+            font-weight: 700;
             color: #0B2545;
-            background: #F1F5F9;
-            border: 1px solid #CBD5E1;
-            border-radius: 6px;
-            padding: 6px 12px;
+            background: #FFFFFF;
+            border: 1.5px solid #64748B;
+            border-radius: 7px;
+            padding: 7px 13px;
             cursor: pointer;
+            transition: all 0.15s ease;
           }
-          .btn-copiar-item:hover { background: #E2E8F0; }
+          .btn-copiar-item:hover { background: #F1F5F9; border-color: #0B2545; }
 
           .aviso-copia {
             position: fixed;
