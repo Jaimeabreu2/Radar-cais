@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let varreduraEmProgresso = false;
   let filtrarApenasFavoritos = false;
   let filtrarApenasNovos7d = false;
+  const isServidorLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const CHAVE_STORAGE_GESTAO = 'radar_cais_gestao_v1';
   let gestaoInterna = carregarGestaoLocal();
 
@@ -377,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
         exibirToast('Nenhum edital disponível para exportar.', 'info');
         return;
       }
-      if (editaisFiltrados.length > 0 && editaisFiltrados.length < editais.length) {
+      if (!isServidorLocal || (editaisFiltrados.length > 0 && editaisFiltrados.length < editais.length)) {
         exportarCsvClientSide();
         return;
       }
@@ -569,15 +570,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function carregarDados() {
     const ts = Date.now();
-    try {
-      const res = await fetch(`/api/editais?t=${ts}`, { cache: 'no-store' });
-      if (res.ok) {
-        const dados = await res.json();
-        processarDados(dados);
-        return;
+    if (isServidorLocal) {
+      try {
+        const res = await fetch(`/api/editais?t=${ts}`, { cache: 'no-store' });
+        if (res.ok) {
+          const dados = await res.json();
+          processarDados(dados);
+          return;
+        }
+      } catch (e) {
+        console.log('API local indisponível, tentando historico_editais.json...');
       }
-    } catch (e) {
-      console.log('API local indisponível, tentando historico_editais.json...');
     }
 
     try {
@@ -2056,7 +2059,7 @@ ${ed.parceiros_sugeridos}
     } catch (e) {
       // Fallback silencioso
     }
-    if (sincronizarServidor) {
+    if (sincronizarServidor && isServidorLocal) {
       fetch('/api/gestao', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
