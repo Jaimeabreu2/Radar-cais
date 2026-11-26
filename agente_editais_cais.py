@@ -1201,31 +1201,40 @@ def _extrair_horizon_europe_api(
 
 
 def extrair_candidatos_fonte(
-    fonte: Dict[str, str], ids_conhecidos: set
+    fonte: Dict[str, str], ids_conhecidos: set, saude_out: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, str]]:
     sessao = criar_sessao_http()
     url_base = fonte["url"]
     orgao = fonte["orgao"]
     candidatos: List[Dict[str, str]] = []
 
+    def _marcar_saude(ok: bool, erro: str = "") -> None:
+        if saude_out is not None:
+            saude_out[url_base] = {"orgao": orgao, "url": url_base, "ok": ok, "erro": erro}
+
     if "horizon europe" in orgao.lower():
         cand_he = _extrair_horizon_europe_api(sessao, fonte, ids_conhecidos)
         if cand_he:
+            _marcar_saude(True)
             logger.info(f"[{orgao}] {len(cand_he)} candidatos extraídos via API oficial SEDIA.")
             return cand_he
 
     if "funcap" in orgao.lower() and "montenegro.funcap.ce.gov.br" in url_base.lower():
         cand_fc = _extrair_funcap_montenegro(sessao, fonte, ids_conhecidos)
         if cand_fc:
+            _marcar_saude(True)
             logger.info(f"[{orgao}] {len(cand_fc)} editais 2026 extraídos via Plataforma Montenegro.")
             return cand_fc
 
     try:
         resposta = _requisicao_get_resiliente(sessao, url_base, timeout=25)
         if not resposta:
+            _marcar_saude(False, "Sem resposta HTTP")
             return candidatos
         resposta.raise_for_status()
+        _marcar_saude(True)
     except Exception as erro:
+        _marcar_saude(False, str(erro)[:180])
         logger.warning(f"Falha ao acessar {orgao} ({url_base}): {erro}")
         return candidatos
 
@@ -2706,23 +2715,130 @@ def analisar_candidatos_com_gemini(
 # ==============================================================================
 # 6. RELATÓRIOS (MARKDOWN + HTML EXECUTIVO INSTITUCIONAL) E NOTIFICAÇÕES
 # ==============================================================================
+URL_PAINEL_ONLINE = "https://jaimeabreu2.github.io/radar-cais/"
+
+
+def obter_top5_vigentes_cais(historico_editais: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Retorna os 5 editais vigentes com maior score ponderado para o resumo executivo semanal."""
+    vigentes = []
+    for ed in historico_editais.values():
+        dias = calcular_dias_restantes(ed.get("prazo_submissao", ""))
+        dec = str(ed.get("decisao_recomendada", "")).upper()
+        if (dias is not None and dias < 0) or "ENCERRADO" in dec:
+            continue
+        vigentes.append(ed)
+    vigentes.sort(
+        key=lambda e: (
+            float(e.get("score_ponderado", 0.0)),
+            float(e.get("nota_aderencia", 0.0)),
+            float(e.get("nota_chance_aprovacao", 0.0)),
+        ),
+        reverse=True,
+    )
+    return vigentes[:5]
+
+
+def atualizar_saude_fontes(
+    memoria: Dict[str, Any], resultados_saude: Dict[str, Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Registra falhas consecutivas por portal e retorna alertas de portais com >= 3 falhas seguidas."""
+    hoje_br = datetime.date.today().strftime("%d/%m/%Y")
+    saude = memoria.setdefault("saude_fontes", {})
+    alertas: List[Dict[str, Any]] = []
+    for url, info in resultados_saude.items():
+        atual = saude.get(url, {"orgao": info["orgao"], "url": url, "falhas_consecutivas": 0})
+        atual["orgao"] = info["orgao"]
+        atual["ultima_verificacao"] = hoje_br
+        if info.get("ok"):
+            atual["falhas_consecutivas"] = 0
+            atual["ultimo_sucesso"] = hoje_br
+            atual["ultimo_erro"] = ""
+        else:
+            atual["falhas_consecutivas"] = int(atual.get("falhas_consecutivas", 0)) + 1
+            atual["ultimo_erro"] = info.get("erro", "Falha HTTP")
+        saude[url] = atual
+        if atual["falhas_consecutivas"] >= 3:
+            alertas.append(atual)
+    return alertas
+
+
+def detectar_retificacao_edital(ed_antigo: Dict[str, Any], ed_novo: Dict[str, Any], hoje_br: str) -> Optional[Dict[str, str]]:
+    """Detecta se um edital já conhecido sofreu alteração/prorrogação de prazo ou mudança de valor."""
+    prazo_ant = str(ed_antigo.get("prazo_submissao", "")).strip()
+    prazo_nov = str(ed_novo.get("prazo_submissao", "")).strip()
+    if (
+        prazo_ant
+        and prazo_nov
+        and prazo_ant != prazo_nov
+        and "consultar" not in prazo_ant.lower()
+        and "consultar" not in prazo_nov.lower()
+    ):
+        return {
+            "tipo": "Prazo atualizado",
+            "de": prazo_ant,
+            "para": prazo_nov,
+            "data": hoje_br,
+            "orgao": ed_novo.get("orgao", ""),
+            "titulo": ed_novo.get("titulo", ""),
+            "id_edital": ed_novo.get("id_edital", ""),
+            "link": ed_novo.get("link", ""),
+        }
+    return None
+
+
 def montar_relatorio_markdown(
     ciclos: List[str],
     novos: List[Dict[str, Any]],
     urgentes: List[Dict[str, Any]],
+    retificacoes: Optional[List[Dict[str, Any]]] = None,
+    top5_semanal: Optional[List[Dict[str, Any]]] = None,
+    alertas_saude: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     hoje_str = datetime.date.today().strftime("%d/%m/%Y")
     ciclos_str = ", ".join(c.capitalize() for c in ciclos)
+    retificacoes = retificacoes or []
+    top5_semanal = top5_semanal or []
+    alertas_saude = alertas_saude or []
 
     md = [
         f"# Radar de Inteligência de Editais e Fomento — Instituto CAIS ({hoje_str})",
-        f"**Ciclos executados:** {ciclos_str} | **Novos editais qualificados:** {len(novos)} | **Alertas (< 7 dias):** {len(urgentes)}",
+        f"**Ciclos executados:** {ciclos_str} | **Novos editais:** {len(novos)} | **Retificações:** {len(retificacoes)} | **Alertas (<= 7 dias):** {len(urgentes)}",
         "",
+    ]
+
+    if top5_semanal:
+        md.append("## 🏆 Mapa Top 5 da Semana — Maiores Aderências CAIS")
+        md.append("")
+        for idx, ed in enumerate(top5_semanal, 1):
+            link_direto = f"{URL_PAINEL_ONLINE}#edital={ed.get('id_edital', '')}"
+            md.append(
+                f"{idx}. **{ed['orgao']} — {ed['titulo']}** (Nota **{ed.get('score_ponderado', 0)}/10**)\n"
+                f"   - Recurso: {ed.get('valor_financiado', 'Consultar')} | Prazo: {ed.get('prazo_submissao', 'Consultar')}\n"
+                f"   - Ideia CAIS: {ed.get('ideia_projeto_cais', '')}\n"
+                f"   - [Abrir no Radar CAIS]({link_direto}) | [Página Oficial]({ed.get('link', '')})"
+            )
+        md.append("")
+
+    if retificacoes:
+        md.append("## ⚠️ Retificações e Prorrogações Detectadas")
+        for ret in retificacoes:
+            md.append(
+                f"- **[{ret['orgao']}] {ret['titulo']}** — {ret['tipo']}: de `{ret['de']}` para **`{ret['para']}`** ({ret['link']})"
+            )
+        md.append("")
+
+    if alertas_saude:
+        md.append("## 🩺 Alerta de Saúde dos Portais Monitorados (3+ falhas seguidas)")
+        for s in alertas_saude:
+            md.append(f"- **{s['orgao']}** ({s['url']}): {s['falhas_consecutivas']} falhas seguidas — último erro: {s.get('ultimo_erro', 'Indisponível')}")
+        md.append("")
+
+    md.extend([
         "## 📊 Resumo Executivo (Scorecard de Oportunidades)",
         "",
         "| Órgão | Oportunidade | Prazo | Valor | Score Final | Decisão Recomendada |",
         "| :--- | :--- | :--- | :--- | :---: | :--- |",
-    ]
+    ])
 
     for ed in novos:
         titulo_curto = ed["titulo"][:65] + ("..." if len(ed["titulo"]) > 65 else "")
@@ -2776,9 +2892,73 @@ def montar_relatorio_html(
     ciclos: List[str],
     novos: List[Dict[str, Any]],
     urgentes: List[Dict[str, Any]],
+    retificacoes: Optional[List[Dict[str, Any]]] = None,
+    top5_semanal: Optional[List[Dict[str, Any]]] = None,
+    alertas_saude: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     hoje_str = datetime.date.today().strftime("%d/%m/%Y")
     ciclos_str = ", ".join(c.capitalize() for c in ciclos)
+    retificacoes = retificacoes or []
+    top5_semanal = top5_semanal or []
+    alertas_saude = alertas_saude or []
+
+    bloco_top5_html = ""
+    if top5_semanal:
+        itens_top5 = []
+        for idx, ed in enumerate(top5_semanal, 1):
+            link_direto = f"{URL_PAINEL_ONLINE}#edital={ed.get('id_edital', '')}"
+            itens_top5.append(
+                f"""
+                <div style="border:1px solid #BAE6FD; border-left:4px solid #0284C7; border-radius:6px; padding:12px 14px; margin-bottom:10px; background:#F0F9FF;">
+                  <div style="font-size:13.5px; font-weight:bold; color:#0B2545;">
+                    {idx}º Lugar • {html.escape(ed['orgao'])} — {html.escape(ed['titulo'])} (Nota {ed.get('score_ponderado', 0)}/10)
+                  </div>
+                  <div style="font-size:12.5px; color:#334155; margin-top:4px;">
+                    <strong>Recurso:</strong> {html.escape(str(ed.get('valor_financiado', 'Consultar')))} &nbsp;|&nbsp;
+                    <strong>Prazo:</strong> {html.escape(str(ed.get('prazo_submissao', 'Consultar')))}
+                  </div>
+                  <div style="font-size:12.5px; color:#1E293B; margin-top:4px;">
+                    <strong>Proposta CAIS:</strong> {html.escape(str(ed.get('ideia_projeto_cais', '')))}
+                  </div>
+                  <div style="margin-top:6px; font-size:12px;">
+                    <a href="{html.escape(link_direto)}" style="color:#0284C7; font-weight:bold; text-decoration:none;">Abrir direto no Radar CAIS &rarr;</a>
+                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                    <a href="{html.escape(str(ed.get('link', '')))}" style="color:#475569; text-decoration:none;">Página Oficial do Órgão</a>
+                  </div>
+                </div>
+                """
+            )
+        bloco_top5_html = (
+            "<h3 style='color:#0B2545; margin:18px 0 10px 0; font-size:16px;'>🏆 Mapa Top 5 da Semana — Maiores Aderências CAIS</h3>"
+            + "\n".join(itens_top5)
+        )
+
+    bloco_retif_html = ""
+    if retificacoes:
+        linhas_ret = "".join(
+            f"<li style='margin-bottom:6px;'><strong>{html.escape(r['orgao'])} — {html.escape(r['titulo'])}</strong>: "
+            f"{html.escape(r['tipo'])} de <code>{html.escape(r['de'])}</code> para <strong><code>{html.escape(r['para'])}</code></strong></li>"
+            for r in retificacoes
+        )
+        bloco_retif_html = f"""
+        <div style="background:#FFFBEB; border:1px solid #FCD34D; border-left:5px solid #D97706; border-radius:8px; padding:14px 16px; margin:14px 0;">
+          <strong style="color:#92400E;">⚠️ Retificações / Prorrogações Detectadas ({len(retificacoes)})</strong>
+          <ul style="margin:8px 0 0 0; padding-left:18px; font-size:13px; color:#78350F;">{linhas_ret}</ul>
+        </div>
+        """
+
+    bloco_saude_html = ""
+    if alertas_saude:
+        linhas_s = "".join(
+            f"<li style='margin-bottom:4px;'><strong>{html.escape(s['orgao'])}</strong> ({html.escape(s['url'])}) — {s['falhas_consecutivas']} falhas seguidas</li>"
+            for s in alertas_saude
+        )
+        bloco_saude_html = f"""
+        <div style="background:#FFF1F2; border:1px solid #FDA4AF; border-left:5px solid #BE123C; border-radius:8px; padding:12px 16px; margin:14px 0;">
+          <strong style="color:#9F1239;">🩺 Alerta de Saúde dos Portais (3+ dias sem responder)</strong>
+          <ul style="margin:6px 0 0 0; padding-left:18px; font-size:12.5px; color:#881337;">{linhas_s}</ul>
+        </div>
+        """
 
     cards_html = []
     for idx, ed in enumerate(novos, 1):
@@ -2838,8 +3018,12 @@ def montar_relatorio_html(
         <p style="font-size:13.5px; color:#475569; background:#F1F5F9; padding:10px 14px; border-radius:6px;">
           <strong>Ciclos monitorados:</strong> {ciclos_str} &nbsp;|&nbsp;
           <strong>Novos editais:</strong> {len(novos)} &nbsp;|&nbsp;
+          <strong>Retificações:</strong> {len(retificacoes)} &nbsp;|&nbsp;
           <strong>Alertas (&le; 7 dias):</strong> {len(urgentes)}
         </p>
+        {bloco_retif_html}
+        {bloco_top5_html}
+        {bloco_saude_html}
         {corpo_cards}
         <div style="font-size:12px; color:#64748B; border-top:1px solid #E2E8F0; padding-top:14px; margin-top:24px;">
           Relatório gerado pelo Radar CAIS. A planilha completa de acompanhamento está em anexo (<code>pipeline_oportunidades_cais.csv</code>).
@@ -2951,9 +3135,10 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
         logger.info(f"Iniciando varredura ({len(fontes)} fontes) nos ciclos: {', '.join(ciclos)}")
 
         candidatos_brutos: List[Dict[str, str]] = []
+        resultados_saude: Dict[str, Dict[str, Any]] = {}
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS_COLETA) as executor:
             futuros = [
-                executor.submit(extrair_candidatos_fonte, fonte, ids_conhecidos)
+                executor.submit(extrair_candidatos_fonte, fonte, ids_conhecidos, resultados_saude)
                 for fonte in fontes
             ]
             for futuro in concurrent.futures.as_completed(futuros):
@@ -2962,11 +3147,14 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
                 except Exception as err_fonte:
                     logger.warning(f"Erro isolado ao coletar uma das fontes: {err_fonte}")
 
+        alertas_saude = atualizar_saude_fontes(memoria, resultados_saude)
+
         STATUS_VARREDURA["mensagem"] = f"Analisando {len(candidatos_brutos)} novos candidatos..."
         novos_qualificados = analisar_candidatos_com_gemini(candidatos_brutos) if candidatos_brutos else []
 
         hoje_br = datetime.date.today().strftime("%d/%m/%Y")
         novos_count = 0
+        retificacoes_detectadas: List[Dict[str, Any]] = []
         for ed in novos_qualificados:
             id_ed = ed.get("id_edital") or gerar_id_edital(ed["orgao"], ed["link"])
             ed["id_edital"] = id_ed
@@ -2975,15 +3163,25 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
                 ed["data_descoberta"] = hoje_br
                 novos_count += 1
             else:
-                ed["data_descoberta"] = historico_editais[id_ed].get("data_descoberta") or hoje_br
+                ed_anterior = historico_editais[id_ed]
+                ed["data_descoberta"] = ed_anterior.get("data_descoberta") or hoje_br
+                ret = detectar_retificacao_edital(ed_anterior, ed, hoje_br)
+                if ret:
+                    ed["retificacao_recente"] = ret
+                    retificacoes_detectadas.append(ret)
             ed["data_atualizacao"] = hoje_br
             ed["origem"] = "REAL"
             historico_editais[id_ed] = ed
 
-        # Revalida a base preservando a data original de descoberta de cada edital
+        # Revalida a base preservando a data original de descoberta de cada edital e detectando prorrogações
         for id_ed, ed_hist in list(historico_editais.items()):
             desc_original = _normalizar_data_br(ed_hist.get("data_descoberta", ""), hoje_br)
+            copia_antes = dict(ed_hist)
             ed_hist = calibrar_edital_cais(ed_hist, atualizar_timestamp=True)
+            ret = detectar_retificacao_edital(copia_antes, ed_hist, hoje_br)
+            if ret:
+                ed_hist["retificacao_recente"] = ret
+                retificacoes_detectadas.append(ret)
             ed_hist["data_descoberta"] = desc_original
             ed_hist["data_atualizacao"] = hoje_br
             historico_editais[id_ed] = ed_hist
@@ -2994,18 +3192,27 @@ def executar_varredura(modo_ciclo: str = "auto", dry_run: bool = False) -> Dict[
             if dias is not None and 0 <= dias <= 7:
                 alertas_urgencia.append(ed)
 
-        relatorio_md = montar_relatorio_markdown(ciclos, novos_qualificados, alertas_urgencia)
-        relatorio_html = montar_relatorio_html(ciclos, novos_qualificados, alertas_urgencia)
+        is_segunda_feira = datetime.date.today().weekday() == 0
+        top5_semanal = obter_top5_vigentes_cais(historico_editais) if is_segunda_feira else []
+
+        relatorio_md = montar_relatorio_markdown(
+            ciclos, novos_qualificados, alertas_urgencia, retificacoes_detectadas, top5_semanal, alertas_saude
+        )
+        relatorio_html = montar_relatorio_html(
+            ciclos, novos_qualificados, alertas_urgencia, retificacoes_detectadas, top5_semanal, alertas_saude
+        )
 
         if not dry_run:
             ARQUIVO_RELATORIO_MD.write_text(relatorio_md, encoding="utf-8")
             ARQUIVO_RELATORIO_HTML.write_text(relatorio_html, encoding="utf-8")
             salvar_memoria_e_exportar(memoria)
-            if novos_qualificados or alertas_urgencia:
-                assunto = (
-                    f"[Radar CAIS] {len(novos_qualificados)} novas oportunidades qualificadas "
-                    f"({datetime.date.today().strftime('%d/%m/%Y')})"
-                )
+            if novos_qualificados or alertas_urgencia or retificacoes_detectadas or alertas_saude or is_segunda_feira:
+                if is_segunda_feira and not novos_qualificados and not retificacoes_detectadas:
+                    assunto = f"[Radar CAIS] Mapa Top 5 da Semana ({hoje_br})"
+                elif retificacoes_detectadas:
+                    assunto = f"[Radar CAIS] ⚠️ {len(retificacoes_detectadas)} retificação(ões) e {len(novos_qualificados)} novidade(s) ({hoje_br})"
+                else:
+                    assunto = f"[Radar CAIS] {len(novos_qualificados)} novas oportunidades qualificadas ({hoje_br})"
                 enviar_notificacoes(assunto, relatorio_md, relatorio_html)
 
         resultado = {

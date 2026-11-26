@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let modoVisualizacao = 'cards'; // 'cards', 'tabela', 'cronograma' ou 'pipeline'
   let varreduraEmProgresso = false;
   let filtrarApenasFavoritos = false;
+  let filtrarApenasNovos7d = false;
   const CHAVE_STORAGE_GESTAO = 'radar_cais_gestao_v1';
   let gestaoInterna = carregarGestaoLocal();
 
@@ -45,6 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const chkOcultarEncerrados = document.getElementById('chkOcultarEncerrados');
   const btnResetarFiltros = document.getElementById('btnResetarFiltros');
   const btnLimparFiltrosTopo = document.getElementById('btnLimparFiltrosTopo');
+  const btnToggleFiltros = document.getElementById('btnToggleFiltros');
+  const textoToggleFiltros = document.getElementById('textoToggleFiltros');
+  const corpoPainelFiltros = document.getElementById('corpoPainelFiltros');
 
   // Cards KPI Clicáveis
   const cardKpiTotal = document.getElementById('cardKpiTotal');
@@ -81,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnEditalProximo = document.getElementById('btnEditalProximo');
   const indiceNavModal = document.getElementById('indiceNavModal');
   const btnLinkOficial = document.getElementById('btnLinkOficial');
+  const btnCopiarLinkEdital = document.getElementById('btnCopiarLinkEdital');
   const btnCopiarResumo = document.getElementById('btnCopiarResumo');
   const btnGerarMinuta = document.getElementById('btnGerarMinuta');
   const btnTogglePreviaConvite = document.getElementById('btnTogglePreviaConvite');
@@ -220,6 +225,22 @@ document.addEventListener('DOMContentLoaded', () => {
       btnLimparFiltrosTopo.addEventListener('click', resetarFiltros);
     }
 
+    // Encolher / Expandir painel de filtros para visual ainda mais limpo
+    if (btnToggleFiltros && corpoPainelFiltros) {
+      btnToggleFiltros.addEventListener('click', () => {
+        const estavaOculto = corpoPainelFiltros.style.display === 'none';
+        corpoPainelFiltros.style.display = estavaOculto ? 'flex' : 'none';
+        painelFiltros.classList.toggle('recolhido', !estavaOculto);
+        btnToggleFiltros.setAttribute('aria-expanded', estavaOculto ? 'true' : 'false');
+        if (textoToggleFiltros) {
+          textoToggleFiltros.textContent = estavaOculto ? '▲ Encolher filtros' : '▼ Mostrar filtros';
+        }
+      });
+    }
+
+    // Suporte a Deep Link (#edital=ID) ao mudar a URL
+    window.addEventListener('hashchange', abrirEditalPorHashUrl);
+
     // Clique e Teclado (Enter/Espaço) nos KPIs Superiores para Filtragem Rápida
     const vincularKpiAtalho = (el, tipo) => {
       if (!el) return;
@@ -261,22 +282,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (tipo === 'todos') {
           filtrarApenasFavoritos = false;
+          filtrarApenasNovos7d = false;
           filtroDecisao.value = '';
           filtroOrgao.value = '';
           filtroPrazo.value = '';
           if (filtroLaboratorio) filtroLaboratorio.value = '';
         } else if (tipo === 'go') {
           filtrarApenasFavoritos = false;
+          filtrarApenasNovos7d = false;
           filtroDecisao.value = 'GO';
+          filtroOrgao.value = '';
+          filtroPrazo.value = '';
+        } else if (tipo === 'novos') {
+          filtrarApenasFavoritos = false;
+          filtrarApenasNovos7d = true;
+          filtroDecisao.value = '';
           filtroOrgao.value = '';
           filtroPrazo.value = '';
         } else if (tipo === 'urgente') {
           filtrarApenasFavoritos = false;
+          filtrarApenasNovos7d = false;
           filtroPrazo.value = 'urgente';
           filtroDecisao.value = '';
           filtroOrgao.value = '';
         } else if (tipo === 'favoritos') {
           filtrarApenasFavoritos = true;
+          filtrarApenasNovos7d = false;
           filtroDecisao.value = '';
           filtroOrgao.value = '';
           filtroPrazo.value = '';
@@ -288,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } else if (tipo === 'orgao') {
           filtrarApenasFavoritos = false;
+          filtrarApenasNovos7d = false;
           filtroOrgao.value = valor || '';
           filtroDecisao.value = '';
           filtroPrazo.value = '';
@@ -443,6 +475,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (editalSelecionado) copiarConviteParceiro(editalSelecionado);
       });
     }
+    if (btnCopiarLinkEdital) {
+      btnCopiarLinkEdital.addEventListener('click', () => {
+        if (!editalSelecionado) return;
+        const linkDireto = obterLinkDiretoEdital(editalSelecionado);
+        copiarParaAreaDeTransferencia(
+          linkDireto,
+          '🔗 Link direto deste edital copiado! Quem abrir vai direto para esta janela.'
+        );
+      });
+    }
 
     // Eventos do Copiloto CAIS (RAG + LLM) & Motor Preditivo (Machine Learning)
     configurarEventosCopilotoRagMl();
@@ -493,6 +535,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filtrarApenasFavoritos) {
       const chipFav = chipsContainer.querySelector('[data-tipo="favoritos"]');
       if (chipFav) chipFav.classList.add('ativo');
+    } else if (filtrarApenasNovos7d) {
+      const chipNovos = chipsContainer.querySelector('[data-tipo="novos"]');
+      if (chipNovos) chipNovos.classList.add('ativo');
     } else if (!dec && !org && !prz && !lab) {
       const chipTodos = chipsContainer.querySelector('[data-tipo="todos"]');
       if (chipTodos) chipTodos.classList.add('ativo');
@@ -606,6 +651,32 @@ document.addEventListener('DOMContentLoaded', () => {
       false
     );
     aplicarFiltros();
+    abrirEditalPorHashUrl();
+  }
+
+  function obterLinkDiretoEdital(ed) {
+    if (!ed || !ed.id_edital) return 'https://jaimeabreu2.github.io/radar-cais/';
+    const base = window.location.protocol.startsWith('http')
+      ? `${window.location.origin}${window.location.pathname}`
+      : 'https://jaimeabreu2.github.io/radar-cais/';
+    return `${base}#edital=${encodeURIComponent(ed.id_edital)}`;
+  }
+
+  function abrirEditalPorHashUrl() {
+    const hash = String(window.location.hash || '');
+    const m = hash.match(/#edital=([a-zA-Z0-9_\-]+)/);
+    if (!m || editais.length === 0) return;
+    const idAlvo = decodeURIComponent(m[1]);
+    const edAlvo = editais.find(e => e.id_edital === idAlvo);
+    if (edAlvo) {
+      abrirModal(edAlvo);
+    }
+  }
+
+  function ehDescobertoUltimos7Dias(ed) {
+    if (!ed || !ed.data_descoberta) return false;
+    const dias = calcularDiasRestantes(ed.data_descoberta);
+    return dias !== null && dias <= 0 && dias >= -7;
   }
 
   function popularFiltroOrgaos() {
@@ -717,7 +788,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (tipo === 'todos') qtd = total;
       else if (tipo === 'go') qtd = gos;
-      else if (tipo === 'urgente') qtd = urgentes;
+      else if (tipo === 'novos') {
+        qtd = editais.filter(e => ehDescobertoUltimos7Dias(e)).length;
+      } else if (tipo === 'urgente') qtd = urgentes;
       else if (tipo === 'favoritos') {
         qtd = editais.filter(e => Boolean(obterGestaoEdital(e.id_edital).favorito)).length;
       } else if (tipo === 'orgao' && valor) {
@@ -743,6 +816,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (filtrarApenasFavoritos) {
         const infoFav = obterGestaoEdital(ed.id_edital);
         if (!infoFav.favorito) return false;
+      }
+
+      // Filtro de Novos desta semana (últimos 7 dias)
+      if (filtrarApenasNovos7d && !ehDescobertoUltimos7Dias(ed)) {
+        return false;
       }
 
       // Filtro por Laboratório / Núcleo CAIS recomendado
@@ -818,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return 0;
     });
 
-    const temFiltroAtivo = Boolean(termo || decisao || orgao || prazo || laboratorio || filtrarApenasFavoritos || (chkOcultarEncerrados && !chkOcultarEncerrados.checked));
+    const temFiltroAtivo = Boolean(termo || decisao || orgao || prazo || laboratorio || filtrarApenasFavoritos || filtrarApenasNovos7d || (chkOcultarEncerrados && !chkOcultarEncerrados.checked));
     if (btnLimparFiltrosTopo) {
       btnLimparFiltrosTopo.style.display = temFiltroAtivo ? 'inline-flex' : 'none';
     }
@@ -928,11 +1006,15 @@ document.addEventListener('DOMContentLoaded', () => {
         badgeSemaforo = '<span class="badge-tag badge-encerrado">● NO-GO</span>';
       }
 
-      // Tag Prazo Crítico
+      // Tag Prazo Crítico e Retificação Recente
       let badgeUrgente = '';
       if (isUrgente) {
         badgeUrgente = `<span class="badge-tag badge-urgente">${dias === 0 ? 'Vence hoje' : `Prazo: ${dias}d`}</span>`;
       }
+      const retCard = ed.retificacao_recente;
+      const badgeRetificacao = (retCard && retCard.de && retCard.para)
+        ? `<span class="badge-tag badge-retificacao" title="Retificação detectada em ${escapeHtml(retCard.data || '')}: de ${escapeHtml(retCard.de)} para ${escapeHtml(retCard.para)}">⚠️ Prazo alterado: ${escapeHtml(retCard.para)}</span>`
+        : '';
 
       const valorCurto = resumirValorCard(ed.valor_financiado);
       const prazoCurto = resumirPrazoCard(ed.prazo_submissao, dias);
@@ -967,6 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="badge-tag badge-orgao">${escapeHtml(ed.orgao)}</span>
               ${badgeSemaforo}
               ${badgeUrgente}
+              ${badgeRetificacao}
               ${badgeEtapaInterna}
             </div>
             <div class="nota-circulo nota-circulo-didatica" title="Nota Ponderada CAIS (${scoreNum.toFixed(1)} de 10)">
@@ -1375,11 +1458,16 @@ document.addEventListener('DOMContentLoaded', () => {
         : '<span class="badge-tag badge-origem-real" title="Consulte o anexo PDF oficial na página do órgão">Conferir Anexo Oficial</span>');
 
     const labCaisModal = obterLaboratorioCais(ed);
+    const retModal = ed.retificacao_recente;
+    const badgeRetModal = (retModal && retModal.de && retModal.para)
+      ? `<span class="badge-tag badge-retificacao">⚠️ Prazo alterado: de ${escapeHtml(retModal.de)} para ${escapeHtml(retModal.para)}</span>`
+      : '';
     tagsModal.innerHTML = `
       <span class="badge-tag badge-orgao">${escapeHtml(ed.orgao)}</span>
       ${tagDecisaoModal}
       <span class="badge-tag font-mono">Score: ${Number(ed.score_ponderado || 0).toFixed(1)}/10</span>
       ${isUrgente ? `<span class="badge-tag badge-urgente">${dias === 0 ? 'Encerra Hoje' : `Restam ${dias} dias`}</span>` : ''}
+      ${badgeRetModal}
       <span class="badge-lab-cais">${escapeHtml(labCaisModal)}</span>
       ${badgeProveniencia}
     `;
@@ -1517,6 +1605,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fundoModal.classList.add('aberto');
     document.body.style.overflow = 'hidden';
+    if (ed.id_edital && window.history && typeof window.history.replaceState === 'function') {
+      try {
+        window.history.replaceState(null, '', `#edital=${encodeURIComponent(ed.id_edital)}`);
+      } catch (e) {}
+    }
   }
 
   function atualizarEstadoBotaoFavoritoModal(ed) {
@@ -1532,6 +1625,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     fundoModal.classList.remove('aberto');
     document.body.style.overflow = '';
+    if (window.location.hash.startsWith('#edital=') && window.history && typeof window.history.replaceState === 'function') {
+      try {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+      } catch (e) {}
+    }
   }
 
   function copiarParaAreaDeTransferencia(texto, msgSucesso) {
@@ -1656,7 +1754,8 @@ document.addEventListener('DOMContentLoaded', () => {
       `• O que o Instituto CAIS entrega: ${perfil.papelCais}`,
       `• O que caberia a vocês: ${perfil.papelParceiro}`,
       '',
-      `Link oficial do edital: ${ed.link || ''}`,
+      `• Página oficial do edital: ${ed.link || ''}`,
+      `• Resumo e plano no Radar CAIS: ${obterLinkDiretoEdital(ed)}`,
       '',
       'Faz sentido conversarmos 15 minutos esta semana para avaliarmos se vale seguirmos juntos nessa oportunidade?',
       '',
@@ -1855,6 +1954,7 @@ ${ed.parceiros_sugeridos}
     btnLimparBusca.style.display = 'none';
     if (dicaAtalhoBusca) dicaAtalhoBusca.style.display = 'inline-block';
     filtrarApenasFavoritos = false;
+    filtrarApenasNovos7d = false;
     filtroDecisao.value = '';
     filtroOrgao.value = '';
     filtroPrazo.value = '';
@@ -2481,8 +2581,11 @@ ${ed.parceiros_sugeridos}
           </div>
 
           <div class="card-rodape">
-            <a href="${escapeHtml(ed.link || '#')}" target="_blank" rel="noopener noreferrer" class="link-oficial">Abrir página oficial do edital &rarr;</a>
-            <button type="button" class="btn-copiar-item" data-texto="${escapeHtml(textoIndividual)}">Copiar resumo deste edital</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <a href="${escapeHtml(ed.link || '#')}" target="_blank" rel="noopener noreferrer" class="btn-copiar-item" style="text-decoration:none; background:#0284C7; color:#FFFFFF; border-color:#0284C7;" title="Abrir a página oficial do órgão financiador">🌐 Página Oficial</a>
+              <a href="${escapeHtml(obterLinkDiretoEdital(ed))}" target="_blank" rel="noopener noreferrer" class="btn-copiar-item" style="text-decoration:none;" title="Abrir este edital direto no painel Radar CAIS">🔗 Abrir no Radar CAIS</a>
+            </div>
+            <button type="button" class="btn-copiar-item" data-texto="${escapeHtml(textoIndividual)}">Copiar resumo</button>
           </div>
         </article>
       `;

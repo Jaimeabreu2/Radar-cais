@@ -10,7 +10,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261126_mapa_v7">
+  <link rel="stylesheet" href="style.css?v=20261126_pack6_v8">
 </head>
 
 <body>
@@ -337,6 +337,15 @@
 
     <!-- PAINEL DE FILTROS -->
     <section class="painel-filtros" id="painelFiltros" style="display:none;">
+      <div class="cabecalho-painel-filtros">
+        <span class="titulo-painel-filtros">Busca e Filtros Rápidos</span>
+        <button type="button" class="btn-toggle-filtros" id="btnToggleFiltros" aria-expanded="true"
+          title="Encolher ou expandir a barra de filtros para deixar a tela ainda mais limpa">
+          <span id="textoToggleFiltros">▲ Encolher filtros</span>
+        </button>
+      </div>
+
+      <div class="corpo-painel-filtros" id="corpoPainelFiltros">
       <div class="busca-amigavel">
         <span class="icone-lupa">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -356,6 +365,8 @@
         <div class="chips-container" id="chipsContainer">
           <button class="chip-filtro ativo" data-tipo="todos">Todos</button>
           <button class="chip-filtro chip-go" data-tipo="go">● Recomendados (GO)</button>
+          <button class="chip-filtro chip-novos" data-tipo="novos"
+            title="Mostrar apenas editais descobertos nos últimos 7 dias">✨ Novos (7d)</button>
           <button class="chip-filtro chip-urgente" data-tipo="urgente">Prazo Crítico (&le; 7d)</button>
           <button class="chip-filtro chip-favoritos" data-tipo="favoritos"
             title="Filtrar editais marcados com estrela pela equipe de prospecção CAIS">★ Favoritos</button>
@@ -461,6 +472,7 @@
             </button>
           </div>
         </div>
+      </div>
       </div>
     </section>
 
@@ -782,10 +794,16 @@
             Copiar Minuta Técnica (1-Page)
           </button>
         </div>
-        <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-primario botao-grande"
-          id="btnLinkOficial">
-          Acessar Página Oficial do Órgão &rarr;
-        </a>
+        <div class="rodape-modal-direita">
+          <button class="botao botao-secundario botao-grande btn-link-direto-edital" id="btnCopiarLinkEdital" type="button"
+            title="Copiar link direto que abre exatamente este edital no Radar CAIS">
+            🔗 Link deste Edital
+          </button>
+          <a href="#" target="_blank" rel="noopener noreferrer" class="botao botao-primario botao-grande"
+            id="btnLinkOficial" title="Abrir a página oficial do órgão financiador em nova aba">
+            🌐 Página Oficial &rarr;
+          </a>
+        </div>
       </div>
 
     </div>
@@ -808,7 +826,7 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261126_mapa_v7"></script>
+  <script src="app.js?v=20261126_pack6_v8"></script>
 </body>
 
 </html>
