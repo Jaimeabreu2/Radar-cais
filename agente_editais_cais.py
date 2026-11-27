@@ -189,7 +189,7 @@ FONTES_FOMENTO: Dict[str, List[Dict[str, str]]] = {
             "orgao": "FINEP",
             "esfera": "Federal",
             "foco": "Subvenção econômica, infraestrutura para ICTs e chamadas do FNDCT (Mais Inovação Brasil)",
-            "url": "https://www.finep.gov.br/chamadas-publicas/chamadas-publicas?situacao=aberta",
+            "url": "https://www.finep.gov.br/chamadas-publicas",
         },
         {
             "orgao": "Petrobras",
@@ -1208,6 +1208,74 @@ def _extrair_horizon_europe_api(
     return candidatos
 
 
+def _extrair_finep_api_liferay(
+    sessao: requests.Session, fonte: Dict[str, str], ids_conhecidos: set
+) -> List[Dict[str, str]]:
+    """Coleta chamadas públicas abertas diretamente da API REST oficial do novo portal Liferay da FINEP."""
+    candidatos: List[Dict[str, str]] = []
+    orgao = fonte["orgao"]
+    api_url = "https://www.finep.gov.br/o/c/chamadapublicas/?pageSize=25&sort=dateCreated:desc"
+    try:
+        resp = sessao.get(api_url, headers={"Accept": "application/json"}, timeout=25)
+        if not resp or resp.status_code != 200:
+            return candidatos
+        dados = resp.json()
+        for it in dados.get("items", []):
+            sit = it.get("situacao") or {}
+            sit_key = (sit.get("key") or "").lower() if isinstance(sit, dict) else str(sit).lower()
+            if sit_key and sit_key != "aberta":
+                continue
+            cid = it.get("id")
+            titulo = " ".join(str(it.get("titulo") or "").split()).strip()
+            if not cid or not titulo or len(titulo) < 10:
+                continue
+            link_call = f"https://www.finep.gov.br/e/chamada-publica/222684/{cid}"
+            id_ed = gerar_id_edital(orgao, link_call)
+            if id_ed in ids_conhecidos:
+                continue
+
+            def _iso_para_br(iso_val: Any) -> str:
+                m_iso = re.match(r"^(20[23]\d)-(\d{2})-(\d{2})", str(iso_val or ""))
+                return f"{m_iso.group(3)}/{m_iso.group(2)}/{m_iso.group(1)}" if m_iso else ""
+
+            prazo_br = _iso_para_br(it.get("prazoProposto"))
+            pub_br = _iso_para_br(it.get("dataDePublicacao"))
+            vig_fim = _iso_para_br(it.get("vigenciaFim"))
+            desc_raw = str(it.get("descricaoRawText") or "")
+            if not desc_raw and it.get("descricao"):
+                desc_raw = BeautifulSoup(str(it["descricao"]), "html.parser").get_text(" ", strip=True)
+            desc_limpa = " ".join(desc_raw.split())[:2000]
+
+            valores_found = REGEX_VALOR_MOEDA.findall(desc_limpa)
+            valor_str = valores_found[0].strip() if valores_found else ""
+            etapas_parts = []
+            if pub_br:
+                etapas_parts.append(f"Publicação: {pub_br}")
+            if prazo_br:
+                etapas_parts.append(f"Envio de Propostas: até {prazo_br}")
+            if vig_fim:
+                etapas_parts.append(f"Vigência: até {vig_fim}")
+
+            candidatos.append(
+                {
+                    "id_edital": id_ed,
+                    "orgao": orgao,
+                    "esfera": fonte.get("esfera", "Federal"),
+                    "foco_orgao": fonte["foco"],
+                    "titulo_bruto": titulo[:180],
+                    "link": link_call,
+                    "contexto_listagem": desc_limpa[:400] or titulo,
+                    "texto_interno": desc_limpa,
+                    "datas_detectadas": prazo_br,
+                    "cronograma_etapas": " • ".join(etapas_parts),
+                    "valores_detectados": valor_str,
+                }
+            )
+    except Exception as e:
+        logger.debug(f"API REST Liferay da FINEP indisponível no momento: {e}")
+    return candidatos
+
+
 def extrair_candidatos_fonte(
     fonte: Dict[str, str], ids_conhecidos: set, saude_out: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, str]]:
@@ -1219,6 +1287,13 @@ def extrair_candidatos_fonte(
     def _marcar_saude(ok: bool, erro: str = "") -> None:
         if saude_out is not None:
             saude_out[url_base] = {"orgao": orgao, "url": url_base, "ok": ok, "erro": erro}
+
+    if "finep" in orgao.lower():
+        cand_fn = _extrair_finep_api_liferay(sessao, fonte, ids_conhecidos)
+        if cand_fn:
+            _marcar_saude(True)
+            logger.info(f"[{orgao}] {len(cand_fn)} chamadas abertas extraídas via API REST oficial da FINEP.")
+            return cand_fn
 
     if "horizon europe" in orgao.lower():
         cand_he = _extrair_horizon_europe_api(sessao, fonte, ids_conhecidos)
@@ -1730,6 +1805,20 @@ def calibrar_edital_cais(ed: Dict[str, Any], atualizar_timestamp: bool = False) 
                 "justificativa_cais": "Captação direta para equipar o Instituto CAIS e a UECE com infraestrutura laboratorial de classe mundial sem necessidade de empresa líder.",
                 "resumo_objetivo": "Apoio financeiro não reembolsável para compra de equipamentos científicos de grande porte, servidores de IA, obras de adaptação e laboratórios multiusuários em ICTs brasileiras.",
                 "nota_aderencia": 9.7, "nota_chance_aprovacao": 8.5, "nota_financeira": 9.8, "nota_complexidade": 4.0,
+            })
+        elif "pesquisa não clínica" in t_low or "clinica estrategica para o sus" in t_low or "/1171625" in t_low:
+            dados.update({
+                "titulo": "FINEP / MCTI — Pesquisa Não Clínica e Clínica Estratégica para o SUS",
+                "valor_financiado": "R$ 120.000.000,00 (FNDCT — Não Reembolsável)",
+                "prazo_submissao": "03/04/2027",
+                "cronograma_etapas": "Publicação: 25/11/2026 • Envio de Propostas: até 03/04/2027 (18h) • Vigência da Chamada: até 30/07/2027",
+                "contrapartida": "Financeira (conforme regras da chamada; dúvidas: cp_pesquisa_clinica_ict@finep.gov.br)",
+                "publico_elegivel": "Exclusivamente ICTs (Instituições Científicas, Tecnológicas e de Inovação) de todo o Brasil — Instituto CAIS/UECE elegíveis diretamente.",
+                "ideia_projeto_cais": "Desenvolver plataforma digital com Inteligência Artificial e ciência de dados para modelagem preditiva, gestão e aceleração de ensaios não clínicos e clínicos estratégicos para o SUS e o CEIS.",
+                "parceiros_sugeridos": "UECE (Centro de Ciências da Saúde e Computação), Fiocruz Ceará, Hospitais Universitários (HUWC/UFC) e SESA-CE.",
+                "justificativa_cais": "Chamada de R$ 120 milhões voltada diretamente a ICTs que cita explicitamente ferramentas digitais e Inteligência Artificial aplicadas a plataformas de pesquisa clínica para o SUS.",
+                "resumo_objetivo": "Seleção Pública MCTI/FINEP/FNDCT de R$ 120 milhões em recursos não-reembolsáveis para ICTs fortalecerem plataformas tecnológicas, ensaios não clínicos e clínicos, ferramentas digitais e IA de interesse estratégico para o SUS e o CEIS.",
+                "nota_aderencia": 9.2, "nota_chance_aprovacao": 8.3, "nota_financeira": 9.8, "nota_complexidade": 4.5,
             })
         elif "agricultura familiar" in t_low or "/769" in t_low or "/783" in t_low:
             dados.update({
