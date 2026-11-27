@@ -1239,6 +1239,13 @@ def _extrair_finep_api_liferay(
                 return f"{m_iso.group(3)}/{m_iso.group(2)}/{m_iso.group(1)}" if m_iso else ""
 
             prazo_br = _iso_para_br(it.get("prazoProposto"))
+            if prazo_br:
+                dias_rest = calcular_dias_restantes(prazo_br)
+                if dias_rest is not None and dias_rest < 0:
+                    continue
+            else:
+                prazo_br = "Fluxo Contínuo"
+
             pub_br = _iso_para_br(it.get("dataDePublicacao"))
             vig_fim = _iso_para_br(it.get("vigenciaFim"))
             desc_raw = str(it.get("descricaoRawText") or "")
@@ -1251,7 +1258,9 @@ def _extrair_finep_api_liferay(
             etapas_parts = []
             if pub_br:
                 etapas_parts.append(f"Publicação: {pub_br}")
-            if prazo_br:
+            if prazo_br == "Fluxo Contínuo":
+                etapas_parts.append("Recebimento em Fluxo Contínuo")
+            else:
                 etapas_parts.append(f"Envio de Propostas: até {prazo_br}")
             if vig_fim:
                 etapas_parts.append(f"Vigência: até {vig_fim}")
@@ -1267,7 +1276,7 @@ def _extrair_finep_api_liferay(
                     "contexto_listagem": desc_limpa[:400] or titulo,
                     "texto_interno": desc_limpa,
                     "datas_detectadas": prazo_br,
-                    "cronograma_etapas": " • ".join(etapas_parts),
+                    "cronograma_etapas": " • ".join(etapas_parts) or f"Prazo limite verificado na API oficial FINEP: {prazo_br}",
                     "valores_detectados": valor_str,
                 }
             )
