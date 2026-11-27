@@ -1255,6 +1255,25 @@ def _extrair_finep_api_liferay(
 
             valores_found = REGEX_VALOR_MOEDA.findall(desc_limpa)
             valor_str = valores_found[0].strip() if valores_found else ""
+            publico_lista = [
+                str(p.get("name", "")).strip()
+                for p in (it.get("publicoAlvo") or [])
+                if isinstance(p, dict) and p.get("name")
+            ]
+            if len(publico_lista) >= 4 and all("receita:" in p.lower() for p in publico_lista):
+                publico_api = "Empresas brasileiras de todos os portes (MEI/Micro até Grande porte)"
+            else:
+                publico_api = ", ".join(publico_lista)
+            regiao_api = str((it.get("regiao") or {}).get("name") or "").strip()
+            contra_api = str((it.get("contrapartida") or {}).get("name") or "").strip()
+            tipo_api = str((it.get("tipoDeOportunidade") or {}).get("name") or "").strip()
+            if publico_api and regiao_api:
+                publico_api = f"{publico_api} — Abrangência: {regiao_api}"
+            elif regiao_api:
+                publico_api = f"Consultar edital oficial — Abrangência: {regiao_api}"
+            if contra_api and tipo_api:
+                contra_api = f"{contra_api} ({tipo_api})"
+
             etapas_parts = []
             if pub_br:
                 etapas_parts.append(f"Publicação: {pub_br}")
@@ -1278,6 +1297,9 @@ def _extrair_finep_api_liferay(
                     "datas_detectadas": prazo_br,
                     "cronograma_etapas": " • ".join(etapas_parts) or f"Prazo limite verificado na API oficial FINEP: {prazo_br}",
                     "valores_detectados": valor_str,
+                    "publico_api": publico_api,
+                    "contrapartida_api": contra_api,
+                    "regiao_api": regiao_api,
                 }
             )
     except Exception as e:
@@ -2758,6 +2780,21 @@ def _qualificar_candidatos_heuristica_local(
 
         if not eh_oportunidade_valida(titulo, c.get("link", "")):
             continue
+
+        # Prioriza metadados estruturados vindos diretamente de APIs oficiais (ex.: FINEP Liferay)
+        if c.get("publico_api"):
+            publico = c["publico_api"]
+        if c.get("contrapartida_api"):
+            contrapartida = c["contrapartida_api"]
+        regiao_api_low = str(c.get("regiao_api") or "").lower()
+        if regiao_api_low and regiao_api_low not in ("todo brasil", "nacional", "nordeste", "ceará", "ceara"):
+            aderencia = min(aderencia, 6.5)
+            chance = min(chance, 6.0)
+            decisao, prioridade = "AVALIAR COM PARCEIRO", "Média"
+            justificativa = (
+                f"Chamada com abrangência regional ({c.get('regiao_api')}). "
+                "Participação do Instituto CAIS (CE) depende de parceria com instituição sediada na região elegível."
+            )
 
         item = {
             "id_edital": c["id_edital"],
