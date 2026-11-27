@@ -1321,24 +1321,21 @@ def extrair_candidatos_fonte(
 
     if "finep" in orgao.lower():
         cand_fn = _extrair_finep_api_liferay(sessao, fonte, ids_conhecidos)
-        if cand_fn:
-            _marcar_saude(True)
-            logger.info(f"[{orgao}] {len(cand_fn)} chamadas abertas extraídas via API REST oficial da FINEP.")
-            return cand_fn
+        _marcar_saude(True)
+        logger.info(f"[{orgao}] {len(cand_fn)} novas chamadas abertas extraídas via API REST oficial da FINEP.")
+        return cand_fn
 
     if "horizon europe" in orgao.lower():
         cand_he = _extrair_horizon_europe_api(sessao, fonte, ids_conhecidos)
-        if cand_he:
-            _marcar_saude(True)
-            logger.info(f"[{orgao}] {len(cand_he)} candidatos extraídos via API oficial SEDIA.")
-            return cand_he
+        _marcar_saude(True)
+        logger.info(f"[{orgao}] {len(cand_he)} novos candidatos extraídos via API oficial SEDIA.")
+        return cand_he
 
     if "funcap" in orgao.lower() and "montenegro.funcap.ce.gov.br" in url_base.lower():
         cand_fc = _extrair_funcap_montenegro(sessao, fonte, ids_conhecidos)
-        if cand_fc:
-            _marcar_saude(True)
-            logger.info(f"[{orgao}] {len(cand_fc)} editais 2026 extraídos via Plataforma Montenegro.")
-            return cand_fc
+        _marcar_saude(True)
+        logger.info(f"[{orgao}] {len(cand_fc)} novos editais 2026 extraídos via Plataforma Montenegro.")
+        return cand_fc
 
     try:
         resposta = _requisicao_get_resiliente(sessao, url_base, timeout=25)
